@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiniela Copa del Mundo 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Glows de Fondo -->
+  <div class="bg-glows">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+  </div>
+
+  <!-- Navbar -->
+  <header>
+    <div class="navbar">
+      <a href="#" class="brand">
+        <div class="brand-logo">26</div>
+        <div class="brand-text">QUINIELA<span>2026</span></div>
+      </a>
+      <div class="nav-controls">
+        <button id="theme-toggle" class="btn btn-icon-only" title="Cambiar Tema">
+          <i data-lucide="sun"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- Tab Buttons -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-target="#tab-dashboard">
+        <i data-lucide="layout-dashboard"></i> Resumen
+      </button>
+      <button class="tab-btn" data-target="#tab-schedule">
+        <i data-lucide="calendar-days"></i> Calendario
+      </button>
+      <button class="tab-btn" data-target="#tab-leaderboard">
+        <i data-lucide="trophy"></i> Clasificación
+      </button>
+      <button class="tab-btn" data-target="#tab-predictions">
+        <i data-lucide="edit-3"></i> Pronósticos
+      </button>
+      <button class="tab-btn" data-target="#tab-admin">
+        <i data-lucide="settings"></i> Admin Resultados
+      </button>
+      <button class="tab-btn" data-target="#tab-config">
+        <i data-lucide="sliders"></i> Ajustes / Exportar
+      </button>
+    </nav>
+
+    <!-- TAB: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <!-- Summary Cards -->
+      <div class="dashboard-summary">
+        <div class="glass-card summary-card">
+          <div class="summary-icon primary">
+            <i data-lucide="users"></i>
+          </div>
+          <div class="summary-info">
+            <h4>Jugadores</h4>
+            <p id="stat-players">0</p>
+          </div>
+        </div>
+        <div class="glass-card summary-card">
+          <div class="summary-icon secondary">
+            <i data-lucide="calendar"></i>
+          </div>
+          <div class="summary-info">
+            <h4>Partidos Jugados</h4>
+            <p id="stat-matches">0 / 104</p>
+          </div>
+        </div>
+        <div class="glass-card summary-card">
+          <div class="summary-icon accent">
+            <i data-lucide="check-square"></i>
+          </div>
+          <div class="summary-info">
+            <h4>Pronósticos Totales</h4>
+            <p id="stat-predictions">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Podium & Highlights -->
+      <div class="glass-card">
+        <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
+        <div id="podium-container" style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
+          <!-- Se cargará dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: CALENDARIO -->
+    <section id="tab-schedule" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title"><i data-lucide="calendar-days"></i> Calendario de Partidos - Mundial 2026</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Consulta las fechas, horas, sedes y resultados de los 104 partidos del torneo. Filtra por fase o busca por país.
+        </p>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="filters-group">
+            <select id="filter-group-schedule" class="select-custom">
+              <option value="ALL">Fase del Torneo (Todos)</option>
+              <option value="Group Stage">Fase de Grupos</option>
+              <option value="Group A">Grupo A</option>
+              <option value="Group B">Grupo B</option>
+              <option value="Group C">Grupo C</option>
+              <option value="Group D">Grupo D</option>
+              <option value="Group E">Grupo E</option>
+              <option value="Group F">Grupo F</option>
+              <option value="Group G">Grupo G</option>
+              <option value="Group H">Grupo H</option>
+              <option value="Group I">Grupo I</option>
+              <option value="Group J">Grupo J</option>
+              <option value="Group K">Grupo K</option>
+              <option value="Group L">Grupo L</option>
+              <option value="Knockout Stage">Eliminatorias</option>
+              <option value="Round of 32">Dieciseisavos (R32)</option>
+              <option value="Round of 16">Octavos (R16)</option>
+              <option value="Quarter-final">Cuartos de Final</option>
+              <option value="Semi-final">Semifinales</option>
+              <option value="Match for third place">Tercer Lugar</option>
+              <option value="Final">Final</option>
+            </select>
+            <input type="text" id="search-team-schedule" class="input-text" placeholder="Buscar por selección..." style="max-width: 250px; padding: 0.6rem 1rem;">
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+            Mostrando: <span id="schedule-matches-count" style="color: var(--primary); font-weight: 700;">0</span> partidos
+          </div>
+        </div>
+
+        <!-- Matches Grid -->
+        <div class="matches-grid" id="schedule-matches-grid">
+          <!-- Cargado dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: LEADERBOARD -->
+    <section id="tab-leaderboard" class="tab-panel">
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <h2 class="card-title" style="margin-bottom: 0; border: none; padding: 0;"><i data-lucide="list-ordered"></i> Tabla General</h2>
+          <button id="btn-export-excel-board" class="btn btn-primary">
+            <i data-lucide="download"></i> Exportar a Excel
+          </button>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+          Haz clic en la fila de cualquier jugador para expandir y ver todas sus predicciones y su puntuación detallada por partido.
+        </p>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Pos</th>
+                <th>Jugador</th>
+                <th style="text-align: center;">Partidos Pronosticados</th>
+                <th style="text-align: center; color: var(--primary);">Exacto</th>
+                <th style="text-align: center; color: var(--info);">Cercano</th>
+                <th style="text-align: center; color: var(--secondary);">Ganador</th>
+                <th style="text-align: center; color: var(--danger);">Fallados</th>
+                <th style="text-align: right; font-weight: 700;">Puntos Totales</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <!-- Cargado por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: PREDICTIONS -->
+    <section id="tab-predictions" class="tab-panel">
+      <div class="pronosticos-layout">
+        
+        <!-- Left Column: Player Management -->
+        <div class="glass-card players-list-panel">
+          <h3 class="card-title" style="font-size: 1.15rem; margin-bottom: 0.8rem;"><i data-lucide="user-plus"></i> Jugadores</h3>
+          
+          <!-- Add Player Form -->
+          <div class="form-group">
+            <label class="form-label" for="new-player-name">Nuevo Jugador</label>
+            <div class="input-inline-btn">
+              <input type="text" id="new-player-name" class="input-text" placeholder="Nombre del jugador...">
+              <button id="btn-add-player" class="btn btn-primary" title="Agregar"><i data-lucide="plus"></i></button>
+            </div>
+          </div>
+          
+          <!-- Players Selector List -->
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 0.3rem;" id="players-list-container">
+            <!-- Cargado dinámicamente -->
+          </div>
+
+          <!-- Delete Active Player Button -->
+          <button id="btn-delete-player" class="btn btn-danger" style="margin-top: 0.5rem; justify-content: center; width: 100%;">
+            <i data-lucide="user-minus"></i> Eliminar Jugador Seleccionado
+          </button>
+        </div>
+
+        <!-- Right Column: Match Predictions Entry -->
+        <div class="glass-card">
+          <h2 class="card-title"><i data-lucide="list-todo"></i> Ingresar Pronósticos</h2>
+          
+          <div id="no-players-placeholder" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+            <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+            <h3>No hay jugadores registrados</h3>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, agrega un jugador en la lista lateral para comenzar a ingresar pronósticos.</p>
+          </div>
+
+          <div id="predictions-content-area" style="display: none;">
+            <!-- Filters -->
+            <div class="filter-bar">
+              <div class="filters-group">
+                <select id="filter-group-pred" class="select-custom">
+                  <option value="ALL">Fase del Torneo (Todos)</option>
+                  <option value="Group Stage">Fase de Grupos</option>
+                  <option value="Group A">Grupo A</option>
+                  <option value="Group B">Grupo B</option>
+                  <option value="Group C">Grupo C</option>
+                  <option value="Group D">Grupo D</option>
+                  <option value="Group E">Grupo E</option>
+                  <option value="Group F">Grupo F</option>
+                  <option value="Group G">Grupo G</option>
+                  <option value="Group H">Grupo H</option>
+                  <option value="Group I">Grupo I</option>
+                  <option value="Group J">Grupo J</option>
+                  <option value="Group K">Grupo K</option>
+                  <option value="Group L">Grupo L</option>
+                  <option value="Knockout Stage">Eliminatorias</option>
+                  <option value="Round of 32">Dieciseisavos (R32)</option>
+                  <option value="Round of 16">Octavos (R16)</option>
+                  <option value="Quarter-final">Cuartos de Final</option>
+                  <option value="Semi-final">Semifinales</option>
+                  <option value="Match for third place">Tercer Lugar</option>
+                  <option value="Final">Final</option>
+                </select>
+                <select id="filter-status-pred" class="select-custom">
+                  <option value="ALL">Estatus de Pronóstico (Todos)</option>
+                  <option value="PENDING">Pendientes de Registrar</option>
+                  <option value="SAVED">Guardados</option>
+                </select>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+                Jugador Activo: <span id="active-player-name-label" style="color: var(--primary); font-weight: 700;">Ninguno</span>
+              </div>
+            </div>
+
+            <!-- Matches List Grid -->
+            <div class="matches-grid" id="predictions-matches-grid">
+              <!-- Cargado dinámicamente -->
+            </div>
+            
+            <!-- Quick Floating Status Info -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; gap: 1rem; align-items: center;">
+              <span id="save-status-indicator" style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="check-check" style="width: 16px; height: 16px; color: var(--primary);"></i> Cambios auto-guardados
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB: ADMIN RESULTS -->
+    <section id="tab-admin" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title"><i data-lucide="shield-check"></i> Panel de Administración: Resultados Reales del Mundial</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Ingresa los marcadores oficiales de los partidos a medida que se jueguen. Los puntos de todos los participantes se recalcularán automáticamente en tiempo real al actualizar un marcador.
+        </p>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="filters-group">
+            <select id="filter-group-admin" class="select-custom">
+              <option value="ALL">Fase del Torneo (Todos)</option>
+              <option value="Group Stage">Fase de Grupos</option>
+              <option value="Group A">Grupo A</option>
+              <option value="Group B">Grupo B</option>
+              <option value="Group C">Grupo C</option>
+              <option value="Group D">Grupo D</option>
+              <option value="Group E">Grupo E</option>
+              <option value="Group F">Grupo F</option>
+              <option value="Group G">Grupo G</option>
+              <option value="Group H">Grupo H</option>
+              <option value="Group I">Grupo I</option>
+              <option value="Group J">Grupo J</option>
+              <option value="Group K">Grupo K</option>
+              <option value="Group L">Grupo L</option>
+              <option value="Knockout Stage">Eliminatorias</option>
+              <option value="Round of 32">Dieciseisavos (R32)</option>
+              <option value="Round of 16">Octavos (R16)</option>
+              <option value="Quarter-final">Cuartos de Final</option>
+              <option value="Semi-final">Semifinales</option>
+              <option value="Match for third place">Tercer Lugar</option>
+              <option value="Final">Final</option>
+            </select>
+            <select id="filter-status-admin" class="select-custom">
+              <option value="ALL">Estatus de Partidos (Todos)</option>
+              <option value="PLAYED">Jugados / Finalizados</option>
+              <option value="UNPLAYED">Pendientes por Jugar</option>
+            </select>
+          </div>
+          <div class="filters-group">
+            <button id="btn-clear-real-results" class="btn btn-danger">
+              <i data-lucide="refresh-cw"></i> Resetear Marcadores Reales
+            </button>
+          </div>
+        </div>
+
+        <!-- Matches Grid -->
+        <div class="matches-grid" id="admin-matches-grid">
+          <!-- Cargado dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: CONFIG & BACKUP -->
+    <section id="tab-config" class="tab-panel">
+      <div class="config-grid">
+        
+        <!-- Points System Config -->
+        <div class="glass-card config-card">
+          <h2 class="card-title"><i data-lucide="settings-2"></i> Configuración de Puntaje</h2>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+            Ajusta los puntos que se otorgarán a los jugadores según sus predicciones. El cambio aplicará al instante sobre todos los marcadores guardados.
+          </p>
+          
+          <div class="config-item">
+            <div class="config-info">
+              <h5>Acierto de Marcador Exacto</h5>
+              <p>El jugador adivina el marcador exacto (ej. predice 2-1 y queda 2-1).</p>
+            </div>
+            <input type="number" id="pts-exact" class="input-points-num" value="3" min="0" max="100">
+          </div>
+
+          <div class="config-item">
+            <div class="config-info">
+              <h5>Acierto de Ganador / Empate</h5>
+              <p>El jugador acierta al ganador o empate, pero no los goles exactos (ej. predice 2-1 y queda 1-0; o predice 1-1 y queda 2-2).</p>
+            </div>
+            <input type="number" id="pts-winner" class="input-points-num" value="1" min="0" max="100">
+          </div>
+
+          <div class="config-item">
+            <div class="config-info">
+              <h5>Más Cercano al Marcador (Consuelo)</h5>
+              <p>El jugador no acertó exacto, pero su pronóstico fue el de menor diferencia de goles de entre todos los participantes (se acumula con los puntos de ganador).</p>
+            </div>
+            <input type="number" id="pts-closest" class="input-points-num" value="1" min="0" max="100">
+          </div>
+
+          <button id="btn-save-pts-config" class="btn btn-primary" style="align-self: flex-start; margin-top: 1rem;">
+            <i data-lucide="save"></i> Aplicar y Recalcular
+          </button>
+        </div>
+
+        <!-- Data Import/Export & Reset -->
+        <div class="glass-card config-card">
+          <h2 class="card-title"><i data-lucide="database"></i> Gestión de Datos</h2>
+          
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+            Exporta tu quiniela para compartirla con tus compañeros, realizar respaldos o descargar informes en Excel.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <!-- Excel download description -->
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <button id="btn-export-excel" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+                <i data-lucide="file-spreadsheet"></i> Descargar Excel (.xlsx)
+              </button>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">Genera un reporte completo con la tabla general y los pronósticos detallados.</span>
+            </div>
+
+            <!-- JSON Backup description -->
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <button id="btn-export-json" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+                <i data-lucide="download-cloud"></i> Descargar Respaldo JSON
+              </button>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">Guarda todo el estado actual en tu computadora para poder cargarlo después.</span>
+            </div>
+
+            <!-- JSON Restore description -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 0.5rem;">
+              <label class="form-label" style="margin-bottom: 0.6rem;"><i data-lucide="upload-cloud"></i> Cargar Respaldo JSON</label>
+              <div style="display: flex; gap: 1rem; align-items: center;">
+                <input type="file" id="import-json-file" accept=".json" style="display: none;">
+                <button id="btn-trigger-import" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+                  <i data-lucide="folder-open"></i> Seleccionar y Cargar
+                </button>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);" id="import-file-name-label">No se ha seleccionado ningún archivo.</span>
+              </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem;">
+              <h4 style="color: var(--danger); font-size: 0.95rem; font-weight: 600;"><i data-lucide="alert-triangle"></i> Zona de Peligro</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                Estas opciones borrarán datos y no se pueden deshacer. Te sugerimos descargar un respaldo JSON antes.
+              </p>
+              <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button id="btn-reset-players" class="btn btn-danger" style="font-size: 0.85rem;">
+                  <i data-lucide="users-2"></i> Borrar Todos los Jugadores
+                </button>
+                <button id="btn-reset-all" class="btn btn-danger" style="font-size: 0.85rem;">
+                  <i data-lucide="trash-2"></i> Restablecer Quiniela de Fábrica
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 Quiniela de la Copa del Mundo - Desarrollado con <i data-lucide="heart" style="width: 14px; height: 14px; color: var(--danger); fill: var(--danger); display: inline-block; vertical-align: middle;"></i> para jugar en la oficina.</p>
+  </footer>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- CDN scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- Local Scripts -->
+  <script src="matches.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
