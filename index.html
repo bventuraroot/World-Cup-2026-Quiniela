@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiniela Copa del Mundo 2026</title>
+  <title>Quiniela RIA - Ria Strategics 2026</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
   <!-- Glows de Fondo -->
@@ -18,10 +20,13 @@
   <header>
     <div class="navbar">
       <a href="#" class="brand">
-        <div class="brand-logo">26</div>
-        <div class="brand-text">QUINIELA<span>2026</span></div>
+        <div class="brand-logo">RIA</div>
+        <div class="brand-text">QUINIELA<span> WORLD CUP 2026</span></div>
       </a>
       <div class="nav-controls">
+        <button id="admin-login-toggle" class="btn btn-secondary" title="Acceso Administrador">
+          <i data-lucide="lock"></i> <span>Acceso Admin</span>
+        </button>
         <button id="theme-toggle" class="btn btn-icon-only" title="Cambiar Tema">
           <i data-lucide="sun"></i>
         </button>
@@ -39,6 +44,9 @@
       </button>
       <button class="tab-btn" data-target="#tab-schedule">
         <i data-lucide="calendar-days"></i> Calendario
+      </button>
+      <button class="tab-btn" data-target="#tab-rules">
+        <i data-lucide="book-open"></i> Reglas
       </button>
       <button class="tab-btn" data-target="#tab-leaderboard">
         <i data-lucide="trophy"></i> Clasificación
@@ -90,7 +98,8 @@
       <!-- Podium & Highlights -->
       <div class="glass-card">
         <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
-        <div id="podium-container" style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
+        <div id="podium-container"
+          style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
           <!-- Se cargará dinámicamente -->
         </div>
       </div>
@@ -101,7 +110,8 @@
       <div class="glass-card">
         <h2 class="card-title"><i data-lucide="calendar-days"></i> Calendario de Partidos - Mundial 2026</h2>
         <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
-          Consulta las fechas, horas, sedes y resultados de los 104 partidos del torneo. Filtra por fase o busca por país.
+          Consulta las fechas, horas, sedes y resultados de los 104 partidos del torneo. Filtra por fase o busca por
+          país.
         </p>
 
         <!-- Filters -->
@@ -130,10 +140,12 @@
               <option value="Match for third place">Tercer Lugar</option>
               <option value="Final">Final</option>
             </select>
-            <input type="text" id="search-team-schedule" class="input-text" placeholder="Buscar por selección..." style="max-width: 250px; padding: 0.6rem 1rem;">
+            <input type="text" id="search-team-schedule" class="input-text" placeholder="Buscar por selección..."
+              style="max-width: 250px; padding: 0.6rem 1rem;">
           </div>
           <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
-            Mostrando: <span id="schedule-matches-count" style="color: var(--primary); font-weight: 700;">0</span> partidos
+            Mostrando: <span id="schedule-matches-count" style="color: var(--primary); font-weight: 700;">0</span>
+            partidos
           </div>
         </div>
 
@@ -144,17 +156,117 @@
       </div>
     </section>
 
+    <!-- TAB: REGLAS -->
+    <section id="tab-rules" class="tab-panel">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+
+        <!-- General Rules Card -->
+        <div class="glass-card">
+          <h3 class="card-title"><i data-lucide="info"></i> Funcionamiento General</h3>
+          <ul
+            style="list-style-type: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.92rem; color: var(--text-secondary);">
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="check"
+                style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Registro</strong>: El Administrador registra tu nombre en el panel lateral de la sección "Pronósticos" para
+                entrar en la quiniela.</span>
+            </li>
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="check"
+                style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Auto-guardado</strong>: Los marcadores que ingreses se guardan automáticamente a medida que
+                los escribes.</span>
+            </li>
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="clock"
+                style="color: var(--warning); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Fecha Límite</strong>: Tus pronósticos de cada partido deben estar completos antes del
+                inicio del encuentro.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Points Distribution Card -->
+        <div class="glass-card">
+          <h3 class="card-title"><i data-lucide="award"></i> Reparto de Puntos</h3>
+          <div
+            style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.92rem; color: var(--text-secondary);">
+            <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
+              <div
+                style="background-color: var(--primary-glow); color: var(--primary); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
+                +3</div>
+              <div>
+                <strong style="color: var(--text-primary);">Marcador Exacto</strong>
+                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la cantidad exacta de goles de ambos
+                  equipos (ej. predices 2-1, queda 2-1).</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
+              <div
+                style="background-color: var(--secondary-glow); color: var(--secondary); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
+                +1</div>
+              <div>
+                <strong style="color: var(--text-primary);">Ganador o Empate</strong>
+                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas el ganador o el empate del partido, pero
+                  con goles distintos (ej. predices 1-0, queda 3-1).</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
+              <div
+                style="background-color: var(--accent-glow); color: var(--info); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
+                +1</div>
+              <div>
+                <strong style="color: var(--text-primary);">Más Cercano (Consuelo)</strong>
+                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Si no aciertas el exacto, pero tu marcador es el que
+                  menor diferencia de goles tuvo con el real entre todos los participantes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Roles & Reports Card -->
+        <div class="glass-card">
+          <h3 class="card-title"><i data-lucide="shield"></i> Roles y Descargas</h3>
+          <ul
+            style="list-style-type: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.92rem; color: var(--text-secondary);">
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="lock"
+                style="color: var(--info); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Modo Admin</strong>: Protegido por PIN. Solo el administrador puede crear/eliminar jugadores, ingresar pronósticos, configurar puntos e ingresar marcadores reales.</span>
+            </li>
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="file-spreadsheet"
+                style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Excel Multi-Hoja</strong>: Descarga estadísticas generales, resultados reales y la matriz
+                con todas las predicciones para auditorías.</span>
+            </li>
+            <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <i data-lucide="database"
+                style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
+              <span><strong>Base de Datos MySQL</strong>: Toda la información se guarda de forma segura y centralizada en tu cPanel para acceso en tiempo real, con opción a descargar respaldos JSON.</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
     <!-- TAB: LEADERBOARD -->
     <section id="tab-leaderboard" class="tab-panel">
       <div class="glass-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
-          <h2 class="card-title" style="margin-bottom: 0; border: none; padding: 0;"><i data-lucide="list-ordered"></i> Tabla General</h2>
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <h2 class="card-title" style="margin-bottom: 0; border: none; padding: 0;"><i data-lucide="list-ordered"></i>
+            Tabla General</h2>
           <button id="btn-export-excel-board" class="btn btn-primary">
             <i data-lucide="download"></i> Exportar a Excel
           </button>
         </div>
         <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-          Haz clic en la fila de cualquier jugador para expandir y ver todas sus predicciones y su puntuación detallada por partido.
+          Haz clic en la fila de cualquier jugador para expandir y ver todas sus predicciones y su puntuación detallada
+          por partido.
         </p>
         <div class="table-responsive">
           <table>
@@ -181,27 +293,39 @@
     <!-- TAB: PREDICTIONS -->
     <section id="tab-predictions" class="tab-panel">
       <div class="pronosticos-layout">
-        
+
         <!-- Left Column: Player Management -->
         <div class="glass-card players-list-panel">
-          <h3 class="card-title" style="font-size: 1.15rem; margin-bottom: 0.8rem;"><i data-lucide="user-plus"></i> Jugadores</h3>
-          
+          <h3 class="card-title" style="font-size: 1.15rem; margin-bottom: 0.8rem;"><i data-lucide="user-plus"></i>
+            Jugadores</h3>
+
+          <!-- Alerta para no-administradores -->
+          <div class="admin-only-lock-warning"
+            style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.5rem; border-radius: var(--border-radius-sm); font-size: 0.75rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="lock" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+            <span>Modo Admin bloqueado.</span>
+          </div>
+
           <!-- Add Player Form -->
           <div class="form-group">
             <label class="form-label" for="new-player-name">Nuevo Jugador</label>
             <div class="input-inline-btn">
-              <input type="text" id="new-player-name" class="input-text" placeholder="Nombre del jugador...">
-              <button id="btn-add-player" class="btn btn-primary" title="Agregar"><i data-lucide="plus"></i></button>
+              <input type="text" id="new-player-name" class="input-text" placeholder="Nombre del jugador..." disabled>
+              <button id="btn-add-player" class="btn btn-primary" title="Agregar" disabled><i
+                  data-lucide="plus"></i></button>
             </div>
           </div>
-          
+
           <!-- Players Selector List -->
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 0.3rem;" id="players-list-container">
+          <div
+            style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 0.3rem;"
+            id="players-list-container">
             <!-- Cargado dinámicamente -->
           </div>
 
           <!-- Delete Active Player Button -->
-          <button id="btn-delete-player" class="btn btn-danger" style="margin-top: 0.5rem; justify-content: center; width: 100%;">
+          <button id="btn-delete-player" class="btn btn-danger"
+            style="margin-top: 0.5rem; justify-content: center; width: 100%;">
             <i data-lucide="user-minus"></i> Eliminar Jugador Seleccionado
           </button>
         </div>
@@ -209,14 +333,25 @@
         <!-- Right Column: Match Predictions Entry -->
         <div class="glass-card">
           <h2 class="card-title"><i data-lucide="list-todo"></i> Ingresar Pronósticos</h2>
-          
-          <div id="no-players-placeholder" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
-            <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+
+          <div id="no-players-placeholder"
+            style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+            <i data-lucide="users"
+              style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
             <h3>No hay jugadores registrados</h3>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, agrega un jugador en la lista lateral para comenzar a ingresar pronósticos.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, agrega un jugador en la lista lateral para
+              comenzar a ingresar pronósticos.</p>
           </div>
 
           <div id="predictions-content-area" style="display: none;">
+
+            <!-- Alerta para no-administradores -->
+            <div class="admin-only-lock-warning"
+              style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i data-lucide="lock" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+              <span>Acceso Administrador requerido para registrar o modificar pronósticos.</span>
+            </div>
+
             <!-- Filters -->
             <div class="filter-bar">
               <div class="filters-group">
@@ -250,7 +385,8 @@
                 </select>
               </div>
               <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
-                Jugador Activo: <span id="active-player-name-label" style="color: var(--primary); font-weight: 700;">Ninguno</span>
+                Jugador Activo: <span id="active-player-name-label"
+                  style="color: var(--primary); font-weight: 700;">Ninguno</span>
               </div>
             </div>
 
@@ -258,11 +394,13 @@
             <div class="matches-grid" id="predictions-matches-grid">
               <!-- Cargado dinámicamente -->
             </div>
-            
+
             <!-- Quick Floating Status Info -->
             <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; gap: 1rem; align-items: center;">
-              <span id="save-status-indicator" style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
-                <i data-lucide="check-check" style="width: 16px; height: 16px; color: var(--primary);"></i> Cambios auto-guardados
+              <span id="save-status-indicator"
+                style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="check-check" style="width: 16px; height: 16px; color: var(--primary);"></i> Cambios
+                auto-guardados
               </span>
             </div>
           </div>
@@ -274,9 +412,11 @@
     <!-- TAB: ADMIN RESULTS -->
     <section id="tab-admin" class="tab-panel">
       <div class="glass-card">
-        <h2 class="card-title"><i data-lucide="shield-check"></i> Panel de Administración: Resultados Reales del Mundial</h2>
+        <h2 class="card-title"><i data-lucide="shield-check"></i> Panel de Administración: Resultados Reales del Mundial
+        </h2>
         <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
-          Ingresa los marcadores oficiales de los partidos a medida que se jueguen. Los puntos de todos los participantes se recalcularán automáticamente en tiempo real al actualizar un marcador.
+          Ingresa los marcadores oficiales de los partidos a medida que se jueguen. Los puntos de todos los
+          participantes se recalcularán automáticamente en tiempo real al actualizar un marcador.
         </p>
 
         <!-- Filters -->
@@ -328,14 +468,23 @@
     <!-- TAB: CONFIG & BACKUP -->
     <section id="tab-config" class="tab-panel">
       <div class="config-grid">
-        
+
         <!-- Points System Config -->
         <div class="glass-card config-card">
           <h2 class="card-title"><i data-lucide="settings-2"></i> Configuración de Puntaje</h2>
+
+          <!-- Alerta para no-administradores -->
+          <div class="admin-only-lock-warning"
+            style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i data-lucide="lock" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+            <span>Acceso Administrador requerido para modificar el sistema de puntos.</span>
+          </div>
+
           <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
-            Ajusta los puntos que se otorgarán a los jugadores según sus predicciones. El cambio aplicará al instante sobre todos los marcadores guardados.
+            Ajusta los puntos que se otorgarán a los jugadores según sus predicciones. El cambio aplicará al instante
+            sobre todos los marcadores guardados.
           </p>
-          
+
           <div class="config-item">
             <div class="config-info">
               <h5>Acierto de Marcador Exacto</h5>
@@ -347,7 +496,8 @@
           <div class="config-item">
             <div class="config-info">
               <h5>Acierto de Ganador / Empate</h5>
-              <p>El jugador acierta al ganador o empate, pero no los goles exactos (ej. predice 2-1 y queda 1-0; o predice 1-1 y queda 2-2).</p>
+              <p>El jugador acierta al ganador o empate, pero no los goles exactos (ej. predice 2-1 y queda 1-0; o
+                predice 1-1 y queda 2-2).</p>
             </div>
             <input type="number" id="pts-winner" class="input-points-num" value="1" min="0" max="100">
           </div>
@@ -355,7 +505,8 @@
           <div class="config-item">
             <div class="config-info">
               <h5>Más Cercano al Marcador (Consuelo)</h5>
-              <p>El jugador no acertó exacto, pero su pronóstico fue el de menor diferencia de goles de entre todos los participantes (se acumula con los puntos de ganador).</p>
+              <p>El jugador no acertó exacto, pero su pronóstico fue el de menor diferencia de goles de entre todos los
+                participantes (se acumula con los puntos de ganador).</p>
             </div>
             <input type="number" id="pts-closest" class="input-points-num" value="1" min="0" max="100">
           </div>
@@ -363,12 +514,29 @@
           <button id="btn-save-pts-config" class="btn btn-primary" style="align-self: flex-start; margin-top: 1rem;">
             <i data-lucide="save"></i> Aplicar y Recalcular
           </button>
+
+          <!-- Sección de cambio de PIN, visible solo para Administrador -->
+          <div id="admin-pin-change-section"
+            style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 1.2rem; display: none;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem;"><i data-lucide="key-round"></i>
+              Cambiar PIN Administrador</h4>
+            <div style="display: flex; gap: 0.6rem; align-items: flex-end;">
+              <div style="flex: 1;">
+                <label class="form-label" for="new-admin-pin" style="font-size: 0.8rem;">Nuevo PIN
+                  (Números/Letras)</label>
+                <input type="password" id="new-admin-pin" class="input-text" placeholder="Nuevo PIN..." maxlength="10"
+                  style="padding: 0.5rem 0.8rem; font-size: 0.9rem;">
+              </div>
+              <button id="btn-save-admin-pin" class="btn btn-secondary"
+                style="padding: 0.5rem 1rem; font-size: 0.9rem;"><i data-lucide="save"></i> Guardar PIN</button>
+            </div>
+          </div>
         </div>
 
         <!-- Data Import/Export & Reset -->
         <div class="glass-card config-card">
           <h2 class="card-title"><i data-lucide="database"></i> Gestión de Datos</h2>
-          
+
           <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
             Exporta tu quiniela para compartirla con tus compañeros, realizar respaldos o descargar informes en Excel.
           </p>
@@ -376,35 +544,52 @@
           <div style="display: flex; flex-direction: column; gap: 1rem;">
             <!-- Excel download description -->
             <div style="display: flex; gap: 1rem; align-items: center;">
-              <button id="btn-export-excel" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+              <button id="btn-export-excel" class="btn btn-secondary"
+                style="flex-shrink: 0; min-width: 220px; justify-content: center;">
                 <i data-lucide="file-spreadsheet"></i> Descargar Excel (.xlsx)
               </button>
-              <span style="font-size: 0.8rem; color: var(--text-secondary);">Genera un reporte completo con la tabla general y los pronósticos detallados.</span>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">Genera un reporte completo con la tabla
+                general y los pronósticos detallados.</span>
             </div>
 
             <!-- JSON Backup description -->
             <div style="display: flex; gap: 1rem; align-items: center;">
-              <button id="btn-export-json" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+              <button id="btn-export-json" class="btn btn-secondary"
+                style="flex-shrink: 0; min-width: 220px; justify-content: center;">
                 <i data-lucide="download-cloud"></i> Descargar Respaldo JSON
               </button>
-              <span style="font-size: 0.8rem; color: var(--text-secondary);">Guarda todo el estado actual en tu computadora para poder cargarlo después.</span>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">Guarda todo el estado actual en tu
+                computadora para poder cargarlo después.</span>
             </div>
 
             <!-- JSON Restore description -->
             <div style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 0.5rem;">
-              <label class="form-label" style="margin-bottom: 0.6rem;"><i data-lucide="upload-cloud"></i> Cargar Respaldo JSON</label>
+              <label class="form-label" style="margin-bottom: 0.6rem;"><i data-lucide="upload-cloud"></i> Cargar
+                Respaldo JSON</label>
               <div style="display: flex; gap: 1rem; align-items: center;">
                 <input type="file" id="import-json-file" accept=".json" style="display: none;">
-                <button id="btn-trigger-import" class="btn btn-secondary" style="flex-shrink: 0; min-width: 220px; justify-content: center;">
+                <button id="btn-trigger-import" class="btn btn-secondary"
+                  style="flex-shrink: 0; min-width: 220px; justify-content: center;">
                   <i data-lucide="folder-open"></i> Seleccionar y Cargar
                 </button>
-                <span style="font-size: 0.8rem; color: var(--text-secondary);" id="import-file-name-label">No se ha seleccionado ningún archivo.</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);" id="import-file-name-label">No se ha
+                  seleccionado ningún archivo.</span>
               </div>
             </div>
 
             <!-- Danger Zone -->
-            <div style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem;">
-              <h4 style="color: var(--danger); font-size: 0.95rem; font-weight: 600;"><i data-lucide="alert-triangle"></i> Zona de Peligro</h4>
+            <div
+              style="border-top: 1px solid var(--border-color); padding-top: 1.2rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem;">
+              <h4 style="color: var(--danger); font-size: 0.95rem; font-weight: 600;"><i
+                  data-lucide="alert-triangle"></i> Zona de Peligro</h4>
+
+              <!-- Alerta para no-administradores -->
+              <div class="admin-only-lock-warning"
+                style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="lock" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+                <span>Acceso Administrador requerido para usar estas acciones.</span>
+              </div>
+
               <p style="font-size: 0.8rem; color: var(--text-secondary);">
                 Estas opciones borrarán datos y no se pueden deshacer. Te sugerimos descargar un respaldo JSON antes.
               </p>
@@ -428,8 +613,60 @@
 
   <!-- Footer -->
   <footer>
-    <p>&copy; 2026 Quiniela de la Copa del Mundo - Desarrollado con <i data-lucide="heart" style="width: 14px; height: 14px; color: var(--danger); fill: var(--danger); display: inline-block; vertical-align: middle;"></i> para jugar en la oficina.</p>
+    <p>&copy; 2026 Quiniela de la Copa del Mundo - Desarrollado con <i data-lucide="heart"
+        style="width: 14px; height: 14px; color: var(--danger); fill: var(--danger); display: inline-block; vertical-align: middle;"></i>
+      para jugar en la oficina.</p>
   </footer>
+
+  <!-- Modal de Login de Administrador -->
+  <div id="admin-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  ">
+    <div class="glass-card" style="
+      width: 100%;
+      max-width: 380px;
+      margin: 1.5rem;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-20px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    " id="admin-modal-card">
+      <h3 class="card-title" style="margin-bottom: 0.8rem; border: none; padding: 0;">
+        <i data-lucide="shield-alert"></i> Acceso Admin
+      </h3>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.2rem;">
+        Esta área requiere privilegios de organizador. Por favor, ingresa el PIN de seguridad (PIN de fábrica:
+        <strong>1234</strong>).
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="admin-pin-input">PIN de Seguridad</label>
+        <input type="password" id="admin-pin-input" class="input-text" placeholder="****" maxlength="10"
+          style="text-align: center; letter-spacing: 0.3em; font-size: 1.3rem;">
+        <span id="admin-login-error"
+          style="display: none; color: var(--danger); font-size: 0.8rem; margin-top: 0.4rem; font-weight: 500; text-align: center;">
+          PIN incorrecto. Reinténtalo.
+        </span>
+      </div>
+
+      <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem;">
+        <button id="btn-admin-cancel" class="btn btn-secondary"
+          style="font-size: 0.9rem; padding: 0.5rem 1rem;">Cancelar</button>
+        <button id="btn-admin-login" class="btn btn-primary"
+          style="font-size: 0.9rem; padding: 0.5rem 1.2rem;">Acceder</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
@@ -438,9 +675,10 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  
+
   <!-- Local Scripts -->
   <script src="matches.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>

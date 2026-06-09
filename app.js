@@ -89,40 +89,85 @@ $(document).ready(function() {
       pointsExact: 3,
       pointsWinner: 1,
       pointsClosest: 1,
+      adminPin: '1234',
       theme: 'dark'
     }
   };
 
   let activePlayerId = null;
+  let isAdminMode = false; // Estado de sesión del administrador
 
   // Cargar estado desde LocalStorage
-  function loadState() {
-    const saved = localStorage.getItem('quiniela_wc2026_state');
-    if (saved) {
-      try {
-        state = JSON.parse(saved);
-        if (!state.players) state.players = [];
-        if (!state.realResults) state.realResults = {};
-        if (!state.config) {
-          state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, theme: 'dark' };
+  function loadState(callback) {
+    $.ajax({
+      url: 'api.php?action=get',
+      type: 'GET',
+      dataType: 'json',
+      success: function(data) {
+        if (data && !data.status) { // Si no es un JSON con error
+          state = data;
+          if (!state.players) state.players = [];
+          if (!state.realResults) state.realResults = {};
+          if (!state.config) {
+            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
+          }
+          if (state.config.pointsClosest === undefined) {
+            state.config.pointsClosest = 1;
+          }
+          if (state.config.adminPin === undefined) {
+            state.config.adminPin = '1234';
+          }
+          console.log("Estado cargado exitosamente desde la base de datos MySQL.");
+        } else {
+          console.warn("Respuesta inválida del servidor, usando LocalStorage.");
+          loadStateFromLocalStorage();
         }
-        if (state.config.pointsClosest === undefined) {
-          state.config.pointsClosest = 1;
+        finishLoading();
+      },
+      error: function() {
+        console.warn("No se pudo conectar con api.php, usando LocalStorage.");
+        loadStateFromLocalStorage();
+        finishLoading();
+      }
+    });
+
+    function loadStateFromLocalStorage() {
+      const saved = localStorage.getItem('quiniela_wc2026_state');
+      if (saved) {
+        try {
+          state = JSON.parse(saved);
+          if (!state.players) state.players = [];
+          if (!state.realResults) state.realResults = {};
+          if (!state.config) {
+            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
+          }
+          if (state.config.pointsClosest === undefined) {
+            state.config.pointsClosest = 1;
+          }
+          if (state.config.adminPin === undefined) {
+            state.config.adminPin = '1234';
+          }
+        } catch (e) {
+          initializeDefaultState();
         }
-      } catch (e) {
-        console.error('Error cargando el estado, inicializando por defecto', e);
+      } else {
         initializeDefaultState();
       }
-    } else {
-      initializeDefaultState();
     }
-    
-    syncOfficialMatches();
-    
-    if (state.players.length > 0) {
-      activePlayerId = state.players[0].id;
-    } else {
-      activePlayerId = null;
+
+    function finishLoading() {
+      syncOfficialMatches();
+      // Restaurar modo administrador desde sessionStorage (persiste mientras la pestaña esté abierta)
+      isAdminMode = sessionStorage.getItem('quiniela_isAdmin') === 'true';
+      
+      if (state.players.length > 0) {
+        activePlayerId = state.players[0].id;
+      } else {
+        activePlayerId = null;
+      }
+      if (typeof callback === 'function') {
+        callback();
+      }
     }
   }
 
@@ -134,6 +179,7 @@ $(document).ready(function() {
         pointsExact: 3,
         pointsWinner: 1,
         pointsClosest: 1,
+        adminPin: '1234',
         theme: 'dark'
       }
     };
@@ -153,10 +199,184 @@ $(document).ready(function() {
     }
   }
 
-  // Guardar estado en LocalStorage
+  // Guardar estado en LocalStorage y Base de Datos (MySQL)
   function saveState() {
+    // 1. Guardar en LocalStorage como copia local / offline
     localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
+    
+    // 2. Intentar guardar en el servidor a través de api.php
+    $.ajax({
+      url: 'api.php?action=save',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(state),
+      success: function(response) {
+        if (response && response.status === 'success') {
+          console.log("Estado guardado correctamente en la base de datos remota.");
+        } else {
+          console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error("Error de conexión con el servidor de base de datos:", error);
+      }
+    });
   }
+
+  // ==========================================
+  // SEGURIDAD DE ADMINISTRADOR: INTERFAZ Y MODALES
+  // ==========================================
+
+  // Actualizar UI según el rol (Administrador vs Usuario estándar)
+  function updateAdminUI() {
+    if (isAdminMode) {
+      // Admin Activo
+      $('#admin-login-toggle')
+        .removeClass('btn-secondary')
+        .addClass('btn-primary')
+        .css('border-color', 'var(--primary)')
+        .html('<i data-lucide="shield-check" style="color:#000;"></i> <span>Admin Activo</span>');
+      
+      // Mostrar inputs y secciones administrativas
+      $('.admin-only-lock-warning').hide();
+      $('#admin-pin-change-section').show();
+      
+      // Habilitar campos
+      $('#pts-exact, #pts-winner, #pts-closest, #btn-save-pts-config').prop('disabled', false);
+      $('#btn-reset-players, #btn-reset-all').prop('disabled', false);
+      
+      // Habilitar controles de jugadores
+      $('#new-player-name, #btn-add-player, #btn-delete-player').prop('disabled', false);
+
+      // Quitar clase bloqueada si existía en botones de tab
+      $('.tab-btn[data-target="#tab-admin"]').find('i').removeClass('lucide-lock').addClass('lucide-settings');
+    } else {
+      // Modo Usuario / Cerrado
+      $('#admin-login-toggle')
+        .removeClass('btn-primary')
+        .addClass('btn-secondary')
+        .css('border-color', 'var(--border-color)')
+        .html('<i data-lucide="lock"></i> <span>Acceso Admin</span>');
+      
+      // Mostrar advertencias de bloqueo
+      $('.admin-only-lock-warning').show();
+      $('#admin-pin-change-section').hide();
+      
+      // Deshabilitar campos
+      $('#pts-exact, #pts-winner, #pts-closest, #btn-save-pts-config').prop('disabled', true);
+      $('#btn-reset-players, #btn-reset-all').prop('disabled', true);
+      
+      // Deshabilitar controles de jugadores
+      $('#new-player-name, #btn-add-player, #btn-delete-player').prop('disabled', true);
+
+      // Cambiar icono en los botones de navegación de pestañas
+      $('.tab-btn[data-target="#tab-admin"]').find('i').removeClass('lucide-settings').addClass('lucide-lock');
+    }
+    
+    // Rerenderizar grillas si existen elementos para mantener en sincronía los campos de ingreso
+    if (activePlayerId) {
+      renderPredictionsGrid();
+    }
+    renderAdminGrid();
+    
+    lucide.createIcons();
+  }
+
+  // Abrir modal de Login
+  function openAdminModal() {
+    $('#admin-pin-input').val('');
+    $('#admin-login-error').hide();
+    $('#admin-modal').css('display', 'flex');
+    setTimeout(() => {
+      $('#admin-modal-card').css('transform', 'translateY(0)');
+      $('#admin-pin-input').focus();
+    }, 50);
+  }
+
+  // Cerrar modal de Login
+  function closeAdminModal() {
+    $('#admin-modal-card').css('transform', 'translateY(-20px)');
+    setTimeout(() => {
+      $('#admin-modal').fadeOut(150);
+    }, 150);
+  }
+
+  // Procesar Intento de Login
+  function attemptAdminLogin() {
+    const enteredPin = $('#admin-pin-input').val();
+    const correctPin = state.config.adminPin || '1234';
+
+    if (enteredPin === correctPin) {
+      // Login Correcto
+      isAdminMode = true;
+      sessionStorage.setItem('quiniela_isAdmin', 'true');
+      closeAdminModal();
+      updateAdminUI();
+      
+      // Redirigir automáticamente a la pestaña Admin
+      showToast("Acceso Administrador concedido.");
+      $('.tab-btn[data-target="#tab-admin"]').click();
+    } else {
+      // Login Fallido: Vibrar modal y mostrar error
+      $('#admin-login-error').fadeIn(150);
+      const card = $('#admin-modal-card');
+      card.addClass('shake');
+      
+      // Remover clase de vibración para poder dispararla de nuevo
+      setTimeout(() => {
+        card.removeClass('shake');
+      }, 400);
+
+      $('#admin-pin-input').focus().select();
+    }
+  }
+
+  // Cambiar PIN
+  $('#btn-save-admin-pin').on('click', function() {
+    const newPin = $('#new-admin-pin').val().trim();
+    if (newPin.length < 4) {
+      showToast("El PIN debe tener al menos 4 dígitos.", "error");
+      return;
+    }
+
+    state.config.adminPin = newPin;
+    saveState();
+    $('#new-admin-pin').val('');
+    showToast("PIN de seguridad actualizado.");
+  });
+
+  // Eventos de interacción del Modal de login
+  $('#admin-login-toggle').on('click', function() {
+    if (isAdminMode) {
+      if (confirm("¿Deseas cerrar la sesión de administrador? Volverás al modo de visualización normal.")) {
+        isAdminMode = false;
+        sessionStorage.removeItem('quiniela_isAdmin');
+        updateAdminUI();
+        
+        // Si estaba en la pestaña admin, redirigir a dashboard
+        if ($('.tab-panel.active').attr('id') === 'tab-admin') {
+          $('.tab-btn[data-target="#tab-dashboard"]').click();
+        } else {
+          // Rerenderizar Ajustes por si estaba en esa tab y bloquear campos
+          renderAdminGrid();
+        }
+        showToast("Sesión de Administrador cerrada.");
+      }
+    } else {
+      openAdminModal();
+    }
+  });
+
+  $('#btn-admin-cancel').on('click', closeAdminModal);
+  $('#btn-admin-login').on('click', attemptAdminLogin);
+  $('#admin-pin-input').on('keypress', function(e) {
+    if (e.which === 13) attemptAdminLogin();
+  });
+
+  // Clic fuera del modal para cerrar
+  $('#admin-modal').on('click', function(e) {
+    if (e.target === this) closeAdminModal();
+  });
 
   // ==========================================
   // 2. CÁLCULO DE PUNTOS (INCLUYE REGLA DE CERCANÍA RELATIVA)
@@ -186,12 +406,10 @@ $(document).ready(function() {
       return { points: 0, type: 'none' };
     }
 
-    // Acierto exacto de marcador
     if (p1 === r1 && p2 === r2) {
       return { points: parseInt(state.config.pointsExact || 3), type: 'exact' };
     }
     
-    // Calcular la menor distancia (diferencia de goles total) de entre todos los que NO acertaron exacto
     let minDistance = Infinity;
     state.players.forEach(otherPlayer => {
       const otherPred = otherPlayer.predictions[matchId];
@@ -222,7 +440,6 @@ $(document).ready(function() {
       type = 'winner';
     }
     
-    // Si su distancia es igual a la mínima (y la mínima es menor a infinito, es decir, hay pronósticos válidos)
     if (minDistance !== Infinity && distance === minDistance) {
       pointsEarned += parseInt(state.config.pointsClosest || 1);
       type = type === 'winner' ? 'winner_closest' : 'closest';
@@ -303,29 +520,6 @@ $(document).ready(function() {
   // ==========================================
   // 3. COMPONENTES RENDERIZADOS
   // ==========================================
-
-  function showToast(message, type = 'success') {
-    const id = 'toast-' + Date.now();
-    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-    const errorClass = type === 'error' ? 'toast-error' : '';
-
-    const toastHTML = `
-      <div class="toast ${errorClass}" id="${id}">
-        <i data-lucide="${icon}"></i>
-        <span>${message}</span>
-      </div>
-    `;
-
-    $('#toast-container').append(toastHTML);
-    lucide.createIcons();
-
-    setTimeout(() => {
-      $(`#${id}`).addClass('toast-hide');
-      setTimeout(() => {
-        $(`#${id}`).remove();
-      }, 300);
-    }, 3200);
-  }
 
   // Renderizar Dashboard
   function renderDashboard() {
@@ -472,7 +666,7 @@ $(document).ready(function() {
     });
   }
 
-  // Renderizar detalles de un jugador expandido en la clasificación (con banderas y regla de cercanía)
+  // Renderizar detalles de un jugador expandido en la clasificación
   function renderPlayerDetails(playerId) {
     const player = state.players.find(p => p.id == playerId);
     const container = $(`#details-grid-${playerId}`);
@@ -665,7 +859,7 @@ $(document).ready(function() {
       }
 
       let footerFeedbackHTML = '';
-      let disabledAttr = '';
+      let disabledAttr = !isAdminMode ? 'disabled' : '';
       let cardBorderGlow = '';
 
       if (isFinished) {
@@ -770,6 +964,11 @@ $(document).ready(function() {
     }
 
     $('.pred-input').off('change').on('change', function() {
+      if (!isAdminMode) {
+        showToast("Acceso Administrador requerido.", "error");
+        renderPredictionsGrid();
+        return;
+      }
       const matchId = $(this).data('match-id');
       const card = $(this).closest('.match-card');
       const val1 = card.find('.pred-input[data-team="1"]').val();
@@ -808,7 +1007,7 @@ $(document).ready(function() {
     }
   }
 
-  // Renderizar Grid de Administración de Resultados Reales (con banderas)
+  // Renderizar Grid de Administración de Resultados Reales (con banderas y bloqueo)
   function renderAdminGrid() {
     const grid = $('#admin-matches-grid');
     grid.empty();
@@ -819,6 +1018,7 @@ $(document).ready(function() {
     const statusFilter = $('#filter-status-admin').val();
 
     let matchCount = 0;
+    const disabledAttr = isAdminMode ? '' : 'disabled';
 
     WORLD_CUP_2026_MATCHES.forEach(match => {
       if (groupFilter !== 'ALL') {
@@ -858,7 +1058,8 @@ $(document).ready(function() {
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
                   data-match-id="${match.id}" data-team="1" 
-                  value="${real.goals1 !== null && real.goals1 !== undefined ? real.goals1 : ''}">
+                  value="${real.goals1 !== null && real.goals1 !== undefined ? real.goals1 : ''}"
+                  ${disabledAttr}>
               </div>
             </div>
             
@@ -871,14 +1072,15 @@ $(document).ready(function() {
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
                   data-match-id="${match.id}" data-team="2" 
-                  value="${real.goals2 !== null && real.goals2 !== undefined ? real.goals2 : ''}">
+                  value="${real.goals2 !== null && real.goals2 !== undefined ? real.goals2 : ''}"
+                  ${disabledAttr}>
               </div>
             </div>
 
             <!-- Match status selector -->
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem;">
               <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Estado:</span>
-              <select class="select-custom admin-status-select" data-match-id="${match.id}" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; flex: 1;">
+              <select class="select-custom admin-status-select" data-match-id="${match.id}" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; flex: 1;" ${disabledAttr}>
                 <option value="scheduled" ${real.status === 'scheduled' ? 'selected' : ''}>Pendiente</option>
                 <option value="live" ${real.status === 'live' ? 'selected' : ''}>En Vivo</option>
                 <option value="finished" ${real.status === 'finished' ? 'selected' : ''}>Finalizado</option>
@@ -905,6 +1107,12 @@ $(document).ready(function() {
     }
 
     $('.admin-goal-input, .admin-status-select').off('change').on('change', function() {
+      if (!isAdminMode) {
+        showToast("Error: Acceso Administrador requerido.", "error");
+        renderAdminGrid();
+        return;
+      }
+
       const matchId = $(this).data('match-id');
       const card = $(this).closest('.match-card');
       const goals1 = card.find('.admin-goal-input[data-team="1"]').val();
@@ -1053,6 +1261,10 @@ $(document).ready(function() {
   // ==========================================
 
   $('#btn-add-player').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
     const nameInput = $('#new-player-name');
     const name = nameInput.val().trim();
 
@@ -1094,6 +1306,10 @@ $(document).ready(function() {
   });
 
   $('#btn-delete-player').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
     if (!activePlayerId) {
       showToast("No hay ningún jugador seleccionado para eliminar.", "error");
       return;
@@ -1123,6 +1339,11 @@ $(document).ready(function() {
   });
 
   $('#btn-clear-real-results').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+    
     if (confirm("¿Estás seguro de que deseas limpiar TODOS los marcadores reales ingresados? Las clasificaciones volverán a cero.")) {
       if (typeof WORLD_CUP_2026_MATCHES !== 'undefined') {
         WORLD_CUP_2026_MATCHES.forEach(match => {
@@ -1146,6 +1367,11 @@ $(document).ready(function() {
   });
 
   $('#btn-save-pts-config').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+
     const ptsExact = parseInt($('#pts-exact').val());
     const ptsWinner = parseInt($('#pts-winner').val());
     const ptsClosest = parseInt($('#pts-closest').val());
@@ -1348,6 +1574,11 @@ $(document).ready(function() {
   });
 
   $('#btn-reset-players').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+
     if (confirm("¿Estás seguro de que deseas eliminar a TODOS los jugadores y sus predicciones? Los marcadores reales se mantendrán intactos.")) {
       state.players = [];
       activePlayerId = null;
@@ -1364,6 +1595,11 @@ $(document).ready(function() {
   });
 
   $('#btn-reset-all').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+
     if (confirm("ATENCIÓN: Se borrarán TODOS los datos de la quiniela (jugadores, pronósticos y marcadores reales del mundial) restableciendo todo al estado inicial. ¿Deseas continuar?")) {
       initializeDefaultState();
       syncOfficialMatches();
@@ -1410,11 +1646,19 @@ $(document).ready(function() {
   });
 
   // ==========================================
-  // 8. MANEJO DE PESTAÑAS (TABS)
+  // 8. MANEJO DE PESTAÑAS (TABS) CON COMPROBACIÓN DE ROL
   // ==========================================
 
-  $('.tab-btn').on('click', function() {
+  $('.tab-btn').on('click', function(e) {
     const target = $(this).data('target');
+
+    // Controlar acceso restringido a la pestaña de administración
+    if (target === '#tab-admin' && !isAdminMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      openAdminModal();
+      return; // Detener cambio de pestaña
+    }
 
     $('.tab-btn').removeClass('active');
     $(this).addClass('active');
@@ -1442,29 +1686,32 @@ $(document).ready(function() {
   // 9. ARRANQUE DE LA APLICACIÓN
   // ==========================================
   
-  loadState();
+  loadState(function() {
+    $('#pts-exact').val(state.config.pointsExact);
+    $('#pts-winner').val(state.config.pointsWinner);
+    $('#pts-closest').val(state.config.pointsClosest || 1);
 
-  $('#pts-exact').val(state.config.pointsExact);
-  $('#pts-winner').val(state.config.pointsWinner);
-  $('#pts-closest').val(state.config.pointsClosest || 1);
+    const startTheme = state.config.theme || 'dark';
+    $('html').attr('data-theme', startTheme);
+    if (startTheme === 'light') {
+      $('#theme-toggle').html('<i data-lucide="moon"></i>');
+    } else {
+      $('#theme-toggle').html('<i data-lucide="sun"></i>');
+    }
 
-  const startTheme = state.config.theme || 'dark';
-  $('html').attr('data-theme', startTheme);
-  if (startTheme === 'light') {
-    $('#theme-toggle').html('<i data-lucide="moon"></i>');
-  } else {
-    $('#theme-toggle').html('<i data-lucide="sun"></i>');
-  }
+    // Sincronizar UI del Administrador en carga
+    updateAdminUI();
 
-  renderDashboard();
-  renderLeaderboard();
-  renderPlayersSelector();
-  if (activePlayerId) {
-    renderPredictionsGrid();
-  }
-  renderAdminGrid();
-  renderScheduleGrid();
+    renderDashboard();
+    renderLeaderboard();
+    renderPlayersSelector();
+    if (activePlayerId) {
+      renderPredictionsGrid();
+    }
+    renderAdminGrid();
+    renderScheduleGrid();
 
-  lucide.createIcons();
+    lucide.createIcons();
+  });
 
 });
