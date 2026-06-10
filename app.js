@@ -1428,6 +1428,9 @@ $(document).ready(function() {
     renderDashboard();
     renderLeaderboard();
 
+    const teams = getParticipatingTeams();
+    renderChampionVotesGrid(teams);
+
     showToast(`Jugador "${name}" agregado exitosamente.`);
   });
 
@@ -1465,6 +1468,9 @@ $(document).ready(function() {
       renderPredictionsGrid();
       renderDashboard();
       renderLeaderboard();
+
+      const teams = getParticipatingTeams();
+      renderChampionVotesGrid(teams);
 
       showToast(`Jugador "${player.name}" eliminado.`);
     }
@@ -1736,6 +1742,9 @@ $(document).ready(function() {
       renderPlayersSelector();
       renderPredictionsGrid();
       renderScheduleGrid();
+
+      const teams = getParticipatingTeams();
+      renderChampionVotesGrid(teams);
 
       showToast("Se eliminaron todos los jugadores.");
     }
