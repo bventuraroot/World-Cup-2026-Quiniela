@@ -85,13 +85,16 @@ $(document).ready(function() {
   let state = {
     players: [],
     realResults: {},
+    matchTeams: {},
     config: {
       pointsExact: 3,
       pointsWinner: 1,
       pointsClosest: 1,
+      pointsChampion: 10,
       adminPin: '1234',
       theme: 'dark'
-    }
+    },
+    realChampion: null
   };
 
   let activePlayerId = null;
@@ -110,13 +113,19 @@ $(document).ready(function() {
           if (!state.realResults) state.realResults = {};
           if (!state.matchTeams) state.matchTeams = {};
           if (!state.config) {
-            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
+            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, pointsChampion: 10, adminPin: '1234', theme: 'dark' };
           }
           if (state.config.pointsClosest === undefined) {
             state.config.pointsClosest = 1;
           }
+          if (state.config.pointsChampion === undefined) {
+            state.config.pointsChampion = 10;
+          }
           if (state.config.adminPin === undefined) {
             state.config.adminPin = '1234';
+          }
+          if (state.realChampion === undefined) {
+            state.realChampion = null;
           }
           console.log("Estado cargado exitosamente desde la base de datos MySQL.");
         } else {
@@ -141,13 +150,19 @@ $(document).ready(function() {
           if (!state.realResults) state.realResults = {};
           if (!state.matchTeams) state.matchTeams = {};
           if (!state.config) {
-            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
+            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, pointsChampion: 10, adminPin: '1234', theme: 'dark' };
           }
           if (state.config.pointsClosest === undefined) {
             state.config.pointsClosest = 1;
           }
+          if (state.config.pointsChampion === undefined) {
+            state.config.pointsChampion = 10;
+          }
           if (state.config.adminPin === undefined) {
             state.config.adminPin = '1234';
+          }
+          if (state.realChampion === undefined) {
+            state.realChampion = null;
           }
         } catch (e) {
           initializeDefaultState();
@@ -182,9 +197,11 @@ $(document).ready(function() {
         pointsExact: 3,
         pointsWinner: 1,
         pointsClosest: 1,
+        pointsChampion: 10,
         adminPin: '1234',
         theme: 'dark'
-      }
+      },
+      realChampion: null
     };
   }
 
@@ -256,7 +273,8 @@ $(document).ready(function() {
       $('#admin-pin-change-section').show();
       
       // Habilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #btn-save-pts-config').prop('disabled', false);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config').prop('disabled', false);
+      $('#admin-select-champion, #btn-save-champion').prop('disabled', false);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', false);
       
       // Habilitar controles de jugadores
@@ -277,7 +295,8 @@ $(document).ready(function() {
       $('#admin-pin-change-section').hide();
       
       // Deshabilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #btn-save-pts-config').prop('disabled', true);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config').prop('disabled', true);
+      $('#admin-select-champion, #btn-save-champion').prop('disabled', true);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', true);
       
       // Deshabilitar controles de jugadores
@@ -504,6 +523,22 @@ $(document).ready(function() {
         });
       }
 
+      // Sumar puntos de la predicción del campeón
+      const points = state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10;
+      let championPredictionText = 'Sin predicción';
+      if (player.championPrediction) {
+        if (state.realChampion) {
+          if (player.championPrediction === state.realChampion) {
+            totalPoints += points;
+            championPredictionText = `${player.championPrediction} (+${points} pts)`;
+          } else {
+            championPredictionText = `${player.championPrediction} (Fallo - 0 pts)`;
+          }
+        } else {
+          championPredictionText = player.championPrediction;
+        }
+      }
+
       return {
         id: player.id,
         name: player.name,
@@ -512,7 +547,9 @@ $(document).ready(function() {
         closestHits,
         winnerHits,
         incorrects,
-        predictedCount
+        predictedCount,
+        championPredictionText,
+        championPrediction: player.championPrediction
       };
     }).sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) {
@@ -627,7 +664,7 @@ $(document).ready(function() {
     if (leaderboard.length === 0) {
       tbody.append(`
         <tr>
-          <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 3rem;">
             No hay jugadores agregados. Ve a la pestaña "Pronósticos" para agregar tu primer jugador.
           </td>
         </tr>
@@ -645,6 +682,8 @@ $(document).ready(function() {
       const rowId = `row-player-${player.id}`;
       const detailId = `detail-player-${player.id}`;
 
+      const flagHTML = player.championPrediction ? getTeamFlagHTML(player.championPrediction) : '';
+
       tbody.append(`
         <tr class="player-row" id="${rowId}" data-player-id="${player.id}">
           <td><span class="position-badge ${posClass}">${pos}</span></td>
@@ -654,10 +693,16 @@ $(document).ready(function() {
           <td style="text-align: center; color: var(--info); font-weight: 600;">${player.closestHits}</td>
           <td style="text-align: center; color: var(--secondary); font-weight: 600;">${player.winnerHits}</td>
           <td style="text-align: center; color: var(--text-muted); font-weight: 600;">${player.incorrects}</td>
+          <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
+            <div style="display: inline-flex; align-items: center; gap: 0.4rem; justify-content: center;">
+              ${flagHTML}
+              <span style="font-weight: 500;">${player.championPredictionText || 'Sin predicción'}</span>
+            </div>
+          </td>
           <td style="text-align: right; font-weight: 700; font-size: 1.1rem; color: var(--primary);">${player.totalPoints}</td>
         </tr>
         <tr class="player-details-row" id="${detailId}">
-          <td colspan="8" style="padding: 0;">
+          <td colspan="9" style="padding: 0;">
             <div class="details-grid" id="details-grid-${player.id}">
               <!-- Llenado al abrir para optimizar performance -->
             </div>
@@ -1462,8 +1507,9 @@ $(document).ready(function() {
     const ptsExact = parseInt($('#pts-exact').val());
     const ptsWinner = parseInt($('#pts-winner').val());
     const ptsClosest = parseInt($('#pts-closest').val());
+    const ptsChampion = parseInt($('#pts-champion').val());
 
-    if (isNaN(ptsExact) || ptsExact < 0 || isNaN(ptsWinner) || ptsWinner < 0 || isNaN(ptsClosest) || ptsClosest < 0) {
+    if (isNaN(ptsExact) || ptsExact < 0 || isNaN(ptsWinner) || ptsWinner < 0 || isNaN(ptsClosest) || ptsClosest < 0 || isNaN(ptsChampion) || ptsChampion < 0) {
       showToast("Ingresa valores de puntaje válidos (mayores o iguales a 0).", "error");
       return;
     }
@@ -1471,6 +1517,7 @@ $(document).ready(function() {
     state.config.pointsExact = ptsExact;
     state.config.pointsWinner = ptsWinner;
     state.config.pointsClosest = ptsClosest;
+    state.config.pointsChampion = ptsChampion;
 
     saveState();
     renderDashboard();
@@ -1478,6 +1525,9 @@ $(document).ready(function() {
     if (activePlayerId) {
       renderPredictionsGrid();
     }
+
+    const teams = getParticipatingTeams();
+    renderChampionVotesGrid(teams);
 
     showToast("Configuración de puntos aplicada y clasificaciones recalculadas.");
   });
@@ -1519,6 +1569,7 @@ $(document).ready(function() {
       "Aciertos Cercanos (Consuelo)": p.closestHits,
       "Aciertos Ganador": p.winnerHits,
       "Incorrectos": p.incorrects,
+      "Campeón Pronosticado": p.championPredictionText,
       "Puntos Totales": p.totalPoints
     }));
     
@@ -1644,6 +1695,11 @@ $(document).ready(function() {
           $('#pts-exact').val(state.config.pointsExact || 3);
           $('#pts-winner').val(state.config.pointsWinner || 1);
           $('#pts-closest').val(state.config.pointsClosest || 1);
+          $('#pts-champion').val(state.config.pointsChampion || 10);
+          
+          const teams = getParticipatingTeams();
+          populateChampionDropdowns(teams);
+          renderChampionVotesGrid(teams);
           
           const theme = state.config.theme || 'dark';
           $('html').attr('data-theme', theme);
@@ -1707,6 +1763,11 @@ $(document).ready(function() {
       $('#pts-exact').val(state.config.pointsExact);
       $('#pts-winner').val(state.config.pointsWinner);
       $('#pts-closest').val(state.config.pointsClosest);
+      $('#pts-champion').val(state.config.pointsChampion);
+      
+      const teams = getParticipatingTeams();
+      populateChampionDropdowns(teams);
+      renderChampionVotesGrid(teams);
       
       $('html').attr('data-theme', 'dark');
       $('#theme-toggle').html('<i data-lucide="sun"></i>');
@@ -1734,6 +1795,162 @@ $(document).ready(function() {
 
   $('#search-team-schedule').on('input', function() {
     renderScheduleGrid();
+  });
+
+  // ==========================================
+  // PREDICCIÓN DE CAMPEÓN DEL MUNDO (FUNCIONES)
+  // ==========================================
+
+  function getParticipatingTeams() {
+    const teams = new Set();
+    if (typeof WORLD_CUP_2026_MATCHES !== 'undefined') {
+      WORLD_CUP_2026_MATCHES.forEach(match => {
+        [match.team1, match.team2].forEach(team => {
+          if (team) {
+            const isPlaceholder = /^[0-9WLa-z\/]+$/.test(team) || 
+                                  team.includes('/') || 
+                                  /^[0-9]+[A-Z]$/i.test(team) || 
+                                  /^RU?\d+$/i.test(team) || 
+                                  /^W\d+$/i.test(team);
+            if (!isPlaceholder) {
+              teams.add(team);
+            }
+          }
+        });
+      });
+    }
+    return Array.from(teams).sort();
+  }
+
+  function populateChampionDropdowns(teams) {
+    const adminSelect = $('#admin-select-champion');
+    adminSelect.empty();
+    adminSelect.append('<option value="">-- Sin Definir --</option>');
+    teams.forEach(team => {
+      adminSelect.append(`<option value="${team}">${team}</option>`);
+    });
+    adminSelect.val(state.realChampion || '');
+  }
+
+  function renderChampionVotesGrid(teams) {
+    const noPlayersDiv = $('#champion-no-players');
+    const tableContainer = $('#champion-table-container');
+    const tbody = $('#champion-votes-tbody');
+    
+    tbody.empty();
+    
+    if (!state.players || state.players.length === 0) {
+      noPlayersDiv.show();
+      tableContainer.hide();
+      return;
+    }
+    
+    noPlayersDiv.hide();
+    tableContainer.show();
+    
+    state.players.forEach(player => {
+      let optionsHTML = '<option value="">-- Seleccionar --</option>';
+      teams.forEach(team => {
+        const selected = player.championPrediction === team ? 'selected' : '';
+        optionsHTML += `<option value="${team}" ${selected}>${team}</option>`;
+      });
+      
+      const flagHTML = player.championPrediction ? getTeamFlagHTML(player.championPrediction) : `<div class="team-flag-placeholder"><i data-lucide="help-circle" style="width: 13px; height: 13px; opacity:0.6;"></i></div>`;
+      
+      let statusText = 'Pendiente';
+      let statusStyle = 'background: rgba(251, 191, 36, 0.1); color: var(--secondary); border: 1px solid rgba(251, 191, 36, 0.25);';
+      let ptsText = '0 pts';
+      
+      const points = state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10;
+      
+      if (state.realChampion) {
+        if (player.championPrediction === state.realChampion) {
+          statusText = 'Acertado';
+          statusStyle = 'background: rgba(16, 185, 129, 0.1); color: var(--primary); border: 1px solid rgba(16, 185, 129, 0.25);';
+          ptsText = `+${points} pts`;
+        } else {
+          statusText = 'Fallo';
+          statusStyle = 'background: rgba(244, 63, 94, 0.1); color: var(--danger); border: 1px solid rgba(244, 63, 94, 0.25);';
+          ptsText = '0 pts';
+        }
+      } else if (!player.championPrediction) {
+        statusText = 'Sin Voto';
+        statusStyle = 'background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.05);';
+      }
+      
+      const selectHtml = `
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+          <div class="champion-flag-container" id="flag-champion-${player.id}" style="width: 40px; display: flex; align-items: center; justify-content: center;">
+            ${flagHTML}
+          </div>
+          <select class="select-custom champion-vote-select" data-player-id="${player.id}" style="min-width: 180px;">
+            ${optionsHTML}
+          </select>
+        </div>
+      `;
+      
+      tbody.append(`
+        <tr>
+          <td style="font-weight: 600; font-family: 'Outfit'; vertical-align: middle;">${player.name}</td>
+          <td style="vertical-align: middle;">${selectHtml}</td>
+          <td style="text-align: center; vertical-align: middle;">
+            <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 0.2rem;">
+              <span class="match-status-badge" style="${statusStyle} padding: 0.2rem 0.5rem; border-radius: var(--border-radius-sm); font-weight: 700; font-size: 0.7rem; text-transform: uppercase;">
+                ${statusText}
+              </span>
+              <span style="font-size: 0.8rem; font-weight: 600; color: ${statusText === 'Acertado' ? 'var(--primary)' : 'var(--text-secondary)'};">
+                ${ptsText}
+              </span>
+            </div>
+          </td>
+        </tr>
+      `);
+    });
+    
+    $('.champion-vote-select').off('change').on('change', function() {
+      const playerId = $(this).data('player-id');
+      const val = $(this).val();
+      
+      const player = state.players.find(p => p.id == playerId);
+      if (player) {
+        player.championPrediction = val || null;
+        saveState();
+        
+        const flagContainer = $(`#flag-champion-${playerId}`);
+        if (val) {
+          flagContainer.html(getTeamFlagHTML(val));
+        } else {
+          flagContainer.html(`<div class="team-flag-placeholder"><i data-lucide="help-circle" style="width: 13px; height: 13px; opacity:0.6;"></i></div>`);
+        }
+        
+        renderChampionVotesGrid(teams);
+        renderLeaderboard();
+        
+        showToast("Voto guardado y clasificaciones actualizadas.");
+        lucide.createIcons();
+      }
+    });
+    
+    lucide.createIcons();
+  }
+
+  $('#btn-save-champion').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+    
+    const selectedChampion = $('#admin-select-champion').val();
+    state.realChampion = selectedChampion || null;
+    
+    saveState();
+    renderDashboard();
+    renderLeaderboard();
+    
+    const teams = getParticipatingTeams();
+    renderChampionVotesGrid(teams);
+    
+    showToast("Campeón oficial del Mundial guardado. Tabla de posiciones recalculada.");
   });
 
   // ==========================================
@@ -1770,6 +1987,9 @@ $(document).ready(function() {
       }
     } else if (target === '#tab-admin') {
       renderAdminGrid();
+    } else if (target === '#tab-champion') {
+      const teams = getParticipatingTeams();
+      renderChampionVotesGrid(teams);
     }
   });
 
@@ -1781,6 +2001,7 @@ $(document).ready(function() {
     $('#pts-exact').val(state.config.pointsExact);
     $('#pts-winner').val(state.config.pointsWinner);
     $('#pts-closest').val(state.config.pointsClosest || 1);
+    $('#pts-champion').val(state.config.pointsChampion || 10);
 
     const startTheme = state.config.theme || 'dark';
     $('html').attr('data-theme', startTheme);
@@ -1792,6 +2013,10 @@ $(document).ready(function() {
 
     // Sincronizar UI del Administrador en carga
     updateAdminUI();
+
+    const teams = getParticipatingTeams();
+    populateChampionDropdowns(teams);
+    renderChampionVotesGrid(teams);
 
     renderDashboard();
     renderLeaderboard();

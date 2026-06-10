@@ -54,6 +54,9 @@
       <button class="tab-btn" data-target="#tab-predictions">
         <i data-lucide="edit-3"></i> Pronósticos
       </button>
+      <button class="tab-btn" data-target="#tab-champion">
+        <i data-lucide="award"></i> Votar Campeón
+      </button>
       <button class="tab-btn" data-target="#tab-admin">
         <i data-lucide="settings"></i> Admin Resultados
       </button>
@@ -279,6 +282,7 @@
                 <th style="text-align: center; color: var(--info);">Cercano</th>
                 <th style="text-align: center; color: var(--secondary);">Ganador</th>
                 <th style="text-align: center; color: var(--danger);">Fallados</th>
+                <th style="text-align: center;">Campeón Pronosticado</th>
                 <th style="text-align: right; font-weight: 700;">Puntos Totales</th>
               </tr>
             </thead>
@@ -409,6 +413,37 @@
       </div>
     </section>
 
+    <!-- TAB: CHAMPION PREDICTION (PUBLIC) -->
+    <section id="tab-champion" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title"><i data-lucide="award"></i> Votar por el Campeón del Mundo</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para todos y no requiere clave de administrador!
+        </p>
+
+        <div id="champion-no-players" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+          <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+          <h3>No hay jugadores registrados</h3>
+          <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, registra jugadores en la pestaña de Pronósticos para comenzar a votar por el campeón.</p>
+        </div>
+
+        <div id="champion-table-container" style="display: none; overflow-x: auto;">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th style="width: 250px;">Jugador</th>
+                <th>Predicción de Campeón</th>
+                <th style="width: 150px; text-align: center;">Estatus de Puntos</th>
+              </tr>
+            </thead>
+            <tbody id="champion-votes-tbody">
+              <!-- Cargado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB: ADMIN RESULTS -->
     <section id="tab-admin" class="tab-panel">
       <div class="glass-card">
@@ -418,6 +453,24 @@
           Ingresa los marcadores oficiales de los partidos a medida que se jueguen. Los puntos de todos los
           participantes se recalcularán automáticamente en tiempo real al actualizar un marcador.
         </p>
+
+        <!-- Seccion de Campeon Oficial (Admin Only) -->
+        <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.15); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <i data-lucide="trophy" style="color: var(--secondary); width: 24px; height: 24px;"></i>
+            <div>
+              <h4 style="font-size: 0.95rem; font-weight: 700;">Definir Campeón Oficial del Mundial</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Selecciona la selección ganadora cuando finalice el torneo para calcular los puntos adicionales.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.8rem; align-items: center;">
+            <select id="admin-select-champion" class="select-custom" style="min-width: 200px;">
+              <option value="">-- Sin Definir --</option>
+              <!-- Cargado dinámicamente -->
+            </select>
+            <button id="btn-save-champion" class="btn btn-primary" style="height: 38px;">Guardar Campeón</button>
+          </div>
+        </div>
 
         <!-- Filters -->
         <div class="filter-bar">
@@ -509,6 +562,14 @@
                 participantes (se acumula con los puntos de ganador).</p>
             </div>
             <input type="number" id="pts-closest" class="input-points-num" value="1" min="0" max="100">
+          </div>
+
+          <div class="config-item">
+            <div class="config-info">
+              <h5>Acierto de Campeón del Mundo</h5>
+              <p>Puntos adicionales para el jugador que adivine la selección campeona del torneo (ej. predice que el campeón es Argentina y queda campeón).</p>
+            </div>
+            <input type="number" id="pts-champion" class="input-points-num" value="10" min="0" max="100">
           </div>
 
           <button id="btn-save-pts-config" class="btn btn-primary" style="align-self: flex-start; margin-top: 1rem;">

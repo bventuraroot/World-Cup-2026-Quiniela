@@ -38,6 +38,10 @@ La puntuación de cada jugador se calcula automáticamente para cada partido fin
   - Sofía predice **1 - 0** (Diferencia de **2 goles** $\rightarrow$ Acierta ganador $\rightarrow$ **1 punto**).
   - Diego predice **2 - 0** (Diferencia de **1 gol** $\rightarrow$ Acierta ganador $\rightarrow$ **1 punto** + Consuelo por cercanía $\rightarrow$ **1 punto**). Total de Diego: **2 puntos**.
 
+### D. Acierto de Campeón del Mundo (+10 Puntos)
+- Se otorga al finalizar el torneo a todo jugador que haya pronosticado correctamente al campeón oficial de la Copa del Mundo 2026.
+- Esta predicción es de carácter público y cada participante puede definir o cambiar su voto libremente desde la pestaña **Votar Campeón**.
+
 *Nota: Los puntos de las reglas son configurables en el panel de Ajustes si el grupo decide cambiarlos.*
 
 ---
@@ -56,8 +60,9 @@ Para evitar modificaciones accidentales o de usuarios no autorizados, el sistema
      * Cambiar el PIN de seguridad desde Ajustes.
      * Ejecutar acciones de reinicio (limpiar marcadores reales o borrar todos los datos).
 2. **Modo Usuario (Visualizadores)**:
-   - Los usuarios normales tienen acceso en modo de **solo lectura**. Pueden navegar por la tabla general, ver el cronograma con banderas, leer las reglas y descargar los reportes de Excel o respaldos.
-   - No se permite registrar jugadores, ingresar pronósticos, configurar puntos o ingresar marcadores reales a menos que se inicie sesión como Administrador.
+   - Los usuarios normales tienen acceso en modo de **solo lectura** para la mayoría de las secciones. Pueden navegar por la tabla general, ver el cronograma con banderas, leer las reglas y descargar los reportes de Excel o respaldos.
+   - **Excepción pública**: Cualquier usuario puede definir y cambiar libremente su predicción de campeón en la pestaña **Votar Campeón** sin requerir PIN de administrador.
+   - No se permite registrar jugadores, ingresar pronósticos de partidos, configurar puntos o ingresar marcadores reales a menos que se inicie sesión como Administrador.
 
 ---
 
