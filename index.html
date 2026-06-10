@@ -197,7 +197,7 @@
             <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
               <div
                 style="background-color: var(--primary-glow); color: var(--primary); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
-                +3</div>
+                +<span class="rules-pts-exact">3</span></div>
               <div>
                 <strong style="color: var(--text-primary);">Marcador Exacto</strong>
                 <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la cantidad exacta de goles de ambos
@@ -208,7 +208,7 @@
             <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
               <div
                 style="background-color: var(--secondary-glow); color: var(--secondary); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
-                +1</div>
+                +<span class="rules-pts-winner">1</span></div>
               <div>
                 <strong style="color: var(--text-primary);">Ganador o Empate</strong>
                 <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas el ganador o el empate del partido, pero
@@ -219,11 +219,21 @@
             <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
               <div
                 style="background-color: var(--accent-glow); color: var(--info); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
-                +1</div>
+                +<span class="rules-pts-closest">1</span></div>
               <div>
                 <strong style="color: var(--text-primary);">Más Cercano (Consuelo)</strong>
                 <p style="font-size: 0.85rem; margin-top: 0.15rem;">Si no aciertas el exacto, pero tu marcador es el que
                   menor diferencia de goles tuvo con el real entre todos los participantes.</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.8rem; align-items: flex-start;">
+              <div
+                style="background-color: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 0.4rem; border-radius: var(--border-radius-sm); font-weight: 800; font-size: 0.9rem; min-width: 44px; text-align: center;">
+                +<span class="rules-pts-champion">10</span></div>
+              <div>
+                <strong style="color: var(--text-primary);">Campeón del Mundo</strong>
+                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la selección que se corona campeona del torneo (pronóstico registrado en la pestaña "Votar Campeón").</p>
               </div>
             </div>
           </div>
@@ -420,6 +430,19 @@
         <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
           Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para todos y no requiere clave de administrador!
         </p>
+
+        <!-- Banner del Campeón Oficial -->
+        <div id="champion-official-banner" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+          <div style="background-color: var(--primary-glow); color: var(--primary); padding: 0.5rem; border-radius: var(--border-radius-sm); display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="trophy" style="color: var(--secondary); width: 22px; height: 22px;"></i>
+          </div>
+          <div>
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Campeón Oficial del Mundial</h4>
+            <div id="champion-official-name" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">
+              <span style="color: var(--text-muted);">Pendiente de definición (se definirá por el Administrador al terminar el torneo)</span>
+            </div>
+          </div>
+        </div>
 
         <div id="champion-no-players" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
           <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>

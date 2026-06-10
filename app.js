@@ -254,6 +254,14 @@ $(document).ready(function() {
     });
   }
 
+  // Actualizar los valores de puntos que aparecen en la pestaña de reglas
+  function updateRulesPoints() {
+    $('.rules-pts-exact').text(state.config.pointsExact);
+    $('.rules-pts-winner').text(state.config.pointsWinner);
+    $('.rules-pts-closest').text(state.config.pointsClosest);
+    $('.rules-pts-champion').text(state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10);
+  }
+
   // ==========================================
   // SEGURIDAD DE ADMINISTRADOR: INTERFAZ Y MODALES
   // ==========================================
@@ -1549,6 +1557,7 @@ $(document).ready(function() {
     state.config.pointsChampion = ptsChampion;
 
     saveState();
+    updateRulesPoints();
     renderDashboard();
     renderLeaderboard();
     if (activePlayerId) {
@@ -1725,6 +1734,7 @@ $(document).ready(function() {
           $('#pts-winner').val(state.config.pointsWinner || 1);
           $('#pts-closest').val(state.config.pointsClosest || 1);
           $('#pts-champion').val(state.config.pointsChampion || 10);
+          updateRulesPoints();
           
           const teams = getParticipatingTeams();
           populateChampionDropdowns(teams);
@@ -1796,6 +1806,7 @@ $(document).ready(function() {
       $('#pts-winner').val(state.config.pointsWinner);
       $('#pts-closest').val(state.config.pointsClosest);
       $('#pts-champion').val(state.config.pointsChampion);
+      updateRulesPoints();
       
       const teams = getParticipatingTeams();
       populateChampionDropdowns(teams);
@@ -1870,6 +1881,24 @@ $(document).ready(function() {
     const tbody = $('#champion-votes-tbody');
     
     tbody.empty();
+    
+    // Actualizar el banner del campeón oficial en la pestaña de votación
+    const championOfficialNameDiv = $('#champion-official-name');
+    if (state.realChampion) {
+      const flagHTML = getTeamFlagHTML(state.realChampion);
+      championOfficialNameDiv.html(`
+        <div style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--primary); margin-top: 0.25rem;">
+          <div style="width: 30px; display: flex; align-items: center; justify-content: center;">
+            ${flagHTML}
+          </div>
+          <span>${state.realChampion}</span>
+        </div>
+      `);
+    } else {
+      championOfficialNameDiv.html(`
+        <span style="color: var(--text-muted);">Pendiente de definición (se definirá por el Administrador al terminar el torneo)</span>
+      `);
+    }
     
     if (!state.players || state.players.length === 0) {
       noPlayersDiv.show();
@@ -2034,6 +2063,7 @@ $(document).ready(function() {
     $('#pts-winner').val(state.config.pointsWinner);
     $('#pts-closest').val(state.config.pointsClosest || 1);
     $('#pts-champion').val(state.config.pointsChampion || 10);
+    updateRulesPoints();
 
     const startTheme = state.config.theme || 'dark';
     $('html').attr('data-theme', startTheme);
