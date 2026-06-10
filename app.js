@@ -78,6 +78,36 @@ $(document).ready(function() {
     return `<div class="team-flag-placeholder">${initials}</div>`;
   }
 
+  // Mostrar Toast Notification
+  function showToast(message, type = 'success') {
+    const id = 'toast-' + Date.now();
+    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+    const errorClass = type === 'error' ? 'toast-error' : '';
+
+    const toastHTML = `
+      <div id="${id}" class="toast ${errorClass}" style="opacity: 0; transform: translateY(20px);">
+        <i data-lucide="${icon}"></i>
+        <span>${message}</span>
+      </div>
+    `;
+
+    $('#toast-container').append(toastHTML);
+    lucide.createIcons();
+
+    const element = $(`#${id}`);
+    element.animate({
+      opacity: 1,
+      transform: 'translateY(0)'
+    }, 200);
+
+    setTimeout(() => {
+      element.addClass('toast-hide');
+      setTimeout(() => {
+        element.remove();
+      }, 500);
+    }, 3000);
+  }
+
   // ==========================================
   // 1. ESTADO Y CONFIGURACIÓN INICIAL
   // ==========================================
@@ -102,44 +132,56 @@ $(document).ready(function() {
 
   // Cargar estado desde LocalStorage
   function loadState(callback) {
-    $.ajax({
-      url: 'api.php?action=get',
-      type: 'GET',
-      dataType: 'json',
-      success: function(data) {
-        if (data && !data.status) { // Si no es un JSON con error
-          state = data;
-          if (!state.players) state.players = [];
-          if (!state.realResults) state.realResults = {};
-          if (!state.matchTeams) state.matchTeams = {};
-          if (!state.config) {
-            state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, pointsChampion: 10, adminPin: '1234', theme: 'dark' };
+    try {
+      $.ajax({
+        url: 'api.php?action=get',
+        type: 'GET',
+        dataType: 'json',
+        success: function(data) {
+          if (data && !data.status) { // Si no es un JSON con error
+            state = data;
+            if (!state.players) state.players = [];
+            state.players.forEach(p => {
+              if (!p.predictions) p.predictions = {};
+            });
+            if (!state.realResults) state.realResults = {};
+            if (!state.matchTeams) state.matchTeams = {};
+            if (!state.config) {
+              state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, pointsChampion: 10, adminPin: '1234', theme: 'dark' };
+            }
+            if (state.config.pointsClosest === undefined) {
+              state.config.pointsClosest = 1;
+            }
+            if (state.config.pointsChampion === undefined) {
+              state.config.pointsChampion = 10;
+            }
+            if (state.config.adminPin === undefined) {
+              state.config.adminPin = '1234';
+            }
+            if (state.realChampion === undefined) {
+              state.realChampion = null;
+            }
+            console.log("Estado cargado exitosamente desde la base de datos MySQL.");
+          } else {
+            console.warn("Respuesta inválida del servidor, usando LocalStorage.");
+            loadStateFromLocalStorage();
+            if (data && data.status === 'error') {
+              showToast("Error de base de datos: " + data.message, "error");
+            }
           }
-          if (state.config.pointsClosest === undefined) {
-            state.config.pointsClosest = 1;
-          }
-          if (state.config.pointsChampion === undefined) {
-            state.config.pointsChampion = 10;
-          }
-          if (state.config.adminPin === undefined) {
-            state.config.adminPin = '1234';
-          }
-          if (state.realChampion === undefined) {
-            state.realChampion = null;
-          }
-          console.log("Estado cargado exitosamente desde la base de datos MySQL.");
-        } else {
-          console.warn("Respuesta inválida del servidor, usando LocalStorage.");
+          finishLoading();
+        },
+        error: function(xhr, status, error) {
+          console.warn("No se pudo conectar con api.php, usando LocalStorage.");
           loadStateFromLocalStorage();
+          finishLoading();
         }
-        finishLoading();
-      },
-      error: function() {
-        console.warn("No se pudo conectar con api.php, usando LocalStorage.");
-        loadStateFromLocalStorage();
-        finishLoading();
-      }
-    });
+      });
+    } catch (e) {
+      console.warn("Error ejecutando $.ajax de carga (CORS o restricción local), usando LocalStorage.", e);
+      loadStateFromLocalStorage();
+      finishLoading();
+    }
 
     function loadStateFromLocalStorage() {
       const saved = localStorage.getItem('quiniela_wc2026_state');
@@ -147,6 +189,9 @@ $(document).ready(function() {
         try {
           state = JSON.parse(saved);
           if (!state.players) state.players = [];
+          state.players.forEach(p => {
+            if (!p.predictions) p.predictions = {};
+          });
           if (!state.realResults) state.realResults = {};
           if (!state.matchTeams) state.matchTeams = {};
           if (!state.config) {
@@ -236,22 +281,26 @@ $(document).ready(function() {
     localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
     
     // 2. Intentar guardar en el servidor a través de api.php
-    $.ajax({
-      url: 'api.php?action=save',
-      type: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(state),
-      success: function(response) {
-        if (response && response.status === 'success') {
-          console.log("Estado guardado correctamente en la base de datos remota.");
-        } else {
-          console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
+    try {
+      $.ajax({
+        url: 'api.php?action=save',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(state),
+        success: function(response) {
+          if (response && response.status === 'success') {
+            console.log("Estado guardado correctamente en la base de datos remota.");
+          } else {
+            console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error("Error de conexión con el servidor de base de datos:", error);
         }
-      },
-      error: function(xhr, status, error) {
-        console.error("Error de conexión con el servidor de base de datos:", error);
-      }
-    });
+      });
+    } catch (e) {
+      console.warn("Excepción al ejecutar $.ajax en saveState:", e);
+    }
   }
 
   // Actualizar los valores de puntos que aparecen en la pestaña de reglas
