@@ -158,6 +158,9 @@ $(document).ready(function() {
             if (state.config.adminPin === undefined) {
               state.config.adminPin = '1234';
             }
+            if (state.config.championVotingClosed === undefined) {
+              state.config.championVotingClosed = false;
+            }
             if (state.realChampion === undefined) {
               state.realChampion = null;
             }
@@ -206,6 +209,9 @@ $(document).ready(function() {
           if (state.config.adminPin === undefined) {
             state.config.adminPin = '1234';
           }
+          if (state.config.championVotingClosed === undefined) {
+            state.config.championVotingClosed = false;
+          }
           if (state.realChampion === undefined) {
             state.realChampion = null;
           }
@@ -244,7 +250,8 @@ $(document).ready(function() {
         pointsClosest: 1,
         pointsChampion: 10,
         adminPin: '1234',
-        theme: 'dark'
+        theme: 'dark',
+        championVotingClosed: false
       },
       realChampion: null
     };
@@ -330,7 +337,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').show();
       
       // Habilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config').prop('disabled', false);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting').prop('disabled', false);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', false);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', false);
       
@@ -352,7 +359,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').hide();
       
       // Deshabilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config').prop('disabled', true);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting').prop('disabled', true);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', true);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', true);
       
@@ -1784,6 +1791,10 @@ $(document).ready(function() {
           $('#pts-closest').val(state.config.pointsClosest || 1);
           $('#pts-champion').val(state.config.pointsChampion || 10);
           updateRulesPoints();
+          if (state.config.championVotingClosed === undefined) {
+            state.config.championVotingClosed = false;
+          }
+          updateChampionVotingUI();
           
           const teams = getParticipatingTeams();
           populateChampionDropdowns(teams);
@@ -1856,6 +1867,7 @@ $(document).ready(function() {
       $('#pts-closest').val(state.config.pointsClosest);
       $('#pts-champion').val(state.config.pointsChampion);
       updateRulesPoints();
+      updateChampionVotingUI();
       
       const teams = getParticipatingTeams();
       populateChampionDropdowns(teams);
@@ -1988,12 +2000,17 @@ $(document).ready(function() {
         statusStyle = 'background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.05);';
       }
       
+      let disabledSelectAttr = '';
+      if (state.config.championVotingClosed && !isAdminMode) {
+        disabledSelectAttr = 'disabled';
+      }
+
       const selectHtml = `
         <div style="display: flex; align-items: center; gap: 0.8rem;">
           <div class="champion-flag-container" id="flag-champion-${player.id}" style="width: 40px; display: flex; align-items: center; justify-content: center;">
             ${flagHTML}
           </div>
-          <select class="select-custom champion-vote-select" data-player-id="${player.id}" style="min-width: 180px;">
+          <select class="select-custom champion-vote-select" data-player-id="${player.id}" style="min-width: 180px;" ${disabledSelectAttr}>
             ${optionsHTML}
           </select>
         </div>
@@ -2043,6 +2060,41 @@ $(document).ready(function() {
     
     lucide.createIcons();
   }
+
+  function updateChampionVotingUI() {
+    const isClosed = !!(state.config && state.config.championVotingClosed);
+    const btn = $('#btn-toggle-champion-voting');
+    
+    if (isClosed) {
+      btn.removeClass('btn-secondary').addClass('btn-primary')
+         .html('<i data-lucide="lock-open"></i> Abrir Votaciones');
+      $('#champion-closed-banner').show();
+    } else {
+      btn.removeClass('btn-primary').addClass('btn-secondary')
+         .html('<i data-lucide="lock"></i> Cerrar Votaciones');
+      $('#champion-closed-banner').hide();
+    }
+    
+    lucide.createIcons();
+  }
+
+  $('#btn-toggle-champion-voting').on('click', function() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+    
+    state.config.championVotingClosed = !state.config.championVotingClosed;
+    saveState();
+    
+    updateChampionVotingUI();
+    
+    const teams = getParticipatingTeams();
+    renderChampionVotesGrid(teams);
+    
+    const toastMsg = state.config.championVotingClosed ? "Votaciones del campeón cerradas con éxito." : "Votaciones del campeón abiertas con éxito.";
+    showToast(toastMsg);
+  });
 
   $('#btn-save-champion').on('click', function() {
     if (!isAdminMode) {
@@ -2113,6 +2165,7 @@ $(document).ready(function() {
     $('#pts-closest').val(state.config.pointsClosest || 1);
     $('#pts-champion').val(state.config.pointsChampion || 10);
     updateRulesPoints();
+    updateChampionVotingUI();
 
     const startTheme = state.config.theme || 'dark';
     $('html').attr('data-theme', startTheme);

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela RIA - Ria Strategics 2026</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 
 <body>
@@ -431,6 +431,12 @@
           Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para todos y no requiere clave de administrador!
         </p>
 
+        <!-- Banner de Votación Cerrada -->
+        <div id="champion-closed-banner" style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.15); padding: 0.8rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: none; align-items: center; gap: 0.6rem; color: var(--danger); font-size: 0.85rem; font-weight: 600;">
+          <i data-lucide="lock" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+          <span>La votación ha sido cerrada por el Administrador. No se admiten más cambios en tu pronóstico.</span>
+        </div>
+
         <!-- Banner del Campeón Oficial -->
         <div id="champion-official-banner" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
           <div style="background-color: var(--primary-glow); color: var(--primary); padding: 0.5rem; border-radius: var(--border-radius-sm); display: flex; align-items: center; justify-content: center;">
@@ -593,6 +599,16 @@
               <p>Puntos adicionales para el jugador que adivine la selección campeona del torneo (ej. predice que el campeón es Argentina y queda campeón).</p>
             </div>
             <input type="number" id="pts-champion" class="input-points-num" value="10" min="0" max="100">
+          </div>
+
+          <div class="config-item" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.2rem; margin-top: 1.2rem; align-items: center;">
+            <div class="config-info">
+              <h5>Estado de Votación del Campeón</h5>
+              <p>Cierra o abre el registro público de votos por el Campeón del Mundo para los jugadores.</p>
+            </div>
+            <button id="btn-toggle-champion-voting" class="btn btn-secondary" style="min-width: 180px; font-weight: 700;" disabled>
+              <i data-lucide="lock"></i> Cerrar Votaciones
+            </button>
           </div>
 
           <button id="btn-save-pts-config" class="btn btn-primary" style="align-self: flex-start; margin-top: 1rem;">
@@ -762,7 +778,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 
 </html>
