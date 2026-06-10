@@ -927,8 +927,14 @@ $(document).ready(function() {
       grid.append(`
         <div class="match-card" style="${cardBorderGlow}">
           <div class="match-card-header">
-            <span>${match.round}</span>
-            ${match.group ? `<span class="match-group">${match.group}</span>` : ''}
+            <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
+              <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
+              ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+            </div>
           </div>
           
           <div class="match-card-body">
@@ -1064,8 +1070,14 @@ $(document).ready(function() {
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
           <div class="match-card-header">
-            <span>${match.round}</span>
-            ${match.group ? `<span class="match-group">${match.group}</span>` : ''}
+            <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
+              <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
+              ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+            </div>
           </div>
           
           <div class="match-card-body">
@@ -1265,8 +1277,14 @@ $(document).ready(function() {
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
           <div class="match-card-header">
-            <span>${match.round}</span>
-            ${match.group ? `<span class="match-group">${match.group}</span>` : ''}
+            <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
+              <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
+              ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
+              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+            </div>
           </div>
           
           <div class="match-card-body" style="align-items: center; justify-content: center; padding: 0.5rem 0;">
