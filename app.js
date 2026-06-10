@@ -887,7 +887,14 @@ $(document).ready(function() {
 
     let matchesCount = 0;
 
-    WORLD_CUP_2026_MATCHES.forEach(match => {
+    // Ordenar partidos cronológicamente (por fecha, hora y ID como respaldo)
+    const sortedMatches = [...WORLD_CUP_2026_MATCHES].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      return a.id - b.id;
+    });
+
+    sortedMatches.forEach(match => {
       if (groupFilter !== 'ALL') {
         if (groupFilter === 'Group Stage' && match.group === '') return;
         if (groupFilter === 'Knockout Stage' && match.group !== '') return;
@@ -1029,8 +1036,9 @@ $(document).ready(function() {
           <p>No hay partidos que coincidan con los filtros seleccionados.</p>
         </div>
       `);
-      lucide.createIcons();
     }
+
+    lucide.createIcons();
 
     $('.pred-input').off('change').on('change', function() {
       if (!isAdminMode) {
@@ -1089,7 +1097,14 @@ $(document).ready(function() {
     let matchCount = 0;
     const disabledAttr = isAdminMode ? '' : 'disabled';
 
-    WORLD_CUP_2026_MATCHES.forEach(match => {
+    // Ordenar partidos cronológicamente (por fecha, hora y ID como respaldo)
+    const sortedMatches = [...WORLD_CUP_2026_MATCHES].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      return a.id - b.id;
+    });
+
+    sortedMatches.forEach(match => {
       if (groupFilter !== 'ALL') {
         if (groupFilter === 'Group Stage' && match.group === '') return;
         if (groupFilter === 'Knockout Stage' && match.group !== '') return;
@@ -1198,8 +1213,9 @@ $(document).ready(function() {
           <p>No hay partidos que coincidan con los filtros seleccionados.</p>
         </div>
       `);
-      lucide.createIcons();
     }
+
+    lucide.createIcons();
 
     $('.admin-team-name-input').off('change').on('change', function() {
       if (!isAdminMode) {
@@ -1271,7 +1287,14 @@ $(document).ready(function() {
 
     let matchesCount = 0;
 
-    WORLD_CUP_2026_MATCHES.forEach(match => {
+    // Ordenar partidos cronológicamente (por fecha, hora y ID como respaldo)
+    const sortedMatches = [...WORLD_CUP_2026_MATCHES].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      return a.id - b.id;
+    });
+
+    sortedMatches.forEach(match => {
       if (groupFilter !== 'ALL') {
         if (groupFilter === 'Group Stage' && match.group === '') return;
         if (groupFilter === 'Knockout Stage' && match.group !== '') return;
