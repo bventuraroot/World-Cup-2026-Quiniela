@@ -108,6 +108,7 @@ $(document).ready(function() {
           state = data;
           if (!state.players) state.players = [];
           if (!state.realResults) state.realResults = {};
+          if (!state.matchTeams) state.matchTeams = {};
           if (!state.config) {
             state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
           }
@@ -138,6 +139,7 @@ $(document).ready(function() {
           state = JSON.parse(saved);
           if (!state.players) state.players = [];
           if (!state.realResults) state.realResults = {};
+          if (!state.matchTeams) state.matchTeams = {};
           if (!state.config) {
             state.config = { pointsExact: 3, pointsWinner: 1, pointsClosest: 1, adminPin: '1234', theme: 'dark' };
           }
@@ -175,6 +177,7 @@ $(document).ready(function() {
     state = {
       players: [],
       realResults: {},
+      matchTeams: {},
       config: {
         pointsExact: 3,
         pointsWinner: 1,
@@ -197,6 +200,17 @@ $(document).ready(function() {
         }
       });
     }
+  }
+
+  // Obtener el nombre del equipo, considerando si hay uno editado en la base de datos
+  function getTeamName(matchId, teamNum, defaultName) {
+    if (state.matchTeams && state.matchTeams[matchId]) {
+      const customName = teamNum === 1 ? state.matchTeams[matchId].team1 : state.matchTeams[matchId].team2;
+      if (customName !== undefined && customName !== null && customName.trim() !== "") {
+        return customName.trim();
+      }
+    }
+    return defaultName;
   }
 
   // Guardar estado en LocalStorage y Base de Datos (MySQL)
@@ -725,8 +739,10 @@ $(document).ready(function() {
         }
       }
 
-      const flag1HTML = getTeamFlagHTML(match.team1);
-      const flag2HTML = getTeamFlagHTML(match.team2);
+      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
       container.append(`
         <div class="mini-prediction-card">
@@ -735,7 +751,7 @@ $(document).ready(function() {
             <span>ID: ${match.id}</span>
           </div>
           <div class="mini-pred-teams" style="gap:0.4rem;">
-            <span style="display:flex; align-items:center; gap:0.4rem; overflow:hidden; text-overflow:ellipsis;">
+            <span style="display:flex; align-items:center; gap:0.4rem; overflow:hidden; text-overflow:ellipsis;" title="${resolvedTeam1} vs ${resolvedTeam2}">
               ${flag1HTML} <span style="font-size:0.78rem;">vs</span> ${flag2HTML}
             </span>
             <span class="mini-pred-score ${scoreClass}">${predText}</span>
@@ -903,8 +919,10 @@ $(document).ready(function() {
         `;
       }
 
-      const flag1HTML = getTeamFlagHTML(match.team1);
-      const flag2HTML = getTeamFlagHTML(match.team2);
+      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
       grid.append(`
         <div class="match-card" style="${cardBorderGlow}">
@@ -918,7 +936,7 @@ $(document).ready(function() {
             <div class="team-row">
               <div class="team-info">
                 ${flag1HTML}
-                <span class="team-name" title="${match.team1}">${match.team1}</span>
+                <span class="team-name" title="${resolvedTeam1}">${resolvedTeam1}</span>
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal pred-input" 
@@ -932,7 +950,7 @@ $(document).ready(function() {
             <div class="team-row">
               <div class="team-info">
                 ${flag2HTML}
-                <span class="team-name" title="${match.team2}">${match.team2}</span>
+                <span class="team-name" title="${resolvedTeam2}">${resolvedTeam2}</span>
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal pred-input" 
@@ -1038,8 +1056,10 @@ $(document).ready(function() {
 
       matchCount++;
 
-      const flag1HTML = getTeamFlagHTML(match.team1);
-      const flag2HTML = getTeamFlagHTML(match.team2);
+      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
@@ -1051,9 +1071,18 @@ $(document).ready(function() {
           <div class="match-card-body">
             <!-- Team 1 -->
             <div class="team-row">
-              <div class="team-info">
+              <div class="team-info" style="width: 100%; display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
                 ${flag1HTML}
-                <span class="team-name" title="${match.team1}">${match.team1}</span>
+                ${match.group === "" ? `
+                  <input type="text" class="input-text admin-team-name-input" 
+                    data-match-id="${match.id}" data-team="1" 
+                    value="${resolvedTeam1}" 
+                    placeholder="Equipo 1"
+                    style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
+                    ${disabledAttr}>
+                ` : `
+                  <span class="team-name" title="${resolvedTeam1}">${resolvedTeam1}</span>
+                `}
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
@@ -1065,9 +1094,18 @@ $(document).ready(function() {
             
             <!-- Team 2 -->
             <div class="team-row">
-              <div class="team-info">
+              <div class="team-info" style="width: 100%; display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
                 ${flag2HTML}
-                <span class="team-name" title="${match.team2}">${match.team2}</span>
+                ${match.group === "" ? `
+                  <input type="text" class="input-text admin-team-name-input" 
+                    data-match-id="${match.id}" data-team="2" 
+                    value="${resolvedTeam2}" 
+                    placeholder="Equipo 2"
+                    style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
+                    ${disabledAttr}>
+                ` : `
+                  <span class="team-name" title="${resolvedTeam2}">${resolvedTeam2}</span>
+                `}
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
@@ -1105,6 +1143,34 @@ $(document).ready(function() {
       `);
       lucide.createIcons();
     }
+
+    $('.admin-team-name-input').off('change').on('change', function() {
+      if (!isAdminMode) {
+        showToast("Error: Acceso Administrador requerido.", "error");
+        renderAdminGrid();
+        return;
+      }
+      const matchId = $(this).data('match-id');
+      const teamNum = $(this).data('team');
+      const newName = $(this).val().trim();
+
+      if (!state.matchTeams[matchId]) {
+        state.matchTeams[matchId] = { team1: "", team2: "" };
+      }
+
+      if (teamNum === 1) {
+        state.matchTeams[matchId].team1 = newName;
+      } else {
+        state.matchTeams[matchId].team2 = newName;
+      }
+
+      saveState();
+      renderDashboard();
+      renderLeaderboard();
+      // Rerenderizar la grilla de administración para recargar las banderas del nuevo país ingresado
+      renderAdminGrid();
+      showToast(`Nombre del equipo actualizado.`);
+    });
 
     $('.admin-goal-input, .admin-status-select').off('change').on('change', function() {
       if (!isAdminMode) {
@@ -1157,9 +1223,12 @@ $(document).ready(function() {
         }
       }
 
+      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+
       if (searchTerm) {
-        const team1Match = match.team1.toLowerCase().includes(searchTerm);
-        const team2Match = match.team2.toLowerCase().includes(searchTerm);
+        const team1Match = resolvedTeam1.toLowerCase().includes(searchTerm);
+        const team2Match = resolvedTeam2.toLowerCase().includes(searchTerm);
         if (!team1Match && !team2Match) return;
       }
 
@@ -1190,8 +1259,8 @@ $(document).ready(function() {
       });
       const totalPlayers = state.players.length;
 
-      const flag1HTML = getTeamFlagHTML(match.team1);
-      const flag2HTML = getTeamFlagHTML(match.team2);
+      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
@@ -1208,7 +1277,7 @@ $(document).ready(function() {
                 <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
                   ${flag1HTML}
                 </div>
-                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${match.team1}">${match.team1}</span>
+                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam1}">${resolvedTeam1}</span>
               </div>
               
               <!-- Score / VS -->
@@ -1221,7 +1290,7 @@ $(document).ready(function() {
                 <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
                   ${flag2HTML}
                 </div>
-                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${match.team2}">${match.team2}</span>
+                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam2}">${resolvedTeam2}</span>
               </div>
               
             </div>
@@ -1440,16 +1509,18 @@ $(document).ready(function() {
 
     const resultsData = WORLD_CUP_2026_MATCHES.map(match => {
       const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
+      const resolvedT1 = getTeamName(match.id, 1, match.team1);
+      const resolvedT2 = getTeamName(match.id, 2, match.team2);
       return {
         "ID Partido": match.id,
         "Fase/Jornada": match.round,
         "Grupo": match.group || "Eliminatorias",
         "Fecha": match.date,
         "Hora": match.time,
-        "Equipo 1": match.team1,
+        "Equipo 1": resolvedT1,
         "Goles Equipo 1": real.goals1 !== null ? real.goals1 : "",
         "Goles Equipo 2": real.goals2 !== null ? real.goals2 : "",
-        "Equipo 2": match.team2,
+        "Equipo 2": resolvedT2,
         "Sede": match.ground,
         "Estado": real.status === 'finished' ? 'Finalizado' : (real.status === 'live' ? 'En Vivo' : 'Pendiente')
       };
@@ -1460,6 +1531,8 @@ $(document).ready(function() {
 
     const matrixData = WORLD_CUP_2026_MATCHES.map(match => {
       const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
+      const resolvedT1 = getTeamName(match.id, 1, match.team1);
+      const resolvedT2 = getTeamName(match.id, 2, match.team2);
       let realScore = "Pendiente";
       if (real.status === 'finished') {
         realScore = `${real.goals1} - ${real.goals2}`;
@@ -1469,8 +1542,8 @@ $(document).ready(function() {
         "ID": match.id,
         "Jornada": match.round,
         "Grupo": match.group || "Eliminatorias",
-        "Equipo 1": match.team1,
-        "Equipo 2": match.team2,
+        "Equipo 1": resolvedT1,
+        "Equipo 2": resolvedT2,
         "Marcador Real": realScore
       };
 
