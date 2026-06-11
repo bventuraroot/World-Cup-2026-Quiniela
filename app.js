@@ -934,6 +934,7 @@ $(document).ready(function() {
   }
 
   // Renderizar Grid de Partidos en Pronósticos (con banderas)
+  // Renderizar Grid de Partidos en Pronósticos (con banderas)
   function renderPredictionsGrid() {
     const grid = $('#predictions-matches-grid');
     grid.empty();
@@ -991,7 +992,15 @@ $(document).ready(function() {
       }
 
       let footerFeedbackHTML = '';
-      let disabledAttr = !isAdminMode ? 'disabled' : '';
+      let disabledAttr = '';
+      if (isFinished) {
+        disabledAttr = 'disabled';
+      } else if (!isAdminMode) {
+        if (hasPred && !pred.unlocked) {
+          disabledAttr = 'disabled';
+        }
+      }
+
       let cardBorderGlow = '';
 
       if (isFinished) {
@@ -1033,6 +1042,54 @@ $(document).ready(function() {
             </div>
           </div>
         `;
+      }
+
+      let lockBadgeHTML = '';
+      if (!isFinished) {
+        if (hasPred) {
+          if (pred.unlocked) {
+            if (isAdminMode) {
+              lockBadgeHTML = `
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--primary);">
+                  <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="lock-open" style="width: 12px; height: 12px;"></i> Liberado por Admin</span>
+                  <button class="btn-lock-toggle" data-match-id="${match.id}" data-action="lock" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; text-decoration: underline; font-size: 0.72rem; padding: 0;">Volver a Bloquear</button>
+                </div>
+              `;
+            } else {
+              lockBadgeHTML = `
+                <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--primary);">
+                  <i data-lucide="lock-open" style="width: 12px; height: 12px;"></i>
+                  <span>Editable (Liberado por Admin)</span>
+                </div>
+              `;
+            }
+          } else {
+            // Bloqueado
+            if (isAdminMode) {
+              lockBadgeHTML = `
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--danger);">
+                  <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Bloqueado para usuario</span>
+                  <button class="btn-lock-toggle" data-match-id="${match.id}" data-action="unlock" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 0.72rem; padding: 0;">Liberar/Desbloquear</button>
+                </div>
+              `;
+            } else {
+              lockBadgeHTML = `
+                <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--text-muted);">
+                  <i data-lucide="lock" style="width: 12px; height: 12px;"></i>
+                  <span>Bloqueado (No editable)</span>
+                </div>
+              `;
+            }
+          }
+        } else {
+          // Sin predicción
+          lockBadgeHTML = `
+            <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
+              <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
+              <span>Pendiente de ingresar</span>
+            </div>
+          `;
+        }
       }
 
       const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
@@ -1082,6 +1139,7 @@ $(document).ready(function() {
               </div>
             </div>
 
+            ${lockBadgeHTML}
             ${footerFeedbackHTML}
           </div>
 
@@ -1105,11 +1163,6 @@ $(document).ready(function() {
     lucide.createIcons();
 
     $('.pred-input').off('change').on('change', function() {
-      if (!isAdminMode) {
-        showToast("Acceso Administrador requerido.", "error");
-        renderPredictionsGrid();
-        return;
-      }
       const matchId = $(this).data('match-id');
       const card = $(this).closest('.match-card');
       const val1 = card.find('.pred-input[data-team="1"]').val();
@@ -1118,23 +1171,66 @@ $(document).ready(function() {
       const pIdx = state.players.findIndex(p => p.id == activePlayerId);
       if (pIdx === -1) return;
 
-      if (!state.players[pIdx].predictions[matchId]) {
-        state.players[pIdx].predictions[matchId] = { goals1: "", goals2: "" };
+      const pred = state.players[pIdx].predictions[matchId] || { goals1: "", goals2: "" };
+      const hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+                       pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+
+      // Si no es admin y ya tenía una predicción completa y no está liberada, no permitir guardar
+      if (!isAdminMode && hasPred && !pred.unlocked) {
+        showToast("Este pronóstico está bloqueado. Pide al administrador que lo libere.", "error");
+        renderPredictionsGrid();
+        return;
       }
 
       if (val1 === "" && val2 === "") {
         delete state.players[pIdx].predictions[matchId];
         saveState();
         showSaveIndicator(true);
+        renderPredictionsGrid();
         return;
+      }
+
+      if (!state.players[pIdx].predictions[matchId]) {
+        state.players[pIdx].predictions[matchId] = { goals1: "", goals2: "" };
       }
 
       state.players[pIdx].predictions[matchId].goals1 = val1;
       state.players[pIdx].predictions[matchId].goals2 = val2;
 
+      // Si el usuario guardó un marcador completo (ambos goles), bloquearlo quitando la bandera de desbloqueo
+      const nowHasPred = val1 !== "" && val1 !== null && val1 !== undefined &&
+                         val2 !== "" && val2 !== null && val2 !== undefined;
+      if (nowHasPred && !isAdminMode) {
+        state.players[pIdx].predictions[matchId].unlocked = false;
+      }
+
       saveState();
       showSaveIndicator(true);
       renderDashboard();
+      renderPredictionsGrid();
+    });
+
+    $('.btn-lock-toggle').off('click').on('click', function(e) {
+      e.preventDefault();
+      if (!isAdminMode) return;
+
+      const matchId = $(this).data('match-id');
+      const action = $(this).data('action');
+
+      const pIdx = state.players.findIndex(p => p.id == activePlayerId);
+      if (pIdx === -1) return;
+
+      if (!state.players[pIdx].predictions[matchId]) {
+        state.players[pIdx].predictions[matchId] = { goals1: "", goals2: "" };
+      }
+
+      state.players[pIdx].predictions[matchId].unlocked = (action === 'unlock');
+      saveState();
+
+      renderPredictionsGrid();
+
+      const msg = action === 'unlock' ? "Pronóstico liberado para el usuario." : "Pronóstico bloqueado para el usuario.";
+      showToast(msg);
     });
   }
 
