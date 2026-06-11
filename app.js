@@ -130,6 +130,10 @@ $(document).ready(function() {
   let activePlayerId = null;
   let isAdminMode = false; // Estado de sesión del administrador
 
+  let chartChampionVotes = null;
+  let chartTeamPopularity = null;
+  let chartMatchDistribution = null;
+
   // Cargar estado desde LocalStorage
   function loadState(callback) {
     try {
@@ -312,10 +316,16 @@ $(document).ready(function() {
 
   // Actualizar los valores de puntos que aparecen en la pestaña de reglas
   function updateRulesPoints() {
-    $('.rules-pts-exact').text(state.config.pointsExact);
-    $('.rules-pts-winner').text(state.config.pointsWinner);
-    $('.rules-pts-closest').text(state.config.pointsClosest);
-    $('.rules-pts-champion').text(state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10);
+    const ptsExact = parseInt(state.config.pointsExact || 3);
+    const ptsWinner = parseInt(state.config.pointsWinner || 1);
+    const ptsClosest = parseInt(state.config.pointsClosest || 1);
+    const ptsChampion = parseInt(state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10);
+
+    $('.rules-pts-exact').text(ptsExact);
+    $('.rules-pts-winner').text(ptsWinner);
+    $('.rules-pts-closest').text(ptsClosest);
+    $('.rules-pts-champion').text(ptsChampion);
+    $('.rules-pts-total-exact').text(ptsExact + ptsWinner);
   }
 
   // ==========================================
@@ -504,7 +514,9 @@ $(document).ready(function() {
     }
 
     if (p1 === r1 && p2 === r2) {
-      return { points: parseInt(state.config.pointsExact || 3), type: 'exact' };
+      const ptsExact = parseInt(state.config.pointsExact || 3);
+      const ptsWinner = parseInt(state.config.pointsWinner || 1);
+      return { points: ptsExact + ptsWinner, type: 'exact' };
     }
     
     let minDistance = Infinity;
@@ -1736,6 +1748,10 @@ $(document).ready(function() {
       $(this).html('<i data-lucide="sun"></i>');
     }
     lucide.createIcons();
+
+    if ($('.tab-btn[data-target="#tab-analytics"]').hasClass('active')) {
+      renderAnalyticsTab();
+    }
   });
 
   // ==========================================
@@ -2212,6 +2228,501 @@ $(document).ready(function() {
   });
 
   // ==========================================
+  // 7.5. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
+  // ==========================================
+
+  function getThemeColor(variableName, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+    return value || fallback;
+  }
+
+  function hexOrRgbToRgba(colorStr, opacity) {
+    if (!colorStr) return `rgba(0, 0, 0, ${opacity})`;
+    colorStr = colorStr.trim();
+    if (colorStr.startsWith('rgb')) {
+      // If it's already rgb(r, g, b) or rgba(r, g, b, a)
+      return colorStr.replace(/rgb\(/, 'rgba(').replace(/\)/, `, ${opacity})`).replace(/rgba\(([^)]+),\s*[^)]+\)/, `rgba($1, ${opacity})`);
+    }
+    if (colorStr.startsWith('#')) {
+      let hex = colorStr.slice(1);
+      if (hex.length === 3) {
+        hex = hex.split('').map(c => c + c).join('');
+      }
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+    return colorStr;
+  }
+
+  function initAnalyticsTab() {
+    $('#stats-match-select').off('change').on('change', function() {
+      const matchId = parseInt($(this).val());
+      renderMatchSpecificAnalytics(matchId);
+    });
+  }
+
+  function renderAnalyticsTab() {
+    if (typeof Chart === 'undefined') {
+      $('#stats-no-players-placeholder').html(`
+        <i data-lucide="wifi-off" style="width: 48px; height: 48px; color: var(--danger); margin-bottom: 1rem;"></i>
+        <h3>Error al cargar gráficos</h3>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Chart.js no está disponible. Por favor, verifica tu conexión a internet.</p>
+      `).show();
+      $('#stats-match-details').hide();
+      
+      // Vaciar contadores
+      $('#stats-total-players').text(state.players.length);
+      $('#stats-total-predictions').text(0);
+      $('#stats-participation-rate').text('0%');
+      $('#stats-most-common-score').text('-');
+      
+      lucide.createIcons();
+      return;
+    }
+
+    const totalPlayers = state.players.length;
+
+    // 1. Mostrar/Ocultar placeholder según si hay jugadores
+    if (totalPlayers === 0) {
+      $('#stats-no-players-placeholder').html(`
+        <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <h3>No hay jugadores registrados</h3>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas.</p>
+      `).show();
+      $('#stats-match-details').hide();
+      
+      // Vaciar contadores
+      $('#stats-total-players').text(0);
+      $('#stats-total-predictions').text(0);
+      $('#stats-participation-rate').text('0%');
+      $('#stats-most-common-score').text('-');
+      
+      // Destruir gráficos anteriores si existen
+      if (chartChampionVotes) { chartChampionVotes.destroy(); chartChampionVotes = null; }
+      if (chartTeamPopularity) { chartTeamPopularity.destroy(); chartTeamPopularity = null; }
+      if (chartMatchDistribution) { chartMatchDistribution.destroy(); chartMatchDistribution = null; }
+      
+      lucide.createIcons();
+      return;
+    }
+
+    $('#stats-no-players-placeholder').hide();
+    $('#stats-match-details').show();
+
+    // 2. Calcular Métricas Generales
+    let totalPredictions = 0;
+    const scoreCounts = {};
+    
+    state.players.forEach(p => {
+      Object.values(p.predictions).forEach(pred => {
+        if (pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+            pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
+          totalPredictions++;
+          const scoreKey = `${pred.goals1} - ${pred.goals2}`;
+          scoreCounts[scoreKey] = (scoreCounts[scoreKey] || 0) + 1;
+        }
+      });
+    });
+
+    const possiblePredictions = totalPlayers * 104;
+    const participationRate = possiblePredictions > 0 ? ((totalPredictions / possiblePredictions) * 100).toFixed(1) + '%' : '0%';
+
+    let mostCommonScore = "-";
+    let maxCount = 0;
+    Object.entries(scoreCounts).forEach(([score, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonScore = `${score} (${count} ${count === 1 ? 'voto' : 'votos'})`;
+      }
+    });
+
+    $('#stats-total-players').text(totalPlayers);
+    $('#stats-total-predictions').text(totalPredictions);
+    $('#stats-participation-rate').text(participationRate);
+    $('#stats-most-common-score').text(mostCommonScore);
+
+    // 3. Colores del tema actual
+    const textColor = getThemeColor('--text-secondary', '#94a3b8');
+    const labelColor = getThemeColor('--text-primary', '#f8fafc');
+    const primaryColor = getThemeColor('--primary', '#10b981');
+    const secondaryColor = getThemeColor('--secondary', '#fbbf24');
+    const gridColor = getThemeColor('--border-color', 'rgba(255, 255, 255, 0.05)');
+
+    // 4. Gráfico de Campeones Favoritos
+    const championCounts = {};
+    state.players.forEach(p => {
+      if (p.championPrediction) {
+        championCounts[p.championPrediction] = (championCounts[p.championPrediction] || 0) + 1;
+      }
+    });
+
+    const championSorted = Object.entries(championCounts)
+      .sort((a, b) => b[1] - a[1]);
+
+    const championLabels = championSorted.map(item => item[0]);
+    const championData = championSorted.map(item => item[1]);
+
+    if (chartChampionVotes) {
+      chartChampionVotes.destroy();
+    }
+
+    const ctxChampion = document.getElementById('chart-champion-votes');
+    if (ctxChampion) {
+      chartChampionVotes = new Chart(ctxChampion, {
+        type: 'bar',
+        data: {
+          labels: championLabels,
+          datasets: [{
+            label: 'Votos',
+            data: championData,
+            backgroundColor: hexOrRgbToRgba(primaryColor, 0.75),
+            borderColor: primaryColor,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: gridColor,
+              borderWidth: 1
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                color: textColor
+              },
+              grid: {
+                color: gridColor
+              }
+            },
+            y: {
+              ticks: {
+                color: labelColor,
+                font: {
+                  family: 'system-ui, -apple-system, sans-serif'
+                }
+              },
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 5. Gráfico de Popularidad de Equipos (Victorias acumuladas)
+    const teamWinsCounts = {};
+    state.players.forEach(p => {
+      WORLD_CUP_2026_MATCHES.forEach(match => {
+        const pred = p.predictions[match.id];
+        if (pred && pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+            pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
+          const g1 = parseInt(pred.goals1);
+          const g2 = parseInt(pred.goals2);
+          if (g1 > g2) {
+            const team1 = getTeamName(match.id, 1, match.team1);
+            teamWinsCounts[team1] = (teamWinsCounts[team1] || 0) + 1;
+          } else if (g1 < g2) {
+            const team2 = getTeamName(match.id, 2, match.team2);
+            teamWinsCounts[team2] = (teamWinsCounts[team2] || 0) + 1;
+          }
+        }
+      });
+    });
+
+    const popularTeamsSorted = Object.entries(teamWinsCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    const popularityLabels = popularTeamsSorted.map(item => item[0]);
+    const popularityData = popularTeamsSorted.map(item => item[1]);
+
+    if (chartTeamPopularity) {
+      chartTeamPopularity.destroy();
+    }
+
+    const ctxPopularity = document.getElementById('chart-team-popularity');
+    if (ctxPopularity) {
+      chartTeamPopularity = new Chart(ctxPopularity, {
+        type: 'bar',
+        data: {
+          labels: popularityLabels,
+          datasets: [{
+            label: 'Victorias Pronosticadas',
+            data: popularityData,
+            backgroundColor: hexOrRgbToRgba(secondaryColor, 0.75),
+            borderColor: secondaryColor,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: gridColor,
+              borderWidth: 1
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                color: textColor
+              },
+              grid: {
+                color: gridColor
+              }
+            },
+            y: {
+              ticks: {
+                color: labelColor,
+                font: {
+                  family: 'system-ui, -apple-system, sans-serif'
+                }
+              },
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 6. Rellenar y Sincronizar el Selector de Partidos
+    const select = $('#stats-match-select');
+    const currentVal = select.val();
+    
+    select.empty();
+    WORLD_CUP_2026_MATCHES.forEach(match => {
+      const t1 = getTeamName(match.id, 1, match.team1);
+      const t2 = getTeamName(match.id, 2, match.team2);
+      select.append(`<option value="${match.id}">Partido ${match.id}: ${t1} vs ${t2} (${match.date})</option>`);
+    });
+
+    if (currentVal && select.find(`option[value="${currentVal}"]`).length > 0) {
+      select.val(currentVal);
+      renderMatchSpecificAnalytics(parseInt(currentVal));
+    } else {
+      select.val(1);
+      renderMatchSpecificAnalytics(1);
+    }
+  }
+
+  function renderMatchSpecificAnalytics(matchId) {
+    const match = WORLD_CUP_2026_MATCHES.find(m => m.id === matchId);
+    if (!match) return;
+
+    const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+    const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+
+    const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+    const flag2HTML = getTeamFlagHTML(resolvedTeam2);
+    
+    // Tarjeta de Vista Previa del Partido
+    const real = state.realResults[match.id];
+    let scoreDisplay = "vs";
+    if (real && real.goals1 !== null && real.goals1 !== undefined && real.goals2 !== null && real.goals2 !== undefined) {
+      scoreDisplay = `<span style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">${real.goals1} - ${real.goals2}</span>`;
+    }
+
+    const previewHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+        <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+          <span>${match.round} ${match.group ? `• ${match.group}` : ''}</span>
+          <span>${match.date} • ${match.time}</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-around; width: 100%; gap: 1rem;">
+          <div style="display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; gap: 0.25rem;">
+            <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; transform: scale(1.2);">
+              ${flag1HTML}
+            </div>
+            <span style="font-weight: 700; color: var(--text-primary); margin-top: 0.25rem; font-size: 0.95rem;">${resolvedTeam1}</span>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 60px;">
+            ${scoreDisplay}
+            ${real && real.status === 'finished' ? `<span style="font-size: 0.65rem; background: var(--border-color); padding: 0.05rem 0.3rem; border-radius: var(--border-radius-sm); color: var(--text-secondary); margin-top: 0.2rem;">Finalizado</span>` : ''}
+            ${real && real.status === 'live' ? `<span style="font-size: 0.65rem; background: rgba(14, 165, 233, 0.15); color: var(--info); padding: 0.05rem 0.3rem; border-radius: var(--border-radius-sm); font-weight: 700; margin-top: 0.2rem;">En Vivo</span>` : ''}
+          </div>
+          
+          <div style="display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; gap: 0.25rem;">
+            <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; transform: scale(1.2);">
+              ${flag2HTML}
+            </div>
+            <span style="font-weight: 700; color: var(--text-primary); margin-top: 0.25rem; font-size: 0.95rem;">${resolvedTeam2}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    $('#stats-match-card-preview').html(previewHTML);
+
+    // Calcular predicciones para este partido
+    let votesCast = 0;
+    let win1 = 0;
+    let draw = 0;
+    let win2 = 0;
+    let totalGoals1 = 0;
+    let totalGoals2 = 0;
+    const matchScores = {};
+
+    state.players.forEach(p => {
+      const pred = p.predictions[match.id];
+      if (pred && pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+          pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
+        votesCast++;
+        const g1 = parseInt(pred.goals1);
+        const g2 = parseInt(pred.goals2);
+        
+        totalGoals1 += g1;
+        totalGoals2 += g2;
+        
+        if (g1 > g2) {
+          win1++;
+        } else if (g1 < g2) {
+          win2++;
+        } else {
+          draw++;
+        }
+        
+        const scoreKey = `${g1} - ${g2}`;
+        matchScores[scoreKey] = (matchScores[scoreKey] || 0) + 1;
+      }
+    });
+
+    const totalPlayers = state.players.length;
+    $('#stats-match-votes-cast').text(`${votesCast} de ${totalPlayers}`);
+
+    // Goles Promedio
+    const avgGoals1 = votesCast > 0 ? (totalGoals1 / votesCast).toFixed(1) : "0.0";
+    const avgGoals2 = votesCast > 0 ? (totalGoals2 / votesCast).toFixed(1) : "0.0";
+    
+    $('#stats-match-average-goals').html(`
+      <div style="text-align: center;">
+        <span style="display: block; font-size: 0.75rem; color: var(--text-secondary);">Goles Prom. ${resolvedTeam1}</span>
+        <strong style="font-size: 1.1rem; color: var(--text-primary);">${avgGoals1}</strong>
+      </div>
+      <div style="text-align: center; border-left: 1px solid var(--border-color); height: 30px; margin: auto 0;"></div>
+      <div style="text-align: center;">
+        <span style="display: block; font-size: 0.75rem; color: var(--text-secondary);">Goles Prom. ${resolvedTeam2}</span>
+        <strong style="font-size: 1.1rem; color: var(--text-primary);">${avgGoals2}</strong>
+      </div>
+    `);
+
+    // Marcadores Más Populares (Top 3)
+    const sortedMatchScores = Object.entries(matchScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const popularScoresContainer = $('#stats-match-popular-scores');
+    popularScoresContainer.empty();
+
+    if (sortedMatchScores.length === 0) {
+      popularScoresContainer.html('<span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">Sin pronósticos registrados aún.</span>');
+    } else {
+      sortedMatchScores.forEach(([score, count]) => {
+        const pct = votesCast > 0 ? ((count / votesCast) * 100).toFixed(0) : "0";
+        popularScoresContainer.append(`
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary);">
+            <span>Marcador <strong>${score}</strong></span>
+            <span>${count} ${count === 1 ? 'voto' : 'votos'} (${pct}%)</span>
+          </div>
+        `);
+      });
+    }
+
+    // Dibujar Doughnut
+    const primaryColor = getThemeColor('--primary', '#10b981');
+    const secondaryColor = getThemeColor('--secondary', '#fbbf24');
+    const accentColor = getThemeColor('--accent', '#6366f1');
+    const gridColor = getThemeColor('--border-color', 'rgba(255, 255, 255, 0.05)');
+
+    let dataLabels = [`Gana ${resolvedTeam1}`, 'Empate', `Gana ${resolvedTeam2}`];
+    let dataValues = [win1, draw, win2];
+    let dataColors = [hexOrRgbToRgba(primaryColor, 0.75), hexOrRgbToRgba(accentColor, 0.75), hexOrRgbToRgba(secondaryColor, 0.75)];
+    let borderColors = [primaryColor, accentColor, secondaryColor];
+
+    if (votesCast === 0) {
+      dataLabels = ['Sin pronósticos'];
+      dataValues = [1];
+      dataColors = ['rgba(148, 163, 184, 0.15)'];
+      borderColors = ['rgb(148, 163, 184)'];
+    }
+
+    if (chartMatchDistribution) {
+      chartMatchDistribution.destroy();
+    }
+
+    const ctxMatch = document.getElementById('chart-match-distribution');
+    if (ctxMatch) {
+      chartMatchDistribution = new Chart(ctxMatch, {
+        type: 'doughnut',
+        data: {
+          labels: dataLabels,
+          datasets: [{
+            data: dataValues,
+            backgroundColor: dataColors,
+            borderColor: borderColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: votesCast > 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: gridColor,
+              borderWidth: 1,
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  const pct = votesCast > 0 ? ((val / votesCast) * 100).toFixed(1) : "0";
+                  return ` ${context.label}: ${val} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '65%'
+        }
+      });
+    }
+  }
+
+  // ==========================================
   // 8. MANEJO DE PESTAÑAS (TABS) CON COMPROBACIÓN DE ROL
   // ==========================================
 
@@ -2248,6 +2759,8 @@ $(document).ready(function() {
     } else if (target === '#tab-champion') {
       const teams = getParticipatingTeams();
       renderChampionVotesGrid(teams);
+    } else if (target === '#tab-analytics') {
+      renderAnalyticsTab();
     }
   });
 
@@ -2286,6 +2799,7 @@ $(document).ready(function() {
     }
     renderAdminGrid();
     renderScheduleGrid();
+    initAnalyticsTab();
 
     lucide.createIcons();
   });

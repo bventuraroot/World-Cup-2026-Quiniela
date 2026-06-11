@@ -21,9 +21,10 @@
 ## 📊 3. Sistema de Puntuación
 La puntuación de cada jugador se calcula automáticamente para cada partido finalizado mediante tres categorías acumulativas:
 
-### A. Marcador Exacto (+3 Puntos)
+### A. Marcador Exacto (+3 Puntos + 1 Punto de Ganador = 4 Puntos en total)
 - Se otorga cuando el jugador acierta el marcador exacto del partido.
-- *Ejemplo*: Predice **2 - 1** y el resultado real es **2 - 1**.
+- Al acertar el marcador exacto, también se suma el punto por acierto de ganador de forma acumulativa.
+- *Ejemplo*: Predice **2 - 1** y el resultado real es **2 - 1** (recibe 3 pts por marcador exacto + 1 pt por acierto de ganador = 4 pts).
 
 ### B. Acierto de Ganador o Empate (+1 Punto)
 - Se otorga cuando el jugador acierta qué selección gana el partido o si hay un empate, pero no los goles exactos.
