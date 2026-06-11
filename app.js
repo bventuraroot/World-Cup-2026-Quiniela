@@ -583,6 +583,7 @@ $(document).ready(function() {
             
             if (result.type === 'exact') {
               exactHits++;
+              winnerHits++;
             } else if (result.type === 'winner') {
               winnerHits++;
             } else if (result.type === 'closest') {
@@ -844,7 +845,7 @@ $(document).ready(function() {
         const result = getPlayerPointsForMatch(player.id, match.id);
         if (result.type === 'exact') {
           scoreClass = 'points-exact';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto)</span>`;
+          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto + Ganador)</span>`;
         } else if (result.type === 'winner_closest') {
           scoreClass = 'points-winner';
           ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary); border: 1.2px solid var(--info);">+${result.points} pts (Ganador + Cercano)</span>`;
@@ -1024,7 +1025,7 @@ $(document).ready(function() {
 
         if (pointsData.type === 'exact') {
           ptsClass = 'color: var(--primary); font-weight: 700;';
-          feedbackText = `Marcador Exacto (+${pointsData.points} pts)`;
+          feedbackText = `Marcador Exacto + Ganador (+${pointsData.points} pts)`;
           cardBorderGlow = 'border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);';
         } else if (pointsData.type === 'winner_closest') {
           ptsClass = 'color: var(--secondary); font-weight: 700;';
