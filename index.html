@@ -20,7 +20,7 @@
   <header>
     <div class="navbar">
       <a href="#" class="brand">
-        <div class="brand-logo">RIA</div>
+        <div class="brand-logo">INE</div>
         <div class="brand-text">QUINIELA<span> WORLD CUP 2026</span></div>
       </a>
       <div class="nav-controls">
@@ -174,7 +174,8 @@
             <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
               <i data-lucide="check"
                 style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
-              <span><strong>Registro</strong>: El Administrador registra tu nombre en el panel lateral de la sección "Pronósticos" para
+              <span><strong>Registro</strong>: El Administrador registra tu nombre en el panel lateral de la sección
+                "Pronósticos" para
                 entrar en la quiniela.</span>
             </li>
             <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
@@ -204,7 +205,8 @@
               <div>
                 <strong style="color: var(--text-primary);">Marcador Exacto</strong>
                 <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la cantidad exacta de goles de ambos
-                  equipos (ej. predices 2-1, queda 2-1). Se suman los puntos por acierto de ganador de forma acumulativa (Total: <span class="rules-pts-total-exact">4</span> pts).</p>
+                  equipos (ej. predices 2-1, queda 2-1). Se suman los puntos por acierto de ganador de forma acumulativa
+                  (Total: <span class="rules-pts-total-exact">4</span> pts).</p>
               </div>
             </div>
 
@@ -236,7 +238,8 @@
                 +<span class="rules-pts-champion">10</span></div>
               <div>
                 <strong style="color: var(--text-primary);">Campeón del Mundo</strong>
-                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la selección que se corona campeona del torneo (pronóstico registrado en la pestaña "Votar Campeón").</p>
+                <p style="font-size: 0.85rem; margin-top: 0.15rem;">Aciertas la selección que se corona campeona del
+                  torneo (pronóstico registrado en la pestaña "Votar Campeón").</p>
               </div>
             </div>
           </div>
@@ -250,7 +253,8 @@
             <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
               <i data-lucide="lock"
                 style="color: var(--info); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
-              <span><strong>Modo Admin</strong>: Protegido por PIN. Solo el administrador puede crear/eliminar jugadores, ingresar pronósticos, configurar puntos e ingresar marcadores reales.</span>
+              <span><strong>Modo Admin</strong>: Protegido por PIN. Solo el administrador puede crear/eliminar
+                jugadores, ingresar pronósticos, configurar puntos e ingresar marcadores reales.</span>
             </li>
             <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
               <i data-lucide="file-spreadsheet"
@@ -261,7 +265,8 @@
             <li style="display: flex; gap: 0.5rem; align-items: flex-start;">
               <i data-lucide="database"
                 style="color: var(--primary); width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem;"></i>
-              <span><strong>Base de Datos MySQL</strong>: Toda la información se guarda de forma segura y centralizada en tu cPanel para acceso en tiempo real, con opción a descargar respaldos JSON.</span>
+              <span><strong>Base de Datos MySQL</strong>: Toda la información se guarda de forma segura y centralizada
+                en tu cPanel para acceso en tiempo real, con opción a descargar respaldos JSON.</span>
             </li>
           </ul>
         </div>
@@ -366,7 +371,8 @@
             <div class="admin-only-lock-warning"
               style="background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.15); color: var(--info); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
               <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; color: var(--info);"></i>
-              <span>Ingresa tus pronósticos. Al completar ambos marcadores de un partido, este se bloqueará automáticamente. Para desbloquearlo, solicítalo al Administrador.</span>
+              <span>Ingresa tus pronósticos. Al completar ambos marcadores de un partido, este se bloqueará
+                automáticamente. Para desbloquearlo, solicítalo al Administrador.</span>
             </div>
 
             <!-- Filters -->
@@ -431,24 +437,31 @@
       <div class="glass-card">
         <h2 class="card-title"><i data-lucide="award"></i> Votar por el Campeón del Mundo</h2>
         <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
-          Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para todos y no requiere clave de administrador!
+          Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para
+          todos y no requiere clave de administrador!
         </p>
 
         <!-- Banner de Votación Cerrada -->
-        <div id="champion-closed-banner" style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.15); padding: 0.8rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: none; align-items: center; gap: 0.6rem; color: var(--danger); font-size: 0.85rem; font-weight: 600;">
+        <div id="champion-closed-banner"
+          style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.15); padding: 0.8rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: none; align-items: center; gap: 0.6rem; color: var(--danger); font-size: 0.85rem; font-weight: 600;">
           <i data-lucide="lock" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
           <span>La votación ha sido cerrada por el Administrador. No se admiten más cambios en tu pronóstico.</span>
         </div>
 
         <!-- Banner del Campeón Oficial -->
-        <div id="champion-official-banner" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
-          <div style="background-color: var(--primary-glow); color: var(--primary); padding: 0.5rem; border-radius: var(--border-radius-sm); display: flex; align-items: center; justify-content: center;">
+        <div id="champion-official-banner"
+          style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+          <div
+            style="background-color: var(--primary-glow); color: var(--primary); padding: 0.5rem; border-radius: var(--border-radius-sm); display: flex; align-items: center; justify-content: center;">
             <i data-lucide="trophy" style="color: var(--secondary); width: 22px; height: 22px;"></i>
           </div>
           <div>
-            <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Campeón Oficial del Mundial</h4>
-            <div id="champion-official-name" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">
-              <span style="color: var(--text-muted);">Pendiente de definición (se definirá por el Administrador al terminar el torneo)</span>
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Campeón Oficial del Mundial
+            </h4>
+            <div id="champion-official-name"
+              style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">
+              <span style="color: var(--text-muted);">Pendiente de definición (se definirá por el Administrador al
+                terminar el torneo)</span>
             </div>
           </div>
         </div>
@@ -456,7 +469,8 @@
         <div id="champion-no-players" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
           <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
           <h3>No hay jugadores registrados</h3>
-          <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, registra jugadores en la pestaña de Pronósticos para comenzar a votar por el campeón.</p>
+          <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, registra jugadores en la pestaña de Pronósticos
+            para comenzar a votar por el campeón.</p>
         </div>
 
         <div id="champion-table-container" style="display: none; overflow-x: auto;">
@@ -479,7 +493,8 @@
     <!-- TAB: ANALYTICS (ESTADÍSTICAS) -->
     <section id="tab-analytics" class="tab-panel">
       <!-- General stats grid -->
-      <div class="summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.5rem;">
+      <div class="summary-cards"
+        style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.5rem;">
         <div class="card summary-card">
           <div class="card-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--primary);">
             <i data-lucide="users"></i>
@@ -520,20 +535,22 @@
 
       <!-- Main analytics layout -->
       <div class="config-grid" style="gap: 1.5rem;">
-        
+
         <!-- Left: Tournament Favorites & Top Winners -->
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
           <div class="glass-card">
             <h3 class="card-title"><i data-lucide="award"></i> Selecciones Favoritas al Campeón</h3>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Distribución de predicciones para el campeón del mundial.</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Distribución de
+              predicciones para el campeón del mundial.</p>
             <div style="height: 250px; position: relative;">
               <canvas id="chart-champion-votes"></canvas>
             </div>
           </div>
-          
+
           <div class="glass-card">
             <h3 class="card-title"><i data-lucide="trending-up"></i> Equipos Más Votados a Ganar Partivos</h3>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Selecciones nacionales con mayor cantidad de victorias pronosticadas acumuladas.</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Selecciones nacionales con
+              mayor cantidad de victorias pronosticadas acumuladas.</p>
             <div style="height: 250px; position: relative;">
               <canvas id="chart-team-popularity"></canvas>
             </div>
@@ -543,8 +560,9 @@
         <!-- Right: Match-by-Match Breakdown -->
         <div class="glass-card" style="display: flex; flex-direction: column;">
           <h3 class="card-title"><i data-lucide="pie-chart"></i> Análisis por Partido</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.2rem;">Selecciona un partido para analizar la tendencia de los pronósticos de la oficina.</p>
-          
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.2rem;">Selecciona un partido para
+            analizar la tendencia de los pronósticos de la oficina.</p>
+
           <!-- Match selector -->
           <div class="form-group" style="margin-bottom: 1.2rem;">
             <label class="form-label" for="stats-match-select">Seleccionar Partido</label>
@@ -553,14 +571,17 @@
             </select>
           </div>
 
-          <div id="stats-match-details" style="display: none; flex-direction: column; gap: 1rem; flex-grow: 1; justify-content: center;">
+          <div id="stats-match-details"
+            style="display: none; flex-direction: column; gap: 1rem; flex-grow: 1; justify-content: center;">
             <!-- Match card summary -->
-            <div id="stats-match-card-preview" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--border-radius-sm); text-align: center;">
+            <div id="stats-match-card-preview"
+              style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--border-radius-sm); text-align: center;">
               <!-- Cargado dinámicamente -->
             </div>
 
             <!-- Chart and lists -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem; flex-grow: 1; align-items: center; justify-content: center;">
+            <div
+              style="display: flex; flex-direction: column; gap: 1.5rem; flex-grow: 1; align-items: center; justify-content: center;">
               <!-- Win/Loss/Draw Chart container -->
               <div style="width: 200px; height: 200px; position: relative;">
                 <canvas id="chart-match-distribution"></canvas>
@@ -568,15 +589,20 @@
 
               <!-- Goles Promedio / Marcadores Populares info -->
               <div style="width: 100%; display: flex; flex-direction: column; gap: 0.8rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                <div
+                  style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
                   <span>Pronósticos registrados:</span>
                   <span id="stats-match-votes-cast" style="font-weight: 700; color: var(--text-primary);">0 de 0</span>
                 </div>
-                <div id="stats-match-average-goals" style="display: flex; justify-content: space-around; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                <div id="stats-match-average-goals"
+                  style="display: flex; justify-content: space-around; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
                   <!-- Cargado dinámicamente -->
                 </div>
-                <div style="font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
-                  <span style="font-weight: 600; display: block; margin-bottom: 0.4rem; color: var(--text-primary);">Marcadores más Pronosticados:</span>
+                <div
+                  style="font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                  <span
+                    style="font-weight: 600; display: block; margin-bottom: 0.4rem; color: var(--text-primary);">Marcadores
+                    más Pronosticados:</span>
                   <div id="stats-match-popular-scores" style="display: flex; flex-direction: column; gap: 0.2rem;">
                     <!-- Cargado dinámicamente -->
                   </div>
@@ -584,10 +610,13 @@
               </div>
             </div>
           </div>
-          <div id="stats-no-players-placeholder" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+          <div id="stats-no-players-placeholder"
+            style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <i data-lucide="users"
+              style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
             <h3>No hay jugadores registrados</h3>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas.
+            </p>
           </div>
         </div>
       </div>
@@ -604,12 +633,14 @@
         </p>
 
         <!-- Seccion de Campeon Oficial (Admin Only) -->
-        <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.15); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div
+          style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.15); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <i data-lucide="trophy" style="color: var(--secondary); width: 24px; height: 24px;"></i>
             <div>
               <h4 style="font-size: 0.95rem; font-weight: 700;">Definir Campeón Oficial del Mundial</h4>
-              <p style="font-size: 0.8rem; color: var(--text-secondary);">Selecciona la selección ganadora cuando finalice el torneo para calcular los puntos adicionales.</p>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Selecciona la selección ganadora cuando
+                finalice el torneo para calcular los puntos adicionales.</p>
             </div>
           </div>
           <div style="display: flex; gap: 0.8rem; align-items: center;">
@@ -716,17 +747,20 @@
           <div class="config-item">
             <div class="config-info">
               <h5>Acierto de Campeón del Mundo</h5>
-              <p>Puntos adicionales para el jugador que adivine la selección campeona del torneo (ej. predice que el campeón es Argentina y queda campeón).</p>
+              <p>Puntos adicionales para el jugador que adivine la selección campeona del torneo (ej. predice que el
+                campeón es Argentina y queda campeón).</p>
             </div>
             <input type="number" id="pts-champion" class="input-points-num" value="10" min="0" max="100">
           </div>
 
-          <div class="config-item" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.2rem; margin-top: 1.2rem; align-items: center;">
+          <div class="config-item"
+            style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.2rem; margin-top: 1.2rem; align-items: center;">
             <div class="config-info">
               <h5>Estado de Votación del Campeón</h5>
               <p>Cierra o abre el registro público de votos por el Campeón del Mundo para los jugadores.</p>
             </div>
-            <button id="btn-toggle-champion-voting" class="btn btn-secondary" style="min-width: 180px; font-weight: 700;" disabled>
+            <button id="btn-toggle-champion-voting" class="btn btn-secondary"
+              style="min-width: 180px; font-weight: 700;" disabled>
               <i data-lucide="lock"></i> Cerrar Votaciones
             </button>
           </div>
@@ -829,34 +863,39 @@
         <!-- Database Settings Config -->
         <div class="glass-card config-card" id="db-config-card">
           <h2 class="card-title"><i data-lucide="database"></i> Configuración de Base de Datos (MySQL)</h2>
-          
+
           <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
             Configura los parámetros de conexión para la base de datos de tu hosting (cPanel).
           </p>
 
           <!-- Status Banner -->
-          <div id="db-status-banner" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15); color: var(--primary); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <div id="db-status-banner"
+            style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15); color: var(--primary); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
             <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conectando...
           </div>
 
           <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
             <label class="form-label" for="db-config-host" style="font-size: 0.8rem;">Servidor (DB Host)</label>
-            <input type="text" id="db-config-host" class="input-text" placeholder="localhost" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+            <input type="text" id="db-config-host" class="input-text" placeholder="localhost"
+              style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
           </div>
 
           <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
             <label class="form-label" for="db-config-name" style="font-size: 0.8rem;">Nombre de la BD (DB Name)</label>
-            <input type="text" id="db-config-name" class="input-text" placeholder="nombre_bd" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+            <input type="text" id="db-config-name" class="input-text" placeholder="nombre_bd"
+              style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
           </div>
 
           <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
             <label class="form-label" for="db-config-user" style="font-size: 0.8rem;">Usuario de la BD (DB User)</label>
-            <input type="text" id="db-config-user" class="input-text" placeholder="usuario_bd" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+            <input type="text" id="db-config-user" class="input-text" placeholder="usuario_bd"
+              style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
           </div>
 
           <div class="form-group" style="margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.35rem;">
             <label class="form-label" for="db-config-pass" style="font-size: 0.8rem;">Contraseña (DB Password)</label>
-            <input type="password" id="db-config-pass" class="input-text" placeholder="Dejar vacío para no cambiar" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+            <input type="password" id="db-config-pass" class="input-text" placeholder="Dejar vacío para no cambiar"
+              style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
           </div>
 
           <div class="admin-only-lock-warning db-lock-warning"
