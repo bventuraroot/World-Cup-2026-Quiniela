@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela INE 2026</title>
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 
 <body>
@@ -338,11 +338,12 @@
             </div>
           </div>
 
-          <!-- Players Selector List -->
-          <div
-            style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 0.3rem;"
-            id="players-list-container">
-            <!-- Cargado dinámicamente -->
+          <!-- Players Selector Combobox -->
+          <div class="form-group" style="margin-bottom: 0.8rem;">
+            <label class="form-label" for="player-select-dropdown">Seleccionar Jugador Activo</label>
+            <select id="player-select-dropdown" class="select-custom" style="width: 100%;">
+              <!-- Cargado dinámicamente -->
+            </select>
           </div>
 
           <!-- Delete Active Player Button -->
@@ -982,7 +983,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 
 </html>

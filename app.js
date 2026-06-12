@@ -909,8 +909,8 @@ $(document).ready(function() {
 
   // Renderizar Selector de Jugadores en Pronósticos
   function renderPlayersSelector() {
-    const container = $('#players-list-container');
-    container.empty();
+    const select = $('#player-select-dropdown');
+    select.empty();
 
     if (state.players.length === 0) {
       $('#no-players-placeholder').show();
@@ -925,23 +925,13 @@ $(document).ready(function() {
 
     state.players.forEach(player => {
       const leaderInfo = leaderboard.find(l => l.id === player.id) || { totalPoints: 0 };
-      const isActive = player.id === activePlayerId ? 'active' : '';
-
-      container.append(`
-        <div class="player-select-item ${isActive}" data-id="${player.id}">
-          <span class="player-select-name">
-            <i data-lucide="user"></i> ${player.name}
-          </span>
-          <span class="player-select-pts">${leaderInfo.totalPoints} pts</span>
-        </div>
-      `);
+      const selectedAttr = player.id === activePlayerId ? 'selected' : '';
+      select.append(`<option value="${player.id}" ${selectedAttr}>${player.name} (${leaderInfo.totalPoints} pts)</option>`);
     });
 
-    $('.player-select-item').off('click').on('click', function() {
-      const id = $(this).data('id');
+    select.off('change').on('change', function() {
+      const id = parseInt($(this).val());
       activePlayerId = id;
-      $('.player-select-item').removeClass('active');
-      $(this).addClass('active');
       
       const activePlayer = state.players.find(p => p.id == activePlayerId);
       if (activePlayer) {
@@ -954,12 +944,12 @@ $(document).ready(function() {
     const activePlayer = state.players.find(p => p.id == activePlayerId);
     if (activePlayer) {
       $('#active-player-name-label').text(activePlayer.name);
+      select.val(activePlayer.id);
     } else if (state.players.length > 0) {
       activePlayerId = state.players[0].id;
       $('#active-player-name-label').text(state.players[0].name);
+      select.val(state.players[0].id);
     }
-
-    lucide.createIcons();
   }
 
   // Renderizar Grid de Partidos en Pronósticos (con banderas)
