@@ -745,6 +745,85 @@ $(document).ready(function() {
       `);
     });
 
+    // Renderizar Sótano (Tarjetas Rojas)
+    const redCardsContainer = $('#red-cards-container');
+    redCardsContainer.empty();
+
+    if (leaderboard.length < 2) {
+      redCardsContainer.append(`
+        <div style="text-align: center; color: var(--text-secondary); width: 100%; padding: 1.5rem 0;">
+          <i data-lucide="info" style="width: 32px; height: 32px; color: var(--text-muted); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+          <p style="font-size: 0.9rem;">Se necesitan al menos 2 jugadores para activar el Sótano de Posiciones.</p>
+        </div>
+      `);
+    } else {
+      const bottomPlayers = [...leaderboard]
+        .slice(-3)
+        .reverse()
+        .filter(p => {
+          const index = leaderboard.findIndex(x => x.id === p.id);
+          return index > 0; // Excluir el primer lugar
+        });
+
+      bottomPlayers.forEach(player => {
+        const rank = leaderboard.findIndex(p => p.id === player.id) + 1;
+        redCardsContainer.append(`
+          <div style="
+            background: rgba(244, 63, 94, 0.04);
+            border: 1px solid rgba(244, 63, 94, 0.18);
+            border-radius: var(--border-radius-md);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            position: relative;
+            flex: 1 1 200px;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(244, 63, 94, 0.05);
+            backdrop-filter: var(--glass-blur);
+            transition: transform var(--transition-fast);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+          " onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+            <!-- Etiqueta de Tarjeta Roja -->
+            <span style="
+              position: absolute;
+              top: -10px;
+              background: var(--danger);
+              color: #ffffff;
+              font-size: 0.7rem;
+              font-weight: 700;
+              padding: 0.2rem 0.6rem;
+              border-radius: var(--border-radius-sm);
+              box-shadow: 0 2px 6px rgba(244, 63, 94, 0.3);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            ">
+              Tarjeta Roja 🟥
+            </span>
+
+            <div style="font-size: 1.15rem; font-weight: 700; font-family: 'Outfit'; color: var(--text-primary); margin-top: 0.4rem;">
+              ${player.name}
+            </div>
+            
+            <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">
+              Puesto: ${rank}° de ${totalPlayers}
+            </div>
+
+            <div style="
+              font-size: 1.3rem;
+              color: var(--danger);
+              font-weight: 800;
+              font-family: 'Outfit', sans-serif;
+              margin-top: 0.2rem;
+            ">
+              ${player.totalPoints} Pts
+            </div>
+          </div>
+        `);
+      });
+    }
+
     lucide.createIcons();
   }
 

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiniela INE 2026</title>
+  <title>Quiniela 2026</title>
   <link rel="stylesheet" href="styles.css?v=11">
 </head>
 
@@ -20,7 +20,7 @@
   <header>
     <div class="navbar">
       <a href="#" class="brand">
-        <div class="brand-logo">INE</div>
+        <div class="brand-logo">Mexico</div>
         <div class="brand-text">QUINIELA<span> WORLD CUP 2026</span></div>
       </a>
       <div class="nav-controls">
@@ -106,6 +106,17 @@
         <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
         <div id="podium-container"
           style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
+          <!-- Se cargará dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Bottom Players (Red Cards) -->
+      <div class="glass-card" style="margin-top: 1.5rem;">
+        <h2 class="card-title" style="color: var(--danger);"><i data-lucide="frown"></i> Sótano de Posiciones: Tarjetas Rojas</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+          Compañeros en zona de tarjeta roja (los 3 últimos lugares de la quiniela). ¡A meterle ganas a los pronósticos!
+        </p>
+        <div id="red-cards-container" style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-around; padding: 1rem 0;">
           <!-- Se cargará dinámicamente -->
         </div>
       </div>
