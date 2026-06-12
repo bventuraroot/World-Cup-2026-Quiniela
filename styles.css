@@ -1074,3 +1074,170 @@ footer a:hover {
   15%, 45%, 75% { transform: translateX(-8px); }
   30%, 60%, 90% { transform: translateX(8px); }
 }
+
+/* =========================================================================
+   POLISH Y OPTIMIZACIONES PARA DISPOSITIVOS MÓVILES
+   ========================================================================= */
+@media (max-width: 768px) {
+  /* Contenedor principal y espaciado general */
+  .main-container {
+    padding: 1rem;
+    gap: 1.2rem;
+  }
+
+  /* Reducir títulos principales */
+  h1 {
+    font-size: 1.8rem !important;
+  }
+  h2 {
+    font-size: 1.4rem !important;
+  }
+  h3.card-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Tarjeta de cristal */
+  .glass-card {
+    padding: 1.2rem !important;
+  }
+
+  /* Barra de Navegación del Sitio (tabs-nav) scrollable horizontalmente */
+  .tabs-nav {
+    display: flex !important;
+    overflow-x: auto !important;
+    width: 100%;
+    align-self: stretch !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.35rem !important;
+    margin-bottom: 0.5rem;
+    gap: 0.35rem !important;
+    border-radius: var(--border-radius-md) !important;
+  }
+  .tabs-nav::-webkit-scrollbar {
+    height: 4px;
+  }
+  .tabs-nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .tabs-nav::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: var(--border-radius-full);
+  }
+  .tab-btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.82rem !important;
+    flex-shrink: 0 !important;
+    gap: 0.4rem !important;
+    border-radius: var(--border-radius-sm) !important;
+  }
+
+  /* Barra de Filtros del Calendario y Administración */
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.8rem !important;
+  }
+  .filters-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem !important;
+  }
+  .filters-group select, 
+  .filters-group input {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Lista de Jugadores (Pronósticos) scrollable horizontalmente */
+  #players-list-container {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-height: none !important;
+    padding-bottom: 0.6rem;
+    width: 100%;
+    align-self: stretch;
+    -webkit-overflow-scrolling: touch;
+  }
+  #players-list-container::-webkit-scrollbar {
+    height: 4px;
+  }
+  #players-list-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: var(--border-radius-full);
+  }
+  .player-select-item {
+    padding: 0.5rem 0.9rem !important;
+    flex-shrink: 0 !important;
+    border-radius: var(--border-radius-sm) !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Grilla de Pronósticos de partidos */
+  .matches-grid {
+    grid-template-columns: 1fr !important; /* Forzar una columna en pantallas angostas */
+    gap: 1rem !important;
+  }
+
+  /* Tarjeta de partido reducida para móvil */
+  .match-card {
+    padding: 1rem !important;
+  }
+  .team-name {
+    font-size: 0.88rem !important;
+  }
+  .input-goal {
+    width: 50px !important;
+    height: 38px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Gráficos en la pestaña de Estadísticas */
+  #chart-champion-votes,
+  #chart-team-popularity {
+    max-height: 220px;
+  }
+  #chart-match-distribution {
+    width: 160px !important;
+    height: 160px !important;
+  }
+}
+
+/* Navbar ultra-compacta para teléfonos */
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0.6rem 1rem !important;
+  }
+  .brand-logo {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
+  }
+  .brand-text {
+    font-size: 1.05rem !important;
+  }
+  .brand-text span {
+    display: none !important; /* Oculta 'WORLD CUP 2026' para ahorrar espacio */
+  }
+  .nav-controls {
+    gap: 0.4rem !important;
+  }
+  #admin-login-toggle span {
+    display: none !important; /* Oculta el texto del login de administrador, deja solo el candado */
+  }
+  #admin-login-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  #theme-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+}
