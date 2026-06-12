@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela RIA - Ria Strategics 2026</title>
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 
 <body>
@@ -826,6 +826,50 @@
           </div>
         </div>
 
+        <!-- Database Settings Config -->
+        <div class="glass-card config-card" id="db-config-card">
+          <h2 class="card-title"><i data-lucide="database"></i> Configuración de Base de Datos (MySQL)</h2>
+          
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+            Configura los parámetros de conexión para la base de datos de tu hosting (cPanel).
+          </p>
+
+          <!-- Status Banner -->
+          <div id="db-status-banner" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15); color: var(--primary); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conectando...
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="form-label" for="db-config-host" style="font-size: 0.8rem;">Servidor (DB Host)</label>
+            <input type="text" id="db-config-host" class="input-text" placeholder="localhost" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="form-label" for="db-config-name" style="font-size: 0.8rem;">Nombre de la BD (DB Name)</label>
+            <input type="text" id="db-config-name" class="input-text" placeholder="nombre_bd" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="form-label" for="db-config-user" style="font-size: 0.8rem;">Usuario de la BD (DB User)</label>
+            <input type="text" id="db-config-user" class="input-text" placeholder="usuario_bd" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="form-label" for="db-config-pass" style="font-size: 0.8rem;">Contraseña (DB Password)</label>
+            <input type="password" id="db-config-pass" class="input-text" placeholder="Dejar vacío para no cambiar" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+          </div>
+
+          <div class="admin-only-lock-warning db-lock-warning"
+            style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i data-lucide="lock" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+            <span>Acceso Administrador (PIN) requerido para modificar la conexión activa.</span>
+          </div>
+
+          <button id="btn-save-db-config" class="btn btn-primary" style="align-self: flex-start;">
+            <i data-lucide="save"></i> Probar y Guardar Conexión
+          </button>
+        </div>
+
       </div>
     </section>
 
@@ -899,7 +943,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 
 </html>

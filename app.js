@@ -129,6 +129,7 @@ $(document).ready(function() {
 
   let activePlayerId = null;
   let isAdminMode = false; // Estado de sesión del administrador
+  let dbConnected = false; // Estado de conexión a la BD
 
   let chartChampionVotes = null;
   let chartTeamPopularity = null;
@@ -378,6 +379,21 @@ $(document).ready(function() {
 
       // Cambiar icono en los botones de navegación de pestañas
       $('.tab-btn[data-target="#tab-admin"]').find('i').removeClass('lucide-settings').addClass('lucide-lock');
+    }
+    
+    // Bloqueo de Configuración de Base de Datos
+    if (dbConnected) {
+      if (isAdminMode) {
+        $('.db-lock-warning').hide();
+        $('#db-config-host, #db-config-name, #db-config-user, #db-config-pass, #btn-save-db-config').prop('disabled', false);
+      } else {
+        $('.db-lock-warning').show();
+        $('#db-config-host, #db-config-name, #db-config-user, #db-config-pass, #btn-save-db-config').prop('disabled', true);
+      }
+    } else {
+      // Si la BD no está conectada, permitir edición para facilitar la configuración inicial
+      $('.db-lock-warning').hide();
+      $('#db-config-host, #db-config-name, #db-config-user, #db-config-pass, #btn-save-db-config').prop('disabled', false);
     }
     
     // Rerenderizar grillas si existen elementos para mantener en sincronía los campos de ingreso
@@ -1318,16 +1334,12 @@ $(document).ready(function() {
             <div class="team-row">
               <div class="team-info" style="width: 100%; display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
                 ${flag1HTML}
-                ${match.group === "" ? `
-                  <input type="text" class="input-text admin-team-name-input" 
-                    data-match-id="${match.id}" data-team="1" 
-                    value="${resolvedTeam1}" 
-                    placeholder="Equipo 1"
-                    style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
-                    ${disabledAttr}>
-                ` : `
-                  <span class="team-name" title="${resolvedTeam1}">${resolvedTeam1}</span>
-                `}
+                <input type="text" class="input-text admin-team-name-input" 
+                  data-match-id="${match.id}" data-team="1" 
+                  value="${resolvedTeam1}" 
+                  placeholder="Equipo 1"
+                  style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
+                  ${disabledAttr}>
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
@@ -1341,16 +1353,12 @@ $(document).ready(function() {
             <div class="team-row">
               <div class="team-info" style="width: 100%; display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
                 ${flag2HTML}
-                ${match.group === "" ? `
-                  <input type="text" class="input-text admin-team-name-input" 
-                    data-match-id="${match.id}" data-team="2" 
-                    value="${resolvedTeam2}" 
-                    placeholder="Equipo 2"
-                    style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
-                    ${disabledAttr}>
-                ` : `
-                  <span class="team-name" title="${resolvedTeam2}">${resolvedTeam2}</span>
-                `}
+                <input type="text" class="input-text admin-team-name-input" 
+                  data-match-id="${match.id}" data-team="2" 
+                  value="${resolvedTeam2}" 
+                  placeholder="Equipo 2"
+                  style="flex: 1; padding: 0.3rem 0.5rem; font-size: 0.85rem; height: 32px; min-width: 80px;"
+                  ${disabledAttr}>
               </div>
               <div class="score-input-container">
                 <input type="number" min="0" max="99" class="input-goal admin-goal-input" 
@@ -2229,6 +2237,108 @@ $(document).ready(function() {
   });
 
   // ==========================================
+  // 7.4. CONFIGURACIÓN DILIGENTE DE LA BASE DE DATOS (MYSQL)
+  // ==========================================
+
+  function loadDbConfig() {
+    $.ajax({
+      url: 'api.php?action=get_db_config',
+      type: 'GET',
+      dataType: 'json',
+      success: function(res) {
+        if (res && res.status === 'success') {
+          $('#db-config-host').val(res.db_host || '');
+          $('#db-config-name').val(res.db_name || '');
+          $('#db-config-user').val(res.db_user || '');
+          $('#db-config-pass').val(''); // Dejar vacío por seguridad
+          
+          dbConnected = res.db_connected;
+          
+          const banner = $('#db-status-banner');
+          banner.empty();
+          
+          if (dbConnected) {
+            banner.css({
+              'background': 'rgba(16, 185, 129, 0.08)',
+              'border': '1px solid rgba(16, 185, 129, 0.15)',
+              'color': 'var(--primary)'
+            }).html('<i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conectado a la base de datos MySQL.');
+          } else {
+            banner.css({
+              'background': 'rgba(244, 63, 94, 0.08)',
+              'border': '1px solid rgba(244, 63, 94, 0.15)',
+              'color': 'var(--danger)'
+            }).html(`<i data-lucide="alert-circle" style="width: 16px; height: 16px;"></i> Desconectado. Error: ${res.conn_error || 'Desconocido'}`);
+          }
+          lucide.createIcons();
+          updateAdminUI(); // Actualizar bloqueos según el estado de conexión
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error("Error al obtener la configuración de BD:", error);
+      }
+    });
+  }
+
+  function saveDbConfig() {
+    const host = $('#db-config-host').val().trim();
+    const name = $('#db-config-name').val().trim();
+    const user = $('#db-config-user').val().trim();
+    const pass = $('#db-config-pass').val();
+    
+    if (!host || !name || !user) {
+      showToast("Por favor, completa los campos de Host, Nombre de BD y Usuario.", "error");
+      return;
+    }
+    
+    const payload = {
+      db_host: host,
+      db_name: name,
+      db_user: user,
+      db_pass: pass
+    };
+    
+    // Si ya está conectada, requerir PIN de administrador
+    if (dbConnected) {
+      payload.admin_pin = state.config.adminPin || '1234';
+    }
+    
+    showToast("Guardando y probando conexión...", "info");
+    
+    $.ajax({
+      url: 'api.php?action=save_db_config',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      success: function(res) {
+        if (res && res.status === 'success') {
+          showToast(res.message, "success");
+          loadDbConfig();
+          // Recargar el estado general desde la nueva BD
+          loadState(function() {
+            renderDashboard();
+            renderLeaderboard();
+            renderAdminGrid();
+            renderScheduleGrid();
+            if (activePlayerId) {
+              renderPredictionsGrid();
+            }
+          });
+        } else if (res && res.status === 'warning') {
+          showToast(res.message, "warning");
+          loadDbConfig();
+        } else {
+          showToast(res.message || "Error al guardar la configuración.", "error");
+        }
+      },
+      error: function(xhr, status, error) {
+        showToast("Error de conexión al guardar: " + error, "error");
+      }
+    });
+  }
+
+  // ==========================================
   // 7.5. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
   // ==========================================
 
@@ -2801,6 +2911,12 @@ $(document).ready(function() {
     renderAdminGrid();
     renderScheduleGrid();
     initAnalyticsTab();
+    
+    // Configuración de base de datos
+    loadDbConfig();
+    $('#btn-save-db-config').off('click').on('click', function() {
+      saveDbConfig();
+    });
 
     lucide.createIcons();
   });
