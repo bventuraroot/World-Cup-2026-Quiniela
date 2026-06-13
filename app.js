@@ -287,31 +287,213 @@ $(document).ready(function() {
     return defaultName;
   }
 
-  // Guardar estado en LocalStorage y Base de Datos (MySQL)
-  function saveState() {
-    // 1. Guardar en LocalStorage como copia local / offline
+  // Mezclar estado local con el estado remoto recién leído de la base de datos para evitar sobreescrituras concurrentes
+  function mergeStates(local, remote, changeCtx) {
+    if (!remote || !remote.players) {
+      return local; // Si el remoto está vacío o corrupto, usamos el local completo
+    }
+
+    // Clonar el remoto como base de mezcla para no mutar el objeto original
+    const merged = JSON.parse(JSON.stringify(remote));
+    const ctx = changeCtx || {};
+
+    if (ctx.type === 'prediction') {
+      // Modificación de pronóstico para un jugador y partido específico
+      const { playerId, matchId } = ctx;
+      if (playerId !== undefined && playerId !== null && matchId !== undefined && matchId !== null) {
+        const localPlayer = local.players.find(p => p.id == playerId);
+        const remotePlayer = merged.players.find(p => p.id == playerId);
+        
+        if (localPlayer && remotePlayer) {
+          const localPred = localPlayer.predictions[matchId];
+          if (localPred !== undefined) {
+            remotePlayer.predictions[matchId] = JSON.parse(JSON.stringify(localPred));
+          } else {
+            delete remotePlayer.predictions[matchId];
+          }
+        }
+      }
+      return merged;
+    }
+
+    if (ctx.type === 'champion-vote') {
+      // Modificación de voto de campeón para un jugador específico
+      const { playerId } = ctx;
+      if (playerId !== undefined && playerId !== null) {
+        const localPlayer = local.players.find(p => p.id == playerId);
+        const remotePlayer = merged.players.find(p => p.id == playerId);
+
+        if (localPlayer && remotePlayer) {
+          remotePlayer.championPrediction = localPlayer.championPrediction;
+          remotePlayer.championPredictionText = localPlayer.championPredictionText;
+          remotePlayer.championPredictionId = localPlayer.championPredictionId;
+        }
+      }
+      return merged;
+    }
+
+    if (ctx.type === 'real-results') {
+      // Admin guardando marcadores reales
+      const { matchId } = ctx;
+      if (matchId === 'all') {
+        merged.realResults = JSON.parse(JSON.stringify(local.realResults || {}));
+      } else if (matchId !== undefined && matchId !== null) {
+        if (!merged.realResults) merged.realResults = {};
+        if (local.realResults && local.realResults[matchId]) {
+          merged.realResults[matchId] = JSON.parse(JSON.stringify(local.realResults[matchId]));
+        } else {
+          delete merged.realResults[matchId];
+        }
+      }
+      return merged;
+    }
+
+    if (ctx.type === 'match-teams') {
+      // Admin editando nombres de equipos
+      const { matchId } = ctx;
+      if (matchId !== undefined && matchId !== null) {
+        if (!merged.matchTeams) merged.matchTeams = {};
+        if (local.matchTeams && local.matchTeams[matchId]) {
+          merged.matchTeams[matchId] = JSON.parse(JSON.stringify(local.matchTeams[matchId]));
+        } else {
+          delete merged.matchTeams[matchId];
+        }
+      }
+      return merged;
+    }
+
+    if (ctx.type === 'config') {
+      // Modificación de la configuración de puntos, PIN admin, etc.
+      merged.config = JSON.parse(JSON.stringify(local.config || {}));
+      return merged;
+    }
+
+    if (ctx.type === 'real-champion') {
+      // Admin estableciendo al campeón oficial
+      merged.realChampion = local.realChampion;
+      return merged;
+    }
+
+    if (ctx.type === 'players-list') {
+      // Agregar, eliminar o restablecer la lista de jugadores (Admin)
+      const localPlayersCopy = JSON.parse(JSON.stringify(local.players || []));
+      
+      localPlayersCopy.forEach(lp => {
+        const remotePlayer = remote.players.find(p => p.id == lp.id);
+        if (remotePlayer) {
+          lp.predictions = JSON.parse(JSON.stringify(remotePlayer.predictions || {}));
+          lp.championPrediction = remotePlayer.championPrediction;
+          lp.championPredictionText = remotePlayer.championPredictionText;
+          lp.championPredictionId = remotePlayer.championPredictionId;
+        }
+      });
+      
+      merged.players = localPlayersCopy;
+      return merged;
+    }
+
+    if (ctx.type === 'full-overwrite') {
+      return local;
+    }
+
+    // --- FALLBACK POR DEFECTO ---
+    if (!isAdminMode) {
+      if (activePlayerId !== null && activePlayerId !== undefined) {
+        const localActive = local.players.find(p => p.id == activePlayerId);
+        const remoteActive = merged.players.find(p => p.id == activePlayerId);
+        
+        if (localActive && remoteActive) {
+          remoteActive.predictions = JSON.parse(JSON.stringify(localActive.predictions || {}));
+          remoteActive.championPrediction = localActive.championPrediction;
+          remoteActive.championPredictionText = localActive.championPredictionText;
+          remoteActive.championPredictionId = localActive.championPredictionId;
+        }
+      }
+      if (local.config && local.config.theme) {
+        if (!merged.config) merged.config = {};
+        merged.config.theme = local.config.theme;
+      }
+    } else {
+      const localPlayersCopy = JSON.parse(JSON.stringify(local.players || []));
+      localPlayersCopy.forEach(lp => {
+        if (lp.id != activePlayerId) {
+          const remotePlayer = remote.players.find(p => p.id == lp.id);
+          if (remotePlayer) {
+            lp.predictions = JSON.parse(JSON.stringify(remotePlayer.predictions || {}));
+            lp.championPrediction = remotePlayer.championPrediction;
+            lp.championPredictionText = remotePlayer.championPredictionText;
+            lp.championPredictionId = remotePlayer.championPredictionId;
+          }
+        }
+      });
+      merged.players = localPlayersCopy;
+      merged.realResults = JSON.parse(JSON.stringify(local.realResults || {}));
+      merged.matchTeams = JSON.parse(JSON.stringify(local.matchTeams || {}));
+      merged.realChampion = local.realChampion;
+      merged.config = JSON.parse(JSON.stringify(local.config || {}));
+    }
+
+    return merged;
+  }
+
+  // Guardar estado en LocalStorage y Base de Datos (MySQL) con mezcla concurrente segura
+  function saveState(changeCtx) {
+    // 1. Guardar en LocalStorage como copia local / offline de forma inmediata
     localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
     
-    // 2. Intentar guardar en el servidor a través de api.php
+    // 2. Intentar guardar en el servidor a través de api.php, obteniendo y mezclando el estado más reciente de la BD
     try {
       $.ajax({
-        url: 'api.php?action=save',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(state),
-        success: function(response) {
-          if (response && response.status === 'success') {
-            console.log("Estado guardado correctamente en la base de datos remota.");
-          } else {
-            console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
+        url: 'api.php?action=get',
+        type: 'GET',
+        dataType: 'json',
+        success: function(remoteState) {
+          if (remoteState && !remoteState.status) {
+            // Mezclar el estado local con el remoto según el contexto del cambio
+            state = mergeStates(state, remoteState, changeCtx);
+            // Actualizar la copia de LocalStorage con el estado ya mezclado
+            localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
           }
+          
+          // Enviar el estado unificado final a la base de datos
+          $.ajax({
+            url: 'api.php?action=save',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(state),
+            success: function(response) {
+              if (response && response.status === 'success') {
+                console.log("Estado mezclado y guardado correctamente en la base de datos remota.");
+              } else {
+                console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
+              }
+            },
+            error: function(xhr, status, error) {
+              console.error("Error de conexión al enviar el estado unificado al servidor:", error);
+            }
+          });
         },
         error: function(xhr, status, error) {
-          console.error("Error de conexión con el servidor de base de datos:", error);
+          console.warn("No se pudo obtener el estado remoto para mezclar, procediendo a guardar el estado local directamente.", error);
+          // Fallback si falla el GET: guardar el estado local directo para no perder el cambio
+          $.ajax({
+            url: 'api.php?action=save',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(state)
+          });
         }
       });
     } catch (e) {
       console.warn("Excepción al ejecutar $.ajax en saveState:", e);
+      try {
+        $.ajax({
+          url: 'api.php?action=save',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(state)
+        });
+      } catch (err) {}
     }
   }
 
@@ -463,7 +645,7 @@ $(document).ready(function() {
     }
 
     state.config.adminPin = newPin;
-    saveState();
+    saveState({ type: 'config' });
     $('#new-admin-pin').val('');
     showToast("PIN de seguridad actualizado.");
   });
@@ -1282,7 +1464,7 @@ $(document).ready(function() {
 
       if (val1 === "" && val2 === "") {
         delete state.players[pIdx].predictions[matchId];
-        saveState();
+        saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
         showSaveIndicator(true);
         renderPredictionsGrid();
         return;
@@ -1302,7 +1484,7 @@ $(document).ready(function() {
         state.players[pIdx].predictions[matchId].unlocked = false;
       }
 
-      saveState();
+      saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
       renderDashboard();
       renderPredictionsGrid();
@@ -1323,7 +1505,7 @@ $(document).ready(function() {
       }
 
       state.players[pIdx].predictions[matchId].unlocked = (action === 'unlock');
-      saveState();
+      saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
 
       renderPredictionsGrid();
 
@@ -1487,7 +1669,7 @@ $(document).ready(function() {
         state.matchTeams[matchId].team2 = newName;
       }
 
-      saveState();
+      saveState({ type: 'match-teams', matchId: matchId });
       renderDashboard();
       renderLeaderboard();
       // Rerenderizar la grilla de administración para recargar las banderas del nuevo país ingresado
@@ -1518,7 +1700,7 @@ $(document).ready(function() {
         showToast("Advertencia: Marcador incompleto para partido finalizado.", "error");
       }
 
-      saveState();
+      saveState({ type: 'real-results', matchId: matchId });
       renderDashboard();
       renderLeaderboard();
       showToast(`Partido ID ${matchId} actualizado.`);
@@ -1693,7 +1875,7 @@ $(document).ready(function() {
     state.players.push(newPlayer);
     activePlayerId = newPlayer.id;
 
-    saveState();
+    saveState({ type: 'players-list' });
     nameInput.val('');
     
     renderPlayersSelector();
@@ -1735,7 +1917,7 @@ $(document).ready(function() {
         activePlayerId = null;
       }
 
-      saveState();
+      saveState({ type: 'players-list' });
 
       renderPlayersSelector();
       renderPredictionsGrid();
@@ -1766,7 +1948,7 @@ $(document).ready(function() {
         });
       }
 
-      saveState();
+      saveState({ type: 'real-results', matchId: 'all' });
 
       renderDashboard();
       renderLeaderboard();
@@ -1798,7 +1980,7 @@ $(document).ready(function() {
     state.config.pointsClosest = ptsClosest;
     state.config.pointsChampion = ptsChampion;
 
-    saveState();
+    saveState({ type: 'config' });
     updateRulesPoints();
     renderDashboard();
     renderLeaderboard();
@@ -1818,7 +2000,7 @@ $(document).ready(function() {
     
     $('html').attr('data-theme', newTheme);
     state.config.theme = newTheme;
-    saveState();
+    saveState({ type: 'config' });
 
     if (newTheme === 'light') {
       $(this).html('<i data-lucide="moon"></i>');
@@ -1959,7 +2141,7 @@ $(document).ready(function() {
         if (confirm("Se detectó un respaldo válido. ¿Deseas cargar este respaldo? Esto reemplazará todos los datos actuales del juego.")) {
           state = imported;
           syncOfficialMatches();
-          saveState();
+          saveState({ type: 'full-overwrite' });
 
           if (state.players.length > 0) {
             activePlayerId = state.players[0].id;
@@ -2018,7 +2200,7 @@ $(document).ready(function() {
     if (confirm("¿Estás seguro de que deseas eliminar a TODOS los jugadores y sus predicciones? Los marcadores reales se mantendrán intactos.")) {
       state.players = [];
       activePlayerId = null;
-      saveState();
+      saveState({ type: 'players-list' });
 
       renderDashboard();
       renderLeaderboard();
@@ -2042,7 +2224,7 @@ $(document).ready(function() {
     if (confirm("ATENCIÓN: Se borrarán TODOS los datos de la quiniela (jugadores, pronósticos y marcadores reales del mundial) restableciendo todo al estado inicial. ¿Deseas continuar?")) {
       initializeDefaultState();
       syncOfficialMatches();
-      saveState();
+      saveState({ type: 'full-overwrite' });
       activePlayerId = null;
 
       renderDashboard();
@@ -2231,7 +2413,7 @@ $(document).ready(function() {
       const player = state.players.find(p => p.id == playerId);
       if (player) {
         player.championPrediction = val || null;
-        saveState();
+        saveState({ type: 'champion-vote', playerId: playerId });
         
         const flagContainer = $(`#flag-champion-${playerId}`);
         if (val) {
@@ -2275,7 +2457,7 @@ $(document).ready(function() {
     }
     
     state.config.championVotingClosed = !state.config.championVotingClosed;
-    saveState();
+    saveState({ type: 'config' });
     
     updateChampionVotingUI();
     
@@ -2295,7 +2477,7 @@ $(document).ready(function() {
     const selectedChampion = $('#admin-select-champion').val();
     state.realChampion = selectedChampion || null;
     
-    saveState();
+    saveState({ type: 'real-champion' });
     renderDashboard();
     renderLeaderboard();
     
