@@ -378,6 +378,7 @@ $(document).ready(function() {
     }
 
     try {
+      console.log(`[Quiniela DB Save] Iniciando guardado de tipo "${ctx.type || 'completo'}" en URL: ${url}`, payload);
       $.ajax({
         url: url,
         type: 'POST',
@@ -385,34 +386,47 @@ $(document).ready(function() {
         data: JSON.stringify(payload),
         success: function(response) {
           if (response && response.status === 'success') {
-            console.log("Cambio unificado guardado en base de datos: " + (ctx.type || 'completo'));
+            console.log(`[Quiniela DB Success] Guardado exitoso de tipo "${ctx.type || 'completo'}"`, response);
           } else {
-            // Intentar fallback si el endpoint específico reporta error
+            console.warn(`[Quiniela DB Warning] Fallo en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Respuesta:`, response);
             if (url !== 'api.php?action=save') {
-              console.warn("Fallo en endpoint dedicado, intentando fallback completo.");
+              console.warn("Intentando guardar con fallback completo en action=save...");
               $.ajax({
                 url: 'api.php?action=save',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify(state)
+                data: JSON.stringify(state),
+                success: function(respFallback) {
+                  console.log(`[Quiniela DB Fallback Success] Fallback completo guardado con éxito.`, respFallback);
+                },
+                error: function(xhrFb, statusFb, errFb) {
+                  console.error(`[Quiniela DB Fallback Error] Falló el guardado del fallback completo:`, errFb);
+                }
               });
             }
           }
         },
         error: function(xhr, status, error) {
-          console.warn("Error en endpoint estructurado. Reintentando con guardado completo de fallback.", error);
+          console.warn(`[Quiniela DB Error] Error de red en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Detalles:`, error);
           if (url !== 'api.php?action=save') {
+            console.warn("Reintentando con guardado completo de fallback en action=save...");
             $.ajax({
               url: 'api.php?action=save',
               type: 'POST',
               contentType: 'application/json',
-              data: JSON.stringify(state)
+              data: JSON.stringify(state),
+              success: function(respFallback) {
+                console.log(`[Quiniela DB Fallback Success] Fallback completo guardado con éxito tras error de red.`, respFallback);
+              },
+              error: function(xhrFb, statusFb, errFb) {
+                console.error(`[Quiniela DB Fallback Error] Falló el guardado del fallback completo tras error de red:`, errFb);
+              }
             });
           }
         }
       });
     } catch (e) {
-      console.warn("Excepción al ejecutar $.ajax en saveState:", e);
+      console.warn("[Quiniela DB Exception] Excepción en saveState:", e);
       try {
         $.ajax({
           url: 'api.php?action=save',

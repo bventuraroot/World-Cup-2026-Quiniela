@@ -9,6 +9,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
+function write_api_log($message) {
+    $log_file = __DIR__ . '/api_debug.log';
+    $timestamp = date('Y-m-d H:i:s');
+    @file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
+}
+
 $config_file = __DIR__ . '/db_config.php';
 $db_host = 'localhost';
 $db_name = 'vsystemsv_ria';
@@ -163,21 +169,25 @@ try {
                         }
 
                         $pdo->commit();
+                        write_api_log("MIGRACIÓN COMPLETA: Estado consolidado JSON migrado exitosamente a tablas relacionales.");
                         
                         // Eliminar el antiguo registro JSON consolidado para no repetir la migración
                         $pdo->exec("DELETE FROM quiniela_state WHERE state_key = 'main_state'");
                     } catch (Exception $eInner) {
                         $pdo->rollBack();
                         error_log("Error interno en la migración de quiniela: " . $eInner->getMessage());
+                        write_api_log("ERROR MIGRACIÓN INTERNA: " . $eInner->getMessage());
                     }
                 }
             }
         }
     } catch (PDOException $eMig) {
         error_log("Error de base de datos durante la verificación de migración: " . $eMig->getMessage());
+        write_api_log("ERROR EN MIGRACIÓN: " . $eMig->getMessage());
     }
 } catch (PDOException $e) {
     $conn_error = $e->getMessage();
+    write_api_log("ERROR DE CONEXIÓN A BASE DE DATOS: " . $conn_error);
 }
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -381,6 +391,7 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'unlocked' => isset($data['unlocked']) && $data['unlocked'] ? 1 : 0
             ]);
         }
+        write_api_log("Pronóstico guardado - Jugador: $pId, Partido: $mId, Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (unlocked: " . (isset($data['unlocked']) && $data['unlocked'] ? 'si' : 'no') . ")");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -403,6 +414,7 @@ if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'txt' => isset($data['championPredictionText']) ? $data['championPredictionText'] : null,
             'cid' => isset($data['championPredictionId']) ? $data['championPredictionId'] : null
         ]);
+        write_api_log("Voto campeón guardado - Jugador: $pId, Selección: " . ($data['championPredictionText'] ?? 'N/A'));
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -416,7 +428,8 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode($input, true);
     if ($data) {
         if (isset($data['match_id']) && $data['match_id'] === 'all' && isset($data['reset']) && $data['reset']) {
-            $pdo->exec("TRUNCATE TABLE quiniela_real_results");
+            $pdo->exec("DELETE FROM quiniela_real_results");
+            write_api_log("ADMIN: Limpieza de TODOS los marcadores reales.");
             echo json_encode(['status' => 'success']);
         } elseif (isset($data['match_id'])) {
             $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) 
@@ -428,6 +441,7 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? intval($data['goals2']) : null,
                 'status' => isset($data['status']) ? $data['status'] : 'scheduled'
             ]);
+            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . ", Estado: " . ($data['status'] ?? 'N/A'));
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Datos de partido no especificados.']);
@@ -451,6 +465,7 @@ if ($action === 'save_match_team' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             't1' => isset($data['team1']) ? $data['team1'] : null,
             't2' => isset($data['team2']) ? $data['team2'] : null
         ]);
+        write_api_log("ADMIN: Equipos personalizados guardados - Partido: " . $data['match_id'] . ", Eq1: " . ($data['team1'] ?? 'N/A') . ", Eq2: " . ($data['team2'] ?? 'N/A'));
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -475,6 +490,7 @@ if ($action === 'save_config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'val' => $v !== null ? strval($v) : null
             ]);
         }
+        write_api_log("ADMIN: Configuración de puntos/sistema actualizada.");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Cuerpo JSON no es un arreglo válido.']);
@@ -491,6 +507,7 @@ if ($action === 'save_real_champion' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                VALUES ('realChampion', :val) 
                                ON DUPLICATE KEY UPDATE config_value = :val");
         $stmt->execute(['val' => $data['realChampion']]);
+        write_api_log("ADMIN: Campeón oficial guardado: " . $data['realChampion']);
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -508,6 +525,7 @@ if ($action === 'add_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'id' => $data['id'],
             'name' => $data['name']
         ]);
+        write_api_log("ADMIN: Jugador agregado - ID: " . $data['id'] . ", Nombre: " . $data['name']);
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos de jugador insuficientes.']);
@@ -528,6 +546,7 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :id");
             $stmt->execute(['id' => $pId]);
             $pdo->commit();
+            write_api_log("ADMIN: Jugador eliminado - ID: " . $pId);
             echo json_encode(['status' => 'success']);
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -543,9 +562,10 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'reset_players' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo->beginTransaction();
     try {
-        $pdo->exec("TRUNCATE TABLE quiniela_players");
-        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
+        $pdo->exec("DELETE FROM quiniela_players");
+        $pdo->exec("DELETE FROM quiniela_predictions");
         $pdo->commit();
+        write_api_log("ADMIN: Se eliminaron TODOS los jugadores y sus pronósticos.");
         echo json_encode(['status' => 'success']);
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -558,12 +578,13 @@ if ($action === 'reset_players' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'reset_all' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo->beginTransaction();
     try {
-        $pdo->exec("TRUNCATE TABLE quiniela_players");
-        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
-        $pdo->exec("TRUNCATE TABLE quiniela_real_results");
-        $pdo->exec("TRUNCATE TABLE quiniela_match_teams");
-        $pdo->exec("TRUNCATE TABLE quiniela_config");
+        $pdo->exec("DELETE FROM quiniela_players");
+        $pdo->exec("DELETE FROM quiniela_predictions");
+        $pdo->exec("DELETE FROM quiniela_real_results");
+        $pdo->exec("DELETE FROM quiniela_match_teams");
+        $pdo->exec("DELETE FROM quiniela_config");
         $pdo->commit();
+        write_api_log("ADMIN: Reinicio COMPLETO de todo el sistema de quiniela.");
         echo json_encode(['status' => 'success']);
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -581,11 +602,11 @@ function importFullStateJSON($pdo, $state_json) {
     $pdo->beginTransaction();
     try {
         // Limpiar todo antes de la importación
-        $pdo->exec("TRUNCATE TABLE quiniela_players");
-        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
-        $pdo->exec("TRUNCATE TABLE quiniela_real_results");
-        $pdo->exec("TRUNCATE TABLE quiniela_match_teams");
-        $pdo->exec("TRUNCATE TABLE quiniela_config");
+        $pdo->exec("DELETE FROM quiniela_players");
+        $pdo->exec("DELETE FROM quiniela_predictions");
+        $pdo->exec("DELETE FROM quiniela_real_results");
+        $pdo->exec("DELETE FROM quiniela_match_teams");
+        $pdo->exec("DELETE FROM quiniela_config");
 
         // Players & predictions
         if (isset($state_json['players']) && is_array($state_json['players'])) {
@@ -664,9 +685,11 @@ function importFullStateJSON($pdo, $state_json) {
         }
 
         $pdo->commit();
+        write_api_log("ADMIN: Importación masiva de estado JSON consolidado completada exitosamente.");
         return ['status' => 'success', 'message' => 'Importación de estado completa realizada con éxito.'];
     } catch (Exception $e) {
         $pdo->rollBack();
+        write_api_log("ERROR EN IMPORTACIÓN MASIVA: " . $e->getMessage());
         return ['status' => 'error', 'message' => 'Fallo en la importación: ' . $e->getMessage()];
     }
 }
