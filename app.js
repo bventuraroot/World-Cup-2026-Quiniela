@@ -287,201 +287,128 @@ $(document).ready(function() {
     return defaultName;
   }
 
-  // Mezclar estado local con el estado remoto recién leído de la base de datos para evitar sobreescrituras concurrentes
-  function mergeStates(local, remote, changeCtx) {
-    if (!remote || !remote.players) {
-      return local; // Si el remoto está vacío o corrupto, usamos el local completo
-    }
-
-    // Clonar el remoto como base de mezcla para no mutar el objeto original
-    const merged = JSON.parse(JSON.stringify(remote));
-    const ctx = changeCtx || {};
-
-    if (ctx.type === 'prediction') {
-      // Modificación de pronóstico para un jugador y partido específico
-      const { playerId, matchId } = ctx;
-      if (playerId !== undefined && playerId !== null && matchId !== undefined && matchId !== null) {
-        const localPlayer = local.players.find(p => p.id == playerId);
-        const remotePlayer = merged.players.find(p => p.id == playerId);
-        
-        if (localPlayer && remotePlayer) {
-          const localPred = localPlayer.predictions[matchId];
-          if (localPred !== undefined) {
-            remotePlayer.predictions[matchId] = JSON.parse(JSON.stringify(localPred));
-          } else {
-            delete remotePlayer.predictions[matchId];
-          }
-        }
-      }
-      return merged;
-    }
-
-    if (ctx.type === 'champion-vote') {
-      // Modificación de voto de campeón para un jugador específico
-      const { playerId } = ctx;
-      if (playerId !== undefined && playerId !== null) {
-        const localPlayer = local.players.find(p => p.id == playerId);
-        const remotePlayer = merged.players.find(p => p.id == playerId);
-
-        if (localPlayer && remotePlayer) {
-          remotePlayer.championPrediction = localPlayer.championPrediction;
-          remotePlayer.championPredictionText = localPlayer.championPredictionText;
-          remotePlayer.championPredictionId = localPlayer.championPredictionId;
-        }
-      }
-      return merged;
-    }
-
-    if (ctx.type === 'real-results') {
-      // Admin guardando marcadores reales
-      const { matchId } = ctx;
-      if (matchId === 'all') {
-        merged.realResults = JSON.parse(JSON.stringify(local.realResults || {}));
-      } else if (matchId !== undefined && matchId !== null) {
-        if (!merged.realResults) merged.realResults = {};
-        if (local.realResults && local.realResults[matchId]) {
-          merged.realResults[matchId] = JSON.parse(JSON.stringify(local.realResults[matchId]));
-        } else {
-          delete merged.realResults[matchId];
-        }
-      }
-      return merged;
-    }
-
-    if (ctx.type === 'match-teams') {
-      // Admin editando nombres de equipos
-      const { matchId } = ctx;
-      if (matchId !== undefined && matchId !== null) {
-        if (!merged.matchTeams) merged.matchTeams = {};
-        if (local.matchTeams && local.matchTeams[matchId]) {
-          merged.matchTeams[matchId] = JSON.parse(JSON.stringify(local.matchTeams[matchId]));
-        } else {
-          delete merged.matchTeams[matchId];
-        }
-      }
-      return merged;
-    }
-
-    if (ctx.type === 'config') {
-      // Modificación de la configuración de puntos, PIN admin, etc.
-      merged.config = JSON.parse(JSON.stringify(local.config || {}));
-      return merged;
-    }
-
-    if (ctx.type === 'real-champion') {
-      // Admin estableciendo al campeón oficial
-      merged.realChampion = local.realChampion;
-      return merged;
-    }
-
-    if (ctx.type === 'players-list') {
-      // Agregar, eliminar o restablecer la lista de jugadores (Admin)
-      const localPlayersCopy = JSON.parse(JSON.stringify(local.players || []));
-      
-      localPlayersCopy.forEach(lp => {
-        const remotePlayer = remote.players.find(p => p.id == lp.id);
-        if (remotePlayer) {
-          lp.predictions = JSON.parse(JSON.stringify(remotePlayer.predictions || {}));
-          lp.championPrediction = remotePlayer.championPrediction;
-          lp.championPredictionText = remotePlayer.championPredictionText;
-          lp.championPredictionId = remotePlayer.championPredictionId;
-        }
-      });
-      
-      merged.players = localPlayersCopy;
-      return merged;
-    }
-
-    if (ctx.type === 'full-overwrite') {
-      return local;
-    }
-
-    // --- FALLBACK POR DEFECTO ---
-    if (!isAdminMode) {
-      if (activePlayerId !== null && activePlayerId !== undefined) {
-        const localActive = local.players.find(p => p.id == activePlayerId);
-        const remoteActive = merged.players.find(p => p.id == activePlayerId);
-        
-        if (localActive && remoteActive) {
-          remoteActive.predictions = JSON.parse(JSON.stringify(localActive.predictions || {}));
-          remoteActive.championPrediction = localActive.championPrediction;
-          remoteActive.championPredictionText = localActive.championPredictionText;
-          remoteActive.championPredictionId = localActive.championPredictionId;
-        }
-      }
-      if (local.config && local.config.theme) {
-        if (!merged.config) merged.config = {};
-        merged.config.theme = local.config.theme;
-      }
-    } else {
-      const localPlayersCopy = JSON.parse(JSON.stringify(local.players || []));
-      localPlayersCopy.forEach(lp => {
-        if (lp.id != activePlayerId) {
-          const remotePlayer = remote.players.find(p => p.id == lp.id);
-          if (remotePlayer) {
-            lp.predictions = JSON.parse(JSON.stringify(remotePlayer.predictions || {}));
-            lp.championPrediction = remotePlayer.championPrediction;
-            lp.championPredictionText = remotePlayer.championPredictionText;
-            lp.championPredictionId = remotePlayer.championPredictionId;
-          }
-        }
-      });
-      merged.players = localPlayersCopy;
-      merged.realResults = JSON.parse(JSON.stringify(local.realResults || {}));
-      merged.matchTeams = JSON.parse(JSON.stringify(local.matchTeams || {}));
-      merged.realChampion = local.realChampion;
-      merged.config = JSON.parse(JSON.stringify(local.config || {}));
-    }
-
-    return merged;
-  }
-
-  // Guardar estado en LocalStorage y Base de Datos (MySQL) con mezcla concurrente segura
+  // Guardar estado en LocalStorage y Base de Datos (MySQL) con endpoints dedicados
   function saveState(changeCtx) {
     // 1. Guardar en LocalStorage como copia local / offline de forma inmediata
     localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
     
-    // 2. Intentar guardar en el servidor a través de api.php, obteniendo y mezclando el estado más reciente de la BD
+    // 2. Determinar endpoint y payload específico para la base de datos MySQL
+    const ctx = changeCtx || {};
+    let url = 'api.php?action=save'; // fallback completo
+    let payload = state;
+
+    if (ctx.type === 'prediction') {
+      const { playerId, matchId } = ctx;
+      if (playerId !== undefined && playerId !== null && matchId !== undefined && matchId !== null) {
+        url = 'api.php?action=save_prediction';
+        const player = state.players.find(p => p.id == playerId);
+        const pred = player ? player.predictions[matchId] : null;
+        if (pred) {
+          payload = {
+            player_id: playerId,
+            match_id: matchId,
+            goals1: pred.goals1,
+            goals2: pred.goals2,
+            unlocked: !!pred.unlocked
+          };
+        } else {
+          payload = {
+            player_id: playerId,
+            match_id: matchId,
+            delete: true
+          };
+        }
+      }
+    } else if (ctx.type === 'champion-vote') {
+      const { playerId } = ctx;
+      if (playerId !== undefined && playerId !== null) {
+        url = 'api.php?action=save_champion_vote';
+        const player = state.players.find(p => p.id == playerId);
+        if (player) {
+          payload = {
+            player_id: playerId,
+            championPrediction: player.championPrediction,
+            championPredictionText: player.championPredictionText,
+            championPredictionId: player.championPredictionId
+          };
+        }
+      }
+    } else if (ctx.type === 'real-results') {
+      url = 'api.php?action=save_real_result';
+      const { matchId } = ctx;
+      if (matchId === 'all') {
+        payload = {
+          match_id: 'all',
+          reset: true
+        };
+      } else if (matchId !== undefined && matchId !== null) {
+        const res = state.realResults[matchId];
+        payload = {
+          match_id: matchId,
+          goals1: res ? res.goals1 : null,
+          goals2: res ? res.goals2 : null,
+          status: res ? res.status : 'scheduled'
+        };
+      }
+    } else if (ctx.type === 'match-teams') {
+      url = 'api.php?action=save_match_team';
+      const { matchId } = ctx;
+      if (matchId !== undefined && matchId !== null) {
+        const t = state.matchTeams[matchId];
+        payload = {
+          match_id: matchId,
+          team1: t ? t.team1 : null,
+          team2: t ? t.team2 : null
+        };
+      }
+    } else if (ctx.type === 'config') {
+      url = 'api.php?action=save_config';
+      payload = state.config;
+    } else if (ctx.type === 'real-champion') {
+      url = 'api.php?action=save_real_champion';
+      payload = {
+        realChampion: state.realChampion
+      };
+    } else if (ctx.type === 'players-list') {
+      url = 'api.php?action=import_state';
+      payload = state;
+    } else if (ctx.type === 'full-overwrite') {
+      url = 'api.php?action=import_state';
+      payload = state;
+    }
+
     try {
       $.ajax({
-        url: 'api.php?action=get',
-        type: 'GET',
-        dataType: 'json',
-        success: function(remoteState) {
-          if (remoteState && !remoteState.status) {
-            // Mezclar el estado local con el remoto según el contexto del cambio
-            state = mergeStates(state, remoteState, changeCtx);
-            // Actualizar la copia de LocalStorage con el estado ya mezclado
-            localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
-          }
-          
-          // Enviar el estado unificado final a la base de datos
-          $.ajax({
-            url: 'api.php?action=save',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(state),
-            success: function(response) {
-              if (response && response.status === 'success') {
-                console.log("Estado mezclado y guardado correctamente en la base de datos remota.");
-              } else {
-                console.error("Error al guardar en base de datos: " + (response ? response.message : "Desconocido"));
-              }
-            },
-            error: function(xhr, status, error) {
-              console.error("Error de conexión al enviar el estado unificado al servidor:", error);
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function(response) {
+          if (response && response.status === 'success') {
+            console.log("Cambio unificado guardado en base de datos: " + (ctx.type || 'completo'));
+          } else {
+            // Intentar fallback si el endpoint específico reporta error
+            if (url !== 'api.php?action=save') {
+              console.warn("Fallo en endpoint dedicado, intentando fallback completo.");
+              $.ajax({
+                url: 'api.php?action=save',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(state)
+              });
             }
-          });
+          }
         },
         error: function(xhr, status, error) {
-          console.warn("No se pudo obtener el estado remoto para mezclar, procediendo a guardar el estado local directamente.", error);
-          // Fallback si falla el GET: guardar el estado local directo para no perder el cambio
-          $.ajax({
-            url: 'api.php?action=save',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(state)
-          });
+          console.warn("Error en endpoint estructurado. Reintentando con guardado completo de fallback.", error);
+          if (url !== 'api.php?action=save') {
+            $.ajax({
+              url: 'api.php?action=save',
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify(state)
+            });
+          }
         }
       });
     } catch (e) {

@@ -27,14 +27,155 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
-    // Auto-creación de tabla si no existe
+    // 1. Auto-creación de la tabla de estado heredada (para migración si existe)
     $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_state (
         id INT PRIMARY KEY AUTO_INCREMENT,
         state_key VARCHAR(50) UNIQUE,
         state_value LONGTEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
+
+    // 2. Auto-creación de tablas estructuradas (relacionales)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_players (
+        id BIGINT PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        champion_prediction VARCHAR(100) NULL,
+        champion_prediction_text VARCHAR(150) NULL,
+        champion_prediction_id VARCHAR(100) NULL
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_predictions (
+        player_id BIGINT,
+        match_id VARCHAR(50),
+        goals1 VARCHAR(5) NULL,
+        goals2 VARCHAR(5) NULL,
+        unlocked TINYINT DEFAULT 0,
+        PRIMARY KEY (player_id, match_id)
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_real_results (
+        match_id VARCHAR(50) PRIMARY KEY,
+        goals1 INT NULL,
+        goals2 INT NULL,
+        status VARCHAR(20) NOT NULL
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_match_teams (
+        match_id VARCHAR(50) PRIMARY KEY,
+        team1 VARCHAR(100) NULL,
+        team2 VARCHAR(100) NULL
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_config (
+        config_key VARCHAR(50) PRIMARY KEY,
+        config_value VARCHAR(255) NULL
+    )");
+
     $connected = true;
+
+    // 3. Ejecutar auto-migración de datos si existe el main_state anterior y las tablas estructuradas están vacías
+    try {
+        $stmtMigCheck = $pdo->prepare("SELECT state_value FROM quiniela_state WHERE state_key = 'main_state'");
+        $stmtMigCheck->execute();
+        $rowMig = $stmtMigCheck->fetch();
+        
+        if ($rowMig) {
+            $countPlayers = intval($pdo->query("SELECT COUNT(*) FROM quiniela_players")->fetchColumn());
+            if ($countPlayers === 0) {
+                $state_json = json_decode($rowMig['state_value'], true);
+                if ($state_json && is_array($state_json)) {
+                    $pdo->beginTransaction();
+                    try {
+                        // Migrar jugadores y sus predicciones
+                        if (isset($state_json['players']) && is_array($state_json['players'])) {
+                            $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
+                            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :unlocked)");
+                            
+                            foreach ($state_json['players'] as $p) {
+                                if (isset($p['id']) && isset($p['name'])) {
+                                    $stmtPlayer->execute([
+                                        'id' => $p['id'],
+                                        'name' => $p['name'],
+                                        'champ' => isset($p['championPrediction']) ? $p['championPrediction'] : null,
+                                        'champ_txt' => isset($p['championPredictionText']) ? $p['championPredictionText'] : null,
+                                        'champ_id' => isset($p['championPredictionId']) ? $p['championPredictionId'] : null
+                                    ]);
+                                    
+                                    if (isset($p['predictions']) && is_array($p['predictions'])) {
+                                        foreach ($p['predictions'] as $mId => $pred) {
+                                            $unlocked = isset($pred['unlocked']) && $pred['unlocked'] ? 1 : 0;
+                                            $stmtPred->execute([
+                                                'player_id' => $p['id'],
+                                                'match_id' => $mId,
+                                                'goals1' => (isset($pred['goals1']) && $pred['goals1'] !== "") ? $pred['goals1'] : null,
+                                                'goals2' => (isset($pred['goals2']) && $pred['goals2'] !== "") ? $pred['goals2'] : null,
+                                                'unlocked' => $unlocked
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Migrar resultados reales
+                        if (isset($state_json['realResults']) && is_array($state_json['realResults'])) {
+                            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) VALUES (:match_id, :goals1, :goals2, :status)");
+                            foreach ($state_json['realResults'] as $mId => $r) {
+                                $stmtReal->execute([
+                                    'match_id' => $mId,
+                                    'goals1' => ($r['goals1'] !== null && $r['goals1'] !== "") ? intval($r['goals1']) : null,
+                                    'goals2' => ($r['goals2'] !== null && $r['goals2'] !== "") ? intval($r['goals2']) : null,
+                                    'status' => isset($r['status']) ? $r['status'] : 'scheduled'
+                                ]);
+                            }
+                        }
+
+                        // Migrar nombres de equipos editados
+                        if (isset($state_json['matchTeams']) && is_array($state_json['matchTeams'])) {
+                            $stmtTeam = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) VALUES (:match_id, :team1, :team2)");
+                            foreach ($state_json['matchTeams'] as $mId => $t) {
+                                $stmtTeam->execute([
+                                    'match_id' => $mId,
+                                    'team1' => isset($t['team1']) ? $t['team1'] : null,
+                                    'team2' => isset($t['team2']) ? $t['team2'] : null
+                                ]);
+                            }
+                        }
+
+                        // Migrar config & realChampion
+                        $stmtCfg = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) VALUES (:key, :val)");
+                        if (isset($state_json['config']) && is_array($state_json['config'])) {
+                            foreach ($state_json['config'] as $k => $v) {
+                                if (is_bool($v)) {
+                                    $v = $v ? '1' : '0';
+                                }
+                                $stmtCfg->execute([
+                                    'key' => $k,
+                                    'val' => ($v !== null) ? strval($v) : null
+                                ]);
+                            }
+                        }
+                        if (isset($state_json['realChampion'])) {
+                            $stmtCfg->execute([
+                                'key' => 'realChampion',
+                                'val' => $state_json['realChampion']
+                            ]);
+                        }
+
+                        $pdo->commit();
+                        
+                        // Eliminar el antiguo registro JSON consolidado para no repetir la migración
+                        $pdo->exec("DELETE FROM quiniela_state WHERE state_key = 'main_state'");
+                    } catch (Exception $eInner) {
+                        $pdo->rollBack();
+                        error_log("Error interno en la migración de quiniela: " . $eInner->getMessage());
+                    }
+                }
+            }
+        }
+    } catch (PDOException $eMig) {
+        error_log("Error de base de datos durante la verificación de migración: " . $eMig->getMessage());
+    }
 } catch (PDOException $e) {
     $conn_error = $e->getMessage();
 }
@@ -122,49 +263,436 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 if ($action === 'get') {
     try {
-        $stmt = $pdo->prepare("SELECT state_value FROM quiniela_state WHERE state_key = 'main_state'");
-        $stmt->execute();
-        $row = $stmt->fetch();
+        // Consultar jugadores
+        $players = [];
+        $stmt = $pdo->query("SELECT * FROM quiniela_players ORDER BY name ASC");
+        $db_players = $stmt->fetchAll();
 
-        if ($row) {
-            echo $row['state_value'];
+        // Consultar predicciones
+        $preds = [];
+        $stmtPred = $pdo->query("SELECT * FROM quiniela_predictions");
+        foreach ($stmtPred->fetchAll() as $pr) {
+            $pId = $pr['player_id'];
+            $mId = $pr['match_id'];
+            if (!isset($preds[$pId])) {
+                $preds[$pId] = [];
+            }
+            $preds[$pId][$mId] = [
+                'goals1' => $pr['goals1'],
+                'goals2' => $pr['goals2'],
+                'unlocked' => intval($pr['unlocked']) === 1
+            ];
+        }
+
+        foreach ($db_players as $db_p) {
+            $pId = $db_p['id'];
+            $players[] = [
+                'id' => intval($pId),
+                'name' => $db_p['name'],
+                'championPrediction' => $db_p['champion_prediction'],
+                'championPredictionText' => $db_p['champion_prediction_text'],
+                'championPredictionId' => $db_p['champion_prediction_id'],
+                'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
+            ];
+        }
+
+        // Consultar resultados reales
+        $realResults = new stdClass();
+        $stmtReal = $pdo->query("SELECT * FROM quiniela_real_results");
+        foreach ($stmtReal->fetchAll() as $r) {
+            $realResults->{$r['match_id']} = [
+                'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
+                'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
+                'status' => $r['status']
+            ];
+        }
+
+        // Consultar nombres de equipos editados
+        $matchTeams = new stdClass();
+        $stmtTeam = $pdo->query("SELECT * FROM quiniela_match_teams");
+        foreach ($stmtTeam->fetchAll() as $t) {
+            $matchTeams->{$t['match_id']} = [
+                'team1' => $t['team1'],
+                'team2' => $t['team2']
+            ];
+        }
+
+        // Consultar configs
+        $config = [
+            'pointsExact' => 3,
+            'pointsWinner' => 1,
+            'pointsClosest' => 1,
+            'pointsChampion' => 10,
+            'adminPin' => '1234',
+            'theme' => 'dark',
+            'championVotingClosed' => false
+        ];
+        $realChampion = null;
+
+        $stmtCfg = $pdo->query("SELECT * FROM quiniela_config");
+        foreach ($stmtCfg->fetchAll() as $c) {
+            $k = $c['config_key'];
+            $v = $c['config_value'];
+            if ($k === 'realChampion') {
+                $realChampion = $v;
+            } else {
+                if ($k === 'pointsExact' || $k === 'pointsWinner' || $k === 'pointsClosest' || $k === 'pointsChampion') {
+                    $config[$k] = intval($v);
+                } elseif ($k === 'championVotingClosed') {
+                    $config[$k] = intval($v) === 1;
+                } else {
+                    $config[$k] = $v;
+                }
+            }
+        }
+
+        echo json_encode([
+            'players' => $players,
+            'realResults' => $realResults,
+            'matchTeams' => $matchTeams,
+            'config' => $config,
+            'realChampion' => $realChampion
+        ]);
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Error al ensamblar el estado consolidado: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+// 2. Endpoint REST: Guardar Pronóstico Individual
+if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['player_id']) && isset($data['match_id'])) {
+        $pId = $data['player_id'];
+        $mId = $data['match_id'];
+        if (isset($data['delete']) && $data['delete']) {
+            $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :pId AND match_id = :mId");
+            $stmt->execute(['pId' => $pId, 'mId' => $mId]);
         } else {
-            // Si no hay datos, devolver estructura vacía por defecto
-            echo json_encode([
-                'players' => [],
-                'realResults' => new stdClass(),
-                'config' => [
-                    'pointsExact' => 3,
-                    'pointsWinner' => 1,
-                    'pointsClosest' => 1,
-                    'adminPin' => '1234',
-                    'theme' => 'dark'
-                ]
+            $stmt = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) 
+                                   VALUES (:pId, :mId, :g1, :g2, :unlocked) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, unlocked = :unlocked");
+            $stmt->execute([
+                'pId' => $pId,
+                'mId' => $mId,
+                'g1' => ($data['goals1'] !== null && $data['goals1'] !== "") ? $data['goals1'] : null,
+                'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? $data['goals2'] : null,
+                'unlocked' => isset($data['unlocked']) && $data['unlocked'] ? 1 : 0
             ]);
         }
-    } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'message' => 'Error al leer datos: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
     }
-} elseif ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Obtener JSON del body de la petición
-    $input = file_get_contents('php://input');
+    exit;
+}
 
-    // Validar que sea JSON válido antes de guardar
-    $json = json_decode($input, true);
-    if ($json === null) {
-        echo json_encode(['status' => 'error', 'message' => 'El cuerpo de la petición no es un JSON válido.']);
+// 3. Endpoint REST: Guardar Voto Campeón Individual
+if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['player_id'])) {
+        $pId = $data['player_id'];
+        $stmt = $pdo->prepare("UPDATE quiniela_players 
+                               SET champion_prediction = :champ, champion_prediction_text = :txt, champion_prediction_id = :cid 
+                               WHERE id = :pId");
+        $stmt->execute([
+            'pId' => $pId,
+            'champ' => isset($data['championPrediction']) ? $data['championPrediction'] : null,
+            'txt' => isset($data['championPredictionText']) ? $data['championPredictionText'] : null,
+            'cid' => isset($data['championPredictionId']) ? $data['championPredictionId'] : null
+        ]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
+    }
+    exit;
+}
+
+// 4. Endpoint REST: Guardar Resultado Real Individual (o Limpieza)
+if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data) {
+        if (isset($data['match_id']) && $data['match_id'] === 'all' && isset($data['reset']) && $data['reset']) {
+            $pdo->exec("TRUNCATE TABLE quiniela_real_results");
+            echo json_encode(['status' => 'success']);
+        } elseif (isset($data['match_id'])) {
+            $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) 
+                                   VALUES (:mId, :g1, :g2, :status) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status");
+            $stmt->execute([
+                'mId' => $data['match_id'],
+                'g1' => ($data['goals1'] !== null && $data['goals1'] !== "") ? intval($data['goals1']) : null,
+                'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? intval($data['goals2']) : null,
+                'status' => isset($data['status']) ? $data['status'] : 'scheduled'
+            ]);
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Datos de partido no especificados.']);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Cuerpo JSON vacío.']);
+    }
+    exit;
+}
+
+// 5. Endpoint REST: Guardar Equipo Personalizado
+if ($action === 'save_match_team' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['match_id'])) {
+        $stmt = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) 
+                               VALUES (:mId, :t1, :t2) 
+                               ON DUPLICATE KEY UPDATE team1 = :t1, team2 = :t2");
+        $stmt->execute([
+            'mId' => $data['match_id'],
+            't1' => isset($data['team1']) ? $data['team1'] : null,
+            't2' => isset($data['team2']) ? $data['team2'] : null
+        ]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
+    }
+    exit;
+}
+
+// 6. Endpoint REST: Guardar Configuraciones de Puntos
+if ($action === 'save_config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && is_array($data)) {
+        $stmt = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) 
+                               VALUES (:key, :val) 
+                               ON DUPLICATE KEY UPDATE config_value = :val");
+        foreach ($data as $k => $v) {
+            if (is_bool($v)) {
+                $v = $v ? '1' : '0';
+            }
+            $stmt->execute([
+                'key' => $k,
+                'val' => $v !== null ? strval($v) : null
+            ]);
+        }
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Cuerpo JSON no es un arreglo válido.']);
+    }
+    exit;
+}
+
+// 7. Endpoint REST: Guardar Campeón Oficial
+if ($action === 'save_real_champion' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['realChampion'])) {
+        $stmt = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) 
+                               VALUES ('realChampion', :val) 
+                               ON DUPLICATE KEY UPDATE config_value = :val");
+        $stmt->execute(['val' => $data['realChampion']]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
+    }
+    exit;
+}
+
+// 8. Endpoint REST: Agregar Jugador
+if ($action === 'add_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['id']) && isset($data['name'])) {
+        $stmt = $pdo->prepare("INSERT INTO quiniela_players (id, name) VALUES (:id, :name)");
+        $stmt->execute([
+            'id' => $data['id'],
+            'name' => $data['name']
+        ]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos de jugador insuficientes.']);
+    }
+    exit;
+}
+
+// 9. Endpoint REST: Eliminar Jugador
+if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['id'])) {
+        $pId = $data['id'];
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("DELETE FROM quiniela_players WHERE id = :id");
+            $stmt->execute(['id' => $pId]);
+            $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :id");
+            $stmt->execute(['id' => $pId]);
+            $pdo->commit();
+            echo json_encode(['status' => 'success']);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Id de jugador no especificado.']);
+    }
+    exit;
+}
+
+// 10. Endpoint REST: Restablecer Jugadores
+if ($action === 'reset_players' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec("TRUNCATE TABLE quiniela_players");
+        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
+        $pdo->commit();
+        echo json_encode(['status' => 'success']);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// 11. Endpoint REST: Restablecer Todo
+if ($action === 'reset_all' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec("TRUNCATE TABLE quiniela_players");
+        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
+        $pdo->exec("TRUNCATE TABLE quiniela_real_results");
+        $pdo->exec("TRUNCATE TABLE quiniela_match_teams");
+        $pdo->exec("TRUNCATE TABLE quiniela_config");
+        $pdo->commit();
+        echo json_encode(['status' => 'success']);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// Helper para importar un estado JSON consolidado completo
+function importFullStateJSON($pdo, $state_json) {
+    if (!$state_json || !is_array($state_json)) {
+        return ['status' => 'error', 'message' => 'JSON de importación inválido.'];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        // Limpiar todo antes de la importación
+        $pdo->exec("TRUNCATE TABLE quiniela_players");
+        $pdo->exec("TRUNCATE TABLE quiniela_predictions");
+        $pdo->exec("TRUNCATE TABLE quiniela_real_results");
+        $pdo->exec("TRUNCATE TABLE quiniela_match_teams");
+        $pdo->exec("TRUNCATE TABLE quiniela_config");
+
+        // Players & predictions
+        if (isset($state_json['players']) && is_array($state_json['players'])) {
+            $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
+            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :unlocked)");
+            
+            foreach ($state_json['players'] as $p) {
+                if (isset($p['id']) && isset($p['name'])) {
+                    $stmtPlayer->execute([
+                        'id' => $p['id'],
+                        'name' => $p['name'],
+                        'champ' => isset($p['championPrediction']) ? $p['championPrediction'] : null,
+                        'champ_txt' => isset($p['championPredictionText']) ? $p['championPredictionText'] : null,
+                        'champ_id' => isset($p['championPredictionId']) ? $p['championPredictionId'] : null
+                    ]);
+                    
+                    if (isset($p['predictions']) && is_array($p['predictions'])) {
+                        foreach ($p['predictions'] as $mId => $pred) {
+                            $unlocked = isset($pred['unlocked']) && $pred['unlocked'] ? 1 : 0;
+                            $stmtPred->execute([
+                                'player_id' => $p['id'],
+                                'match_id' => $mId,
+                                'goals1' => (isset($pred['goals1']) && $pred['goals1'] !== "") ? $pred['goals1'] : null,
+                                'goals2' => (isset($pred['goals2']) && $pred['goals2'] !== "") ? $pred['goals2'] : null,
+                                'unlocked' => $unlocked
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Real results
+        if (isset($state_json['realResults']) && is_array($state_json['realResults'])) {
+            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) VALUES (:match_id, :goals1, :goals2, :status)");
+            foreach ($state_json['realResults'] as $mId => $r) {
+                $stmtReal->execute([
+                    'match_id' => $mId,
+                    'goals1' => ($r['goals1'] !== null && $r['goals1'] !== "") ? intval($r['goals1']) : null,
+                    'goals2' => ($r['goals2'] !== null && $r['goals2'] !== "") ? intval($r['goals2']) : null,
+                    'status' => isset($r['status']) ? $r['status'] : 'scheduled'
+                ]);
+            }
+        }
+
+        // Custom team names
+        if (isset($state_json['matchTeams']) && is_array($state_json['matchTeams'])) {
+            $stmtTeam = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) VALUES (:match_id, :team1, :team2)");
+            foreach ($state_json['matchTeams'] as $mId => $t) {
+                $stmtTeam->execute([
+                    'match_id' => $mId,
+                    'team1' => isset($t['team1']) ? $t['team1'] : null,
+                    'team2' => isset($t['team2']) ? $t['team2'] : null
+                ]);
+            }
+        }
+
+        // Config & realChampion
+        $stmtCfg = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) VALUES (:key, :val)");
+        if (isset($state_json['config']) && is_array($state_json['config'])) {
+            foreach ($state_json['config'] as $k => $v) {
+                if (is_bool($v)) {
+                    $v = $v ? '1' : '0';
+                }
+                $stmtCfg->execute([
+                    'key' => $k,
+                    'val' => ($v !== null) ? strval($v) : null
+                ]);
+            }
+        }
+        if (isset($state_json['realChampion'])) {
+            $stmtCfg->execute([
+                'key' => 'realChampion',
+                'val' => $state_json['realChampion']
+            ]);
+        }
+
+        $pdo->commit();
+        return ['status' => 'success', 'message' => 'Importación de estado completa realizada con éxito.'];
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return ['status' => 'error', 'message' => 'Fallo en la importación: ' . $e->getMessage()];
+    }
+}
+
+// 12. Endpoint REST: Importación de estado masivo
+if ($action === 'import_state' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $state_json = json_decode($input, true);
+    $res = importFullStateJSON($pdo, $state_json);
+    echo json_encode($res);
+    exit;
+}
+
+// 13. Endpoint de guardado original (retrocompatibilidad completa)
+if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $state_json = json_decode($input, true);
+    if ($state_json === null) {
+        echo json_encode(['status' => 'error', 'message' => 'JSON inválido en el cuerpo del save.']);
         exit;
     }
-
-    try {
-        $stmt = $pdo->prepare("INSERT INTO quiniela_state (state_key, state_value) 
-                               VALUES ('main_state', :value) 
-                               ON DUPLICATE KEY UPDATE state_value = :value");
-        $stmt->execute(['value' => $input]);
-        echo json_encode(['status' => 'success', 'message' => 'Datos guardados correctamente en la base de datos.']);
-    } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'message' => 'Error al guardar datos: ' . $e->getMessage()]);
-    }
-} else {
-    echo json_encode(['status' => 'error', 'message' => 'Acción no soportada. Use action=get o action=save.']);
+    // Ejecutar importación masiva estructurada
+    $res = importFullStateJSON($pdo, $state_json);
+    echo json_encode($res);
+    exit;
 }
+
+// Acción desconocida
+echo json_encode(['status' => 'error', 'message' => 'Acción no soportada.']);
