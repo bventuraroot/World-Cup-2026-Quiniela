@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela 2026</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 
 <body>
@@ -701,9 +701,12 @@
               <option value="UNPLAYED">Pendientes por Jugar</option>
             </select>
           </div>
-          <div class="filters-group">
+          <div class="filters-group" style="gap: 0.8rem; flex-wrap: wrap;">
+            <button id="btn-sync-espn" class="btn btn-primary">
+              <i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)
+            </button>
             <button id="btn-clear-real-results" class="btn btn-danger">
-              <i data-lucide="refresh-cw"></i> Resetear Marcadores Reales
+              <i data-lucide="trash-2"></i> Resetear Marcadores Reales
             </button>
           </div>
         </div>
@@ -999,7 +1002,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 
 </html>

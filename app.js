@@ -276,6 +276,23 @@ $(document).ready(function() {
     }
   }
 
+  // Normalizar nombres de equipos para comparar con APIs externas
+  function normalizeTeamName(name) {
+    if (!name) return "";
+    let n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    
+    if (n === "united states" || n === "usa" || n === "us") return "usa";
+    if (n === "bosnia-herzegovina" || n === "bosnia and herzegovina" || n === "bosnia & herzegovina") return "bosnia & herzegovina";
+    if (n === "korea republic" || n === "south korea" || n === "korea, republic of") return "south korea";
+    if (n === "czechia" || n === "czech republic") return "czech republic";
+    if (n === "ivory coast" || n === "cote d'ivoire" || n === "cote divoire") return "ivory coast";
+    if (n === "turkiye" || n === "turquia" || n === "turkey") return "turkey";
+    if (n === "saudi arabia" || n === "arabia saudita") return "saudi arabia";
+    if (n === "congo dr" || n === "dr congo") return "dr congo";
+    
+    return n;
+  }
+
   // Obtener el nombre del equipo, considerando si hay uno editado en la base de datos
   function getTeamName(matchId, teamNum, defaultName) {
     if (state.matchTeams && state.matchTeams[matchId]) {
@@ -1784,6 +1801,235 @@ $(document).ready(function() {
     lucide.createIcons();
   }
 
+  // Convertir fecha de matches.js a UTC Date para comparación con ESPN
+  function getMatchUtcDate(matchDateStr, matchTimeStr) {
+    const match = matchTimeStr.match(/(\d{2}):(\d{2})\s+UTC([+-]\d+)/);
+    if (!match) return new Date(matchDateStr + 'T' + matchTimeStr.split(' ')[0] + ':00Z');
+    
+    const hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const offset = parseInt(match[3]);
+    
+    const parts = matchDateStr.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const day = parseInt(parts[2]);
+    
+    const dateUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    dateUtc.setUTCHours(dateUtc.getUTCHours() - offset);
+    return dateUtc;
+  }
+
+  // Sincronizar resultados reales en tiempo real con ESPN API
+  function syncWithESPN() {
+    if (!isAdminMode) {
+      showToast("Acceso Administrador requerido.", "error");
+      return;
+    }
+
+    const btn = $('#btn-sync-espn');
+    btn.prop('disabled', true).html('<i data-lucide="refresh-cw" class="spin" style="animation: spin 1s linear infinite;"></i> Sincronizando...');
+    lucide.createIcons();
+
+    showToast("Conectando con la API de ESPN...", "info");
+
+    const espnUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260725';
+
+    $.ajax({
+      url: espnUrl,
+      type: 'GET',
+      dataType: 'json',
+      success: async function(data) {
+        const events = data.events || [];
+        if (events.length === 0) {
+          showToast("No se encontraron partidos en la API de ESPN.", "error");
+          btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)');
+          lucide.createIcons();
+          return;
+        }
+
+        let updatedResultsCount = 0;
+        let updatedTeamsCount = 0;
+        const localMatches = WORLD_CUP_2026_MATCHES;
+        const saveQueue = [];
+
+        events.forEach(event => {
+          const comps = event.competitions && event.competitions[0];
+          if (!comps) return;
+          const competitors = comps.competitors || [];
+          if (competitors.length < 2) return;
+
+          const homeComp = competitors.find(c => c.homeAway === 'home') || competitors[0];
+          const awayComp = competitors.find(c => c.homeAway === 'away') || competitors[1];
+
+          const espnHomeTeam = homeComp.team.displayName;
+          const espnAwayTeam = awayComp.team.displayName;
+
+          const espnHomeScoreStr = homeComp.score;
+          const espnAwayScoreStr = awayComp.score;
+
+          const espnState = event.status && event.status.type && event.status.type.state;
+          const espnCompleted = event.status && event.status.type && event.status.type.completed;
+
+          let goals1 = null;
+          let goals2 = null;
+          let status = 'scheduled';
+
+          if (espnState === 'in') {
+            status = 'live';
+            goals1 = parseInt(espnHomeScoreStr);
+            goals2 = parseInt(espnAwayScoreStr);
+          } else if (espnState === 'post' || espnCompleted === true) {
+            status = 'finished';
+            goals1 = parseInt(espnHomeScoreStr);
+            goals2 = parseInt(espnAwayScoreStr);
+          }
+
+          // Encontrar el partido correspondiente en local
+          let localMatch = null;
+          let reversed = false;
+
+          const normHome = normalizeTeamName(espnHomeTeam);
+          const normAway = normalizeTeamName(espnAwayTeam);
+
+          // 1. Intentar coincidir por nombres de equipos (Fase de Grupos)
+          localMatch = localMatches.find(m => {
+            const isGroup = m.group && m.group.startsWith('Group');
+            if (!isGroup) return false;
+            
+            const locT1 = normalizeTeamName(m.team1);
+            const locT2 = normalizeTeamName(m.team2);
+
+            if (locT1 === normHome && locT2 === normAway) {
+              return true;
+            }
+            if (locT1 === normAway && locT2 === normHome) {
+              reversed = true;
+              return true;
+            }
+            return false;
+          });
+
+          // 2. Si no se encuentra (Fase Eliminatoria o llaves), coincidir por fecha y hora
+          if (!localMatch) {
+            const espnUtcDate = new Date(event.date);
+            localMatch = localMatches.find(m => {
+              const localUtcDate = getMatchUtcDate(m.date, m.time);
+              return Math.abs(espnUtcDate - localUtcDate) < 60000;
+            });
+            
+            if (localMatch) {
+              // Si coincide por fecha/hora y es eliminatoria, chequear si cambiaron los nombres de los equipos
+              const currentT1 = getTeamName(localMatch.id, 1, localMatch.team1);
+              const currentT2 = getTeamName(localMatch.id, 2, localMatch.team2);
+
+              if (currentT1 !== espnHomeTeam || currentT2 !== espnAwayTeam) {
+                if (!state.matchTeams) state.matchTeams = {};
+                state.matchTeams[localMatch.id] = {
+                  team1: espnHomeTeam,
+                  team2: espnAwayTeam
+                };
+                
+                saveQueue.push({
+                  url: 'api.php?action=save_match_team',
+                  payload: {
+                    match_id: localMatch.id,
+                    team1: espnHomeTeam,
+                    team2: espnAwayTeam
+                  },
+                  onSuccess: () => { updatedTeamsCount++; }
+                });
+              }
+            }
+          }
+
+          if (localMatch) {
+            const finalGoals1 = reversed ? goals2 : goals1;
+            const finalGoals2 = reversed ? goals1 : goals2;
+
+            const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, status: 'scheduled' };
+
+            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.status !== status) {
+              if (!state.realResults) state.realResults = {};
+              state.realResults[localMatch.id] = {
+                goals1: finalGoals1,
+                goals2: finalGoals2,
+                status: status
+              };
+
+              saveQueue.push({
+                url: 'api.php?action=save_real_result',
+                payload: {
+                  match_id: localMatch.id,
+                  goals1: finalGoals1,
+                  goals2: finalGoals2,
+                  status: status
+                },
+                onSuccess: () => { updatedResultsCount++; }
+              });
+            }
+          }
+        });
+
+        if (saveQueue.length === 0) {
+          showToast("Todos los marcadores están al día con la API de ESPN.", "success");
+          btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)');
+          lucide.createIcons();
+          return;
+        }
+
+        showToast(`Se detectaron ${saveQueue.length} cambios. Guardando resultados...`, "info");
+        
+        let successCount = 0;
+        for (const item of saveQueue) {
+          try {
+            await new Promise((resolve, reject) => {
+              $.ajax({
+                url: item.url,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(item.payload),
+                success: function(res) {
+                  if (res && res.status === 'success') {
+                    item.onSuccess();
+                    successCount++;
+                    resolve();
+                  } else {
+                    reject(res ? res.message : "Error desconocido");
+                  }
+                },
+                error: function(xhr, st, err) {
+                  reject(err);
+                }
+              });
+            });
+          } catch (err) {
+            console.error(`[ESPN Sync Error] Falló al guardar:`, err);
+          }
+        }
+
+        localStorage.setItem('quiniela_wc2026_state', JSON.stringify(state));
+
+        renderDashboard();
+        renderLeaderboard();
+        renderAdminGrid();
+        
+        if ($('.tab-btn[data-target="#tab-analytics"]').hasClass('active')) {
+          renderAnalyticsTab();
+        }
+
+        showToast(`Sincronización finalizada. Marcadores: ${updatedResultsCount}, Llaves: ${updatedTeamsCount}.`, "success");
+        btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)');
+        lucide.createIcons();
+      },
+      error: function(xhr, status, error) {
+        showToast("Error al conectar con la API de ESPN.", "error");
+        btn.prop('disabled', false).html('<i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)');
+        lucide.createIcons();
+      }
+    });
+  }
+
   // ==========================================
   // 4. ACCIONES Y CONTROLADORES DE EVENTO
   // ==========================================
@@ -1870,6 +2116,11 @@ $(document).ready(function() {
 
       showToast(`Jugador "${player.name}" eliminado.`);
     }
+  });
+
+  $('#btn-sync-espn').on('click', function(e) {
+    e.preventDefault();
+    syncWithESPN();
   });
 
   $('#btn-clear-real-results').on('click', function() {
