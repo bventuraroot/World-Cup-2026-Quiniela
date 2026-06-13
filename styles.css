@@ -1223,10 +1223,12 @@ footer a:hover {
   .nav-controls {
     gap: 0.4rem !important;
   }
-  #admin-login-toggle span {
-    display: none !important; /* Oculta el texto del login de administrador, deja solo el candado */
+  #admin-login-toggle span,
+  #btn-force-reload span {
+    display: none !important; /* Oculta el texto, deja solo el icono */
   }
-  #admin-login-toggle {
+  #admin-login-toggle,
+  #btn-force-reload {
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;

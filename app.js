@@ -1955,6 +1955,11 @@ $(document).ready(function() {
     }
   });
 
+  $('#btn-force-reload').on('click', function(e) {
+    e.preventDefault();
+    window.location.href = window.location.pathname + '?r=' + Date.now();
+  });
+
   // ==========================================
   // 5. EXPORTACIÓN A EXCEL (SHEETJS)
   // ==========================================
