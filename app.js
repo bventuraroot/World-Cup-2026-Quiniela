@@ -1249,15 +1249,22 @@ $(document).ready(function() {
 
       let homeIncidencesHTML = '';
       let awayIncidencesHTML = '';
+      let detailsHTML = '';
 
       if (real.api_data) {
         const scorers = real.api_data.scorers || { home: [], away: [] };
         const redCards = real.api_data.red_cards || { home: [], away: [] };
+        const yellowCards = real.api_data.yellow_cards || { home: [], away: [] };
 
         const homeInc = [];
         if (scorers.home) {
           scorers.home.forEach(s => {
             homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (yellowCards.home) {
+          yellowCards.home.forEach(yc => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
           });
         }
         if (redCards.home) {
@@ -1275,6 +1282,11 @@ $(document).ready(function() {
             awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
           });
         }
+        if (yellowCards.away) {
+          yellowCards.away.forEach(yc => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
+          });
+        }
         if (redCards.away) {
           redCards.away.forEach(rc => {
             awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
@@ -1282,6 +1294,23 @@ $(document).ready(function() {
         }
         if (awayInc.length > 0) {
           awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%; text-align: left; margin-bottom: 0.2rem;">${awayInc.join('')}</div>`;
+        }
+
+        const referee = real.api_data.referee;
+        const attendance = real.api_data.attendance;
+        const weather = real.api_data.weather;
+        
+        const detailsItems = [];
+        if (referee) detailsItems.push(`🏁 ${referee}`);
+        if (attendance) detailsItems.push(`👥 ${attendance.toLocaleString()}`);
+        if (weather) detailsItems.push(`🌤️ ${weather}`);
+        
+        if (detailsItems.length > 0) {
+          detailsHTML = `
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.25rem; width: 100%;">
+              <span>${detailsItems.join(' | ')}</span>
+            </div>
+          `;
         }
       }
 
@@ -1324,11 +1353,13 @@ $(document).ready(function() {
           feedbackText = 'No acertó (0 pts)';
         }
 
+        const shootoutText = (real.api_data && real.api_data.shootout) ? ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)` : '';
+
         footerFeedbackHTML = `
           <div style="display: flex; flex-direction: column; width: 100%; gap: 0.2rem; background: rgba(0,0,0,0.15); padding: 0.5rem; border-radius: var(--border-radius-sm); margin-top: 0.4rem;">
             <div style="display: flex; justify-content: space-between;">
               <span>Resultado Real:</span>
-              <span style="font-weight: 700;">${real.goals1} - ${real.goals2}</span>
+              <span style="font-weight: 700;">${real.goals1} - ${real.goals2}${shootoutText}</span>
             </div>
             <div style="display: flex; justify-content: space-between; ${ptsClass}">
               <span>Resultado Pronóstico:</span>
@@ -1449,6 +1480,7 @@ $(document).ready(function() {
               ${statusBadgeHTML}
             </div>
             ${tvHTML}
+            ${detailsHTML}
           </div>
         </div>
       `);
@@ -1782,8 +1814,15 @@ $(document).ready(function() {
       let scoreHTML = '';
       let statusBadgeHTML = '';
 
+      const shootoutText = (real.api_data && real.api_data.shootout) ? `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.api_data.shootout.home}-${real.api_data.shootout.away} Pen)</div>` : '';
+
       if (real.status === 'finished') {
-        scoreHTML = `<span class="schedule-score-display">${real.goals1} - ${real.goals2}</span>`;
+        scoreHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span class="schedule-score-display">${real.goals1} - ${real.goals2}</span>
+            ${shootoutText}
+          </div>
+        `;
         statusBadgeHTML = '<span class="match-status-badge status-finished">Finalizado</span>';
       } else if (real.status === 'live') {
         scoreHTML = `<span class="schedule-score-display" style="color: var(--info); border-color: var(--info); box-shadow: 0 0 8px rgba(14, 165, 233, 0.25);">${real.goals1 !== null ? real.goals1 : 0} - ${real.goals2 !== null ? real.goals2 : 0}</span>`;
@@ -1805,15 +1844,22 @@ $(document).ready(function() {
 
       let homeIncidencesHTML = '';
       let awayIncidencesHTML = '';
+      let detailsHTML = '';
 
       if (real.api_data) {
         const scorers = real.api_data.scorers || { home: [], away: [] };
         const redCards = real.api_data.red_cards || { home: [], away: [] };
+        const yellowCards = real.api_data.yellow_cards || { home: [], away: [] };
 
         const homeInc = [];
         if (scorers.home) {
           scorers.home.forEach(s => {
             homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (yellowCards.home) {
+          yellowCards.home.forEach(yc => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
           });
         }
         if (redCards.home) {
@@ -1831,6 +1877,11 @@ $(document).ready(function() {
             awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
           });
         }
+        if (yellowCards.away) {
+          yellowCards.away.forEach(yc => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
+          });
+        }
         if (redCards.away) {
           redCards.away.forEach(rc => {
             awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
@@ -1838,6 +1889,23 @@ $(document).ready(function() {
         }
         if (awayInc.length > 0) {
           awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${awayInc.join('')}</div>`;
+        }
+
+        const referee = real.api_data.referee;
+        const attendance = real.api_data.attendance;
+        const weather = real.api_data.weather;
+        
+        const detailsItems = [];
+        if (referee) detailsItems.push(`🏁 ${referee}`);
+        if (attendance) detailsItems.push(`👥 ${attendance.toLocaleString()}`);
+        if (weather) detailsItems.push(`🌤️ ${weather}`);
+        
+        if (detailsItems.length > 0) {
+          detailsHTML = `
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.25rem; width: 100%;">
+              <span>${detailsItems.join(' | ')}</span>
+            </div>
+          `;
         }
       }
 
@@ -1911,6 +1979,7 @@ $(document).ready(function() {
               ${statusBadgeHTML}
             </div>
             ${tvHTML}
+            ${detailsHTML}
             <div class="schedule-pred-stats">
               <i data-lucide="users" style="width: 13px; height: 13px;"></i>
               <span>${predictedCount} de ${totalPlayers} jugadores pronosticaron este partido</span>
@@ -2100,20 +2169,24 @@ $(document).ready(function() {
 
             const scorers = { home: [], away: [] };
             const red_cards = { home: [], away: [] };
+            const yellow_cards = { home: [], away: [] };
 
             if (comps.details) {
               comps.details.forEach(det => {
                 const isGoal = det.type && det.type.text && (det.type.text.toLowerCase().indexOf('goal') !== -1);
                 let isRedCard = det.redCard === true;
+                let isYellowCard = false;
                 
                 if (!isGoal && !isRedCard && det.type && det.type.text) {
                   const typeText = det.type.text.toLowerCase();
                   if (typeText.indexOf('red card') !== -1) {
                     isRedCard = true;
+                  } else if (typeText.indexOf('yellow card') !== -1) {
+                    isYellowCard = true;
                   }
                 }
 
-                if (isGoal || isRedCard) {
+                if (isGoal || isRedCard || isYellowCard) {
                   const teamId = det.team ? det.team.id : null;
                   const minute = det.clock ? det.clock.displayValue : '';
                   
@@ -2130,12 +2203,28 @@ $(document).ready(function() {
 
                     if (isGoal) {
                       scorers[side].push({ player: player, minute: minute });
-                    } else {
+                    } else if (isRedCard) {
                       red_cards[side].push({ player: player, minute: minute });
+                    } else {
+                      yellow_cards[side].push({ player: player, minute: minute });
                     }
                   }
                 }
               });
+            }
+
+            const espnReferee = comps.referees && comps.referees.length > 0 ? comps.referees[0].displayName : null;
+            const espnAttendance = comps.attendance ? parseInt(comps.attendance) : null;
+            const espnWeather = event.weather ? event.weather.displayValue : (comps.weather ? comps.weather.displayValue : null);
+
+            let shootout = null;
+            const homeShootout = homeComp.shootoutScore !== undefined && homeComp.shootoutScore !== null ? parseInt(homeComp.shootoutScore) : null;
+            const awayShootout = awayComp.shootoutScore !== undefined && awayComp.shootoutScore !== null ? parseInt(awayComp.shootoutScore) : null;
+            if ((homeShootout !== null && !isNaN(homeShootout)) || (awayShootout !== null && !isNaN(awayShootout))) {
+              shootout = {
+                home: reversed ? awayShootout : homeShootout,
+                away: reversed ? homeShootout : awayShootout
+              };
             }
 
             const api_data = {
@@ -2143,7 +2232,12 @@ $(document).ready(function() {
               broadcasts: espnBroadcasts,
               clock: espnDisplayClock,
               scorers: scorers,
-              red_cards: red_cards
+              red_cards: red_cards,
+              yellow_cards: yellow_cards,
+              referee: espnReferee,
+              attendance: espnAttendance,
+              weather: espnWeather,
+              shootout: shootout
             };
 
             const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, status: 'scheduled' };

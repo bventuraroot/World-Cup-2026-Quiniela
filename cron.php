@@ -300,7 +300,6 @@ foreach ($events as $event) {
         
         // --- EXTRAER DATOS ENRIQUECIDOS ---
         $espnVenue = isset($comps['venue']['fullName']) ? $comps['venue']['fullName'] : null;
-        
         $espnBroadcasts = [];
         if (isset($comps['broadcasts'])) {
             foreach ($comps['broadcasts'] as $b) {
@@ -318,20 +317,24 @@ foreach ($events as $event) {
         
         $scorers = ['home' => [], 'away' => []];
         $red_cards = ['home' => [], 'away' => []];
+        $yellow_cards = ['home' => [], 'away' => []];
         
         if (isset($comps['details'])) {
             foreach ($comps['details'] as $det) {
                 $isGoal = isset($det['type']['text']) && (strpos(strtolower($det['type']['text']), 'goal') !== false);
                 $isRedCard = isset($det['redCard']) && $det['redCard'] === true;
+                $isYellowCard = false;
                 
                 if (!$isGoal && !$isRedCard && isset($det['type']['text'])) {
                     $typeText = strtolower($det['type']['text']);
                     if (strpos($typeText, 'red card') !== false) {
                         $isRedCard = true;
+                    } elseif (strpos($typeText, 'yellow card') !== false) {
+                        $isYellowCard = true;
                     }
                 }
                 
-                if ($isGoal || $isRedCard) {
+                if ($isGoal || $isRedCard || $isYellowCard) {
                     $teamId = isset($det['team']['id']) ? $det['team']['id'] : null;
                     $minute = isset($det['clock']['displayValue']) ? $det['clock']['displayValue'] : '';
                     
@@ -353,8 +356,13 @@ foreach ($events as $event) {
                                 'player' => $player,
                                 'minute' => $minute
                             ];
-                        } else {
+                        } elseif ($isRedCard) {
                             $red_cards[$side][] = [
+                                'player' => $player,
+                                'minute' => $minute
+                            ];
+                        } else {
+                            $yellow_cards[$side][] = [
                                 'player' => $player,
                                 'minute' => $minute
                             ];
@@ -364,16 +372,44 @@ foreach ($events as $event) {
             }
         }
         
+        $espnReferee = null;
+        if (isset($comps['referees']) && is_array($comps['referees']) && count($comps['referees']) > 0) {
+            $espnReferee = $comps['referees'][0]['displayName'];
+        }
+
+        $espnAttendance = isset($comps['attendance']) ? intval($comps['attendance']) : null;
+
+        $espnWeather = null;
+        if (isset($event['weather']['displayValue'])) {
+            $espnWeather = $event['weather']['displayValue'];
+        } elseif (isset($comps['weather']['displayValue'])) {
+            $espnWeather = $comps['weather']['displayValue'];
+        }
+
+        $shootout = null;
+        $homeShootout = isset($homeComp['shootoutScore']) ? intval($homeComp['shootoutScore']) : null;
+        $awayShootout = isset($awayComp['shootoutScore']) ? intval($awayComp['shootoutScore']) : null;
+        if ($homeShootout !== null || $awayShootout !== null) {
+            $shootout = [
+                'home' => $reversed ? $awayShootout : $homeShootout,
+                'away' => $reversed ? $homeShootout : $awayShootout
+            ];
+        }
+
         $api_data = [
             'venue' => $espnVenue,
             'broadcasts' => $espnBroadcasts,
             'clock' => $espnDisplayClock,
             'scorers' => $scorers,
-            'red_cards' => $red_cards
+            'red_cards' => $red_cards,
+            'yellow_cards' => $yellow_cards,
+            'referee' => $espnReferee,
+            'attendance' => $espnAttendance,
+            'weather' => $espnWeather,
+            'shootout' => $shootout
         ];
         
         $api_data_json = json_encode($api_data, JSON_UNESCAPED_UNICODE);
-        
         $hasChanged = false;
         
         if (!isset($current_real_results[$mId])) {
