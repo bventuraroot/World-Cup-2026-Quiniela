@@ -136,6 +136,9 @@ $(document).ready(function() {
   let chartChampionVotes = null;
   let chartTeamPopularity = null;
   let chartMatchDistribution = null;
+  let chartTopScorers = null;
+  let chartGoalsByMinute = null;
+  let chartTeamCards = null;
 
   // Cargar estado desde LocalStorage
   function loadState(callback) {
@@ -577,6 +580,92 @@ $(document).ready(function() {
     } else {
       adminLoginCancelCallback = null;
     }
+  }
+
+  // Abrir modal de Detalle de Pronosticadores
+  function openPredictionPlayersModal(matchId) {
+    const match = WORLD_CUP_2026_MATCHES.find(m => m.id === matchId);
+    if (!match) return;
+
+    const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+    const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+
+    $('#pred-modal-teams').text(`${resolvedTeam1} vs ${resolvedTeam2}`);
+    $('#pred-modal-meta').text(`${match.round} ${match.group ? `• ${match.group}` : ''} | ${match.date} a las ${match.time}`);
+
+    const predicted = [];
+    const missing = [];
+
+    state.players.forEach(p => {
+      const pred = p.predictions[match.id];
+      if (pred && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "") {
+        predicted.push(p.name);
+      } else {
+        missing.push(p.name);
+      }
+    });
+
+    const listsContainer = $('#pred-modal-lists');
+    listsContainer.empty();
+
+    if (state.players.length === 0) {
+      listsContainer.html('<p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; padding: 2rem 0;">No hay jugadores registrados en la quiniela.</p>');
+    } else {
+      let html = '';
+
+      // Lista 1: Ya Pronosticaron
+      html += `
+        <div style="margin-bottom: 1.5rem;">
+          <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--primary); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="check-circle" style="width: 14px; height: 14px; color: var(--primary);"></i> Ya Pronosticaron (${predicted.length})
+          </h4>
+      `;
+      if (predicted.length === 0) {
+        html += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; padding-left: 1.2rem;">Ninguno de los jugadores ha pronosticado este partido.</p>`;
+      } else {
+        html += `<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 1.2rem;">`;
+        predicted.forEach(name => {
+          html += `<span style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--primary); font-weight: 500;">${name}</span>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+
+      // Lista 2: Pendientes
+      html += `
+        <div>
+          <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="help-circle" style="width: 14px; height: 14px; color: var(--text-secondary);"></i> Pendientes por Pronosticar (${missing.length})
+          </h4>
+      `;
+      if (missing.length === 0) {
+        html += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; padding-left: 1.2rem;">Todos los jugadores ya pronosticaron este partido.</p>`;
+      } else {
+        html += `<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 1.2rem;">`;
+        missing.forEach(name => {
+          html += `<span style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 500;">${name}</span>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+
+      listsContainer.html(html);
+    }
+
+    $('#pred-players-modal').css('display', 'flex');
+    setTimeout(() => {
+      $('#pred-players-modal-card').css('transform', 'translateY(0)');
+    }, 50);
+
+    lucide.createIcons();
+  }
+
+  // Cerrar modal de Detalle de Pronosticadores
+  function closePredictionPlayersModal() {
+    $('#pred-players-modal-card').css('transform', 'translateY(-20px)');
+    setTimeout(() => {
+      $('#pred-players-modal').fadeOut(150);
+    }, 150);
   }
 
   // Procesar Intento de Login
@@ -2011,7 +2100,7 @@ $(document).ready(function() {
             </div>
             ${tvHTML}
             ${detailsHTML}
-            <div class="schedule-pred-stats">
+            <div class="schedule-pred-stats" data-match-id="${match.id}">
               <i data-lucide="users" style="width: 13px; height: 13px;"></i>
               <span>${predictedCount} de ${totalPlayers} jugadores pronosticaron este partido</span>
             </div>
@@ -2797,6 +2886,26 @@ $(document).ready(function() {
     renderScheduleGrid();
   });
 
+  // Abrir modal al dar click en estadísticas de predicciones del calendario
+  $(document).on('click', '.schedule-pred-stats', function() {
+    const matchId = parseInt($(this).data('match-id'));
+    if (!isNaN(matchId)) {
+      openPredictionPlayersModal(matchId);
+    }
+  });
+
+  // Cerrar modal de estadísticas de predicciones
+  $(document).on('click', '#btn-pred-players-close', function() {
+    closePredictionPlayersModal();
+  });
+
+  // Cerrar al dar click fuera del modal
+  $(document).on('click', '#pred-players-modal', function(e) {
+    if (e.target === this) {
+      closePredictionPlayersModal();
+    }
+  });
+
   // ==========================================
   // PREDICCIÓN DE CAMPEÓN DEL MUNDO (FUNCIONES)
   // ==========================================
@@ -3171,12 +3280,19 @@ $(document).ready(function() {
 
     const totalPlayers = state.players.length;
 
+    // Colores del tema actual
+    const textColor = getThemeColor('--text-secondary', '#94a3b8');
+    const labelColor = getThemeColor('--text-primary', '#f8fafc');
+    const primaryColor = getThemeColor('--primary', '#10b981');
+    const secondaryColor = getThemeColor('--secondary', '#fbbf24');
+    const gridColor = getThemeColor('--border-color', 'rgba(255, 255, 255, 0.05)');
+
     // 1. Mostrar/Ocultar placeholder según si hay jugadores
     if (totalPlayers === 0) {
       $('#stats-no-players-placeholder').html(`
         <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
         <h3>No hay jugadores registrados</h3>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas.</p>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas de predicciones.</p>
       `).show();
       $('#stats-match-details').hide();
       
@@ -3186,240 +3302,555 @@ $(document).ready(function() {
       $('#stats-participation-rate').text('0%');
       $('#stats-most-common-score').text('-');
       
-      // Destruir gráficos anteriores si existen
+      // Destruir gráficos anteriores de predicciones si existen
       if (chartChampionVotes) { chartChampionVotes.destroy(); chartChampionVotes = null; }
       if (chartTeamPopularity) { chartTeamPopularity.destroy(); chartTeamPopularity = null; }
       if (chartMatchDistribution) { chartMatchDistribution.destroy(); chartMatchDistribution = null; }
-      
-      lucide.createIcons();
-      return;
-    }
-
-    $('#stats-no-players-placeholder').hide();
-    $('#stats-match-details').show();
-
-    // 2. Calcular Métricas Generales
-    let totalPredictions = 0;
-    const scoreCounts = {};
-    
-    state.players.forEach(p => {
-      Object.values(p.predictions).forEach(pred => {
-        if (pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
-            pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
-          totalPredictions++;
-          const scoreKey = `${pred.goals1} - ${pred.goals2}`;
-          scoreCounts[scoreKey] = (scoreCounts[scoreKey] || 0) + 1;
-        }
-      });
-    });
-
-    const possiblePredictions = totalPlayers * 104;
-    const participationRate = possiblePredictions > 0 ? ((totalPredictions / possiblePredictions) * 100).toFixed(1) + '%' : '0%';
-
-    let mostCommonScore = "-";
-    let maxCount = 0;
-    Object.entries(scoreCounts).forEach(([score, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        mostCommonScore = `${score} (${count} ${count === 1 ? 'voto' : 'votos'})`;
-      }
-    });
-
-    $('#stats-total-players').text(totalPlayers);
-    $('#stats-total-predictions').text(totalPredictions);
-    $('#stats-participation-rate').text(participationRate);
-    $('#stats-most-common-score').text(mostCommonScore);
-
-    // 3. Colores del tema actual
-    const textColor = getThemeColor('--text-secondary', '#94a3b8');
-    const labelColor = getThemeColor('--text-primary', '#f8fafc');
-    const primaryColor = getThemeColor('--primary', '#10b981');
-    const secondaryColor = getThemeColor('--secondary', '#fbbf24');
-    const gridColor = getThemeColor('--border-color', 'rgba(255, 255, 255, 0.05)');
-
-    // 4. Gráfico de Campeones Favoritos
-    const championCounts = {};
-    state.players.forEach(p => {
-      if (p.championPrediction) {
-        championCounts[p.championPrediction] = (championCounts[p.championPrediction] || 0) + 1;
-      }
-    });
-
-    const championSorted = Object.entries(championCounts)
-      .sort((a, b) => b[1] - a[1]);
-
-    const championLabels = championSorted.map(item => item[0]);
-    const championData = championSorted.map(item => item[1]);
-
-    if (chartChampionVotes) {
-      chartChampionVotes.destroy();
-    }
-
-    const ctxChampion = document.getElementById('chart-champion-votes');
-    if (ctxChampion) {
-      chartChampionVotes = new Chart(ctxChampion, {
-        type: 'bar',
-        data: {
-          labels: championLabels,
-          datasets: [{
-            label: 'Votos',
-            data: championData,
-            backgroundColor: hexOrRgbToRgba(primaryColor, 0.75),
-            borderColor: primaryColor,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.9)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: gridColor,
-              borderWidth: 1
-            }
-          },
-          scales: {
-            x: {
-              beginAtZero: true,
-              ticks: {
-                stepSize: 1,
-                color: textColor
-              },
-              grid: {
-                color: gridColor
-              }
-            },
-            y: {
-              ticks: {
-                color: labelColor,
-                font: {
-                  family: 'system-ui, -apple-system, sans-serif'
-                }
-              },
-              grid: {
-                display: false
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // 5. Gráfico de Popularidad de Equipos (Victorias acumuladas)
-    const teamWinsCounts = {};
-    state.players.forEach(p => {
-      WORLD_CUP_2026_MATCHES.forEach(match => {
-        const pred = p.predictions[match.id];
-        if (pred && pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
-            pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
-          const g1 = parseInt(pred.goals1);
-          const g2 = parseInt(pred.goals2);
-          if (g1 > g2) {
-            const team1 = getTeamName(match.id, 1, match.team1);
-            teamWinsCounts[team1] = (teamWinsCounts[team1] || 0) + 1;
-          } else if (g1 < g2) {
-            const team2 = getTeamName(match.id, 2, match.team2);
-            teamWinsCounts[team2] = (teamWinsCounts[team2] || 0) + 1;
-          }
-        }
-      });
-    });
-
-    const popularTeamsSorted = Object.entries(teamWinsCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
-
-    const popularityLabels = popularTeamsSorted.map(item => item[0]);
-    const popularityData = popularTeamsSorted.map(item => item[1]);
-
-    if (chartTeamPopularity) {
-      chartTeamPopularity.destroy();
-    }
-
-    const ctxPopularity = document.getElementById('chart-team-popularity');
-    if (ctxPopularity) {
-      chartTeamPopularity = new Chart(ctxPopularity, {
-        type: 'bar',
-        data: {
-          labels: popularityLabels,
-          datasets: [{
-            label: 'Victorias Pronosticadas',
-            data: popularityData,
-            backgroundColor: hexOrRgbToRgba(secondaryColor, 0.75),
-            borderColor: secondaryColor,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.9)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: gridColor,
-              borderWidth: 1
-            }
-          },
-          scales: {
-            x: {
-              beginAtZero: true,
-              ticks: {
-                stepSize: 1,
-                color: textColor
-              },
-              grid: {
-                color: gridColor
-              }
-            },
-            y: {
-              ticks: {
-                color: labelColor,
-                font: {
-                  family: 'system-ui, -apple-system, sans-serif'
-                }
-              },
-              grid: {
-                display: false
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // 6. Rellenar y Sincronizar el Selector de Partidos
-    const select = $('#stats-match-select');
-    const currentVal = select.val();
-    
-    select.empty();
-    WORLD_CUP_2026_MATCHES.forEach(match => {
-      const t1 = getTeamName(match.id, 1, match.team1);
-      const t2 = getTeamName(match.id, 2, match.team2);
-      select.append(`<option value="${match.id}">Partido ${match.id}: ${t1} vs ${t2} (${match.date})</option>`);
-    });
-
-    if (currentVal && select.find(`option[value="${currentVal}"]`).length > 0) {
-      select.val(currentVal);
-      renderMatchSpecificAnalytics(parseInt(currentVal));
     } else {
-      select.val(1);
-      renderMatchSpecificAnalytics(1);
+      $('#stats-no-players-placeholder').hide();
+      $('#stats-match-details').show();
+
+      // 2. Calcular Métricas Generales
+      let totalPredictions = 0;
+      const scoreCounts = {};
+      
+      state.players.forEach(p => {
+        Object.values(p.predictions).forEach(pred => {
+          if (pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+              pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
+            totalPredictions++;
+            const scoreKey = `${pred.goals1} - ${pred.goals2}`;
+            scoreCounts[scoreKey] = (scoreCounts[scoreKey] || 0) + 1;
+          }
+        });
+      });
+
+      const possiblePredictions = totalPlayers * 104;
+      const participationRate = possiblePredictions > 0 ? ((totalPredictions / possiblePredictions) * 100).toFixed(1) + '%' : '0%';
+
+      let mostCommonScore = "-";
+      let maxCount = 0;
+      Object.entries(scoreCounts).forEach(([score, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommonScore = `${score} (${count} ${count === 1 ? 'voto' : 'votos'})`;
+        }
+      });
+
+      $('#stats-total-players').text(totalPlayers);
+      $('#stats-total-predictions').text(totalPredictions);
+      $('#stats-participation-rate').text(participationRate);
+      $('#stats-most-common-score').text(mostCommonScore);
+
+      // 4. Gráfico de Campeones Favoritos
+      const championCounts = {};
+      state.players.forEach(p => {
+        if (p.championPrediction) {
+          championCounts[p.championPrediction] = (championCounts[p.championPrediction] || 0) + 1;
+        }
+      });
+
+      const championSorted = Object.entries(championCounts)
+        .sort((a, b) => b[1] - a[1]);
+
+      const championLabels = championSorted.map(item => item[0]);
+      const championData = championSorted.map(item => item[1]);
+
+      if (chartChampionVotes) {
+        chartChampionVotes.destroy();
+      }
+
+      const ctxChampion = document.getElementById('chart-champion-votes');
+      if (ctxChampion) {
+        chartChampionVotes = new Chart(ctxChampion, {
+          type: 'bar',
+          data: {
+            labels: championLabels,
+            datasets: [{
+              label: 'Votos',
+              data: championData,
+              backgroundColor: hexOrRgbToRgba(primaryColor, 0.75),
+              borderColor: primaryColor,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: gridColor,
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  color: textColor
+                },
+                grid: {
+                  color: gridColor
+                }
+              },
+              y: {
+                ticks: {
+                  color: labelColor,
+                  font: {
+                    family: 'system-ui, -apple-system, sans-serif'
+                  }
+                },
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 5. Gráfico de Popularidad de Equipos (Victorias acumuladas)
+      const teamWinsCounts = {};
+      state.players.forEach(p => {
+        WORLD_CUP_2026_MATCHES.forEach(match => {
+          const pred = p.predictions[match.id];
+          if (pred && pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+              pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "") {
+            const g1 = parseInt(pred.goals1);
+            const g2 = parseInt(pred.goals2);
+            if (g1 > g2) {
+              const team1 = getTeamName(match.id, 1, match.team1);
+              teamWinsCounts[team1] = (teamWinsCounts[team1] || 0) + 1;
+            } else if (g1 < g2) {
+              const team2 = getTeamName(match.id, 2, match.team2);
+              teamWinsCounts[team2] = (teamWinsCounts[team2] || 0) + 1;
+            }
+          }
+        });
+      });
+
+      const popularTeamsSorted = Object.entries(teamWinsCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      const popularityLabels = popularTeamsSorted.map(item => item[0]);
+      const popularityData = popularTeamsSorted.map(item => item[1]);
+
+      if (chartTeamPopularity) {
+        chartTeamPopularity.destroy();
+      }
+
+      const ctxPopularity = document.getElementById('chart-team-popularity');
+      if (ctxPopularity) {
+        chartTeamPopularity = new Chart(ctxPopularity, {
+          type: 'bar',
+          data: {
+            labels: popularityLabels,
+            datasets: [{
+              label: 'Victorias Pronosticadas',
+              data: popularityData,
+              backgroundColor: hexOrRgbToRgba(secondaryColor, 0.75),
+              borderColor: secondaryColor,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: gridColor,
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  color: textColor
+                },
+                grid: {
+                  color: gridColor
+                }
+              },
+              y: {
+                ticks: {
+                  color: labelColor,
+                  font: {
+                    family: 'system-ui, -apple-system, sans-serif'
+                  }
+                },
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 6. Rellenar y Sincronizar el Selector de Partidos
+      const select = $('#stats-match-select');
+      const currentVal = select.val();
+      
+      select.empty();
+      WORLD_CUP_2026_MATCHES.forEach(match => {
+        const t1 = getTeamName(match.id, 1, match.team1);
+        const t2 = getTeamName(match.id, 2, match.team2);
+        select.append(`<option value="${match.id}">Partido ${match.id}: ${t1} vs ${t2} (${match.date})</option>`);
+      });
+
+      if (currentVal && select.find(`option[value="${currentVal}"]`).length > 0) {
+        select.val(currentVal);
+        renderMatchSpecificAnalytics(parseInt(currentVal));
+      } else {
+        select.val(1);
+        renderMatchSpecificAnalytics(1);
+      }
     }
+
+    // ==========================================
+    // ESTADÍSTICAS REALES DEL TORNEO
+    // ==========================================
+
+    const scorersCount = {};
+    const minutesCount = {
+      "1' - 15'": 0,
+      "16' - 30'": 0,
+      "31' - 45'": 0,
+      "46' - 60'": 0,
+      "61' - 75'": 0,
+      "76' - 90'": 0,
+      "Extra Tiempo": 0
+    };
+    const teamCardsCount = {};
+
+    function getMinuteInterval(minStr) {
+      if (!minStr) return null;
+      const cleaned = minStr.replace(/[^0-9+]/g, '');
+      const parts = cleaned.split('+');
+      const baseMin = parseInt(parts[0]);
+      if (isNaN(baseMin)) return null;
+      
+      if (baseMin > 90) return "Extra Tiempo";
+      if (baseMin <= 15) return "1' - 15'";
+      if (baseMin <= 30) return "16' - 30'";
+      if (baseMin <= 45) return "31' - 45'";
+      if (baseMin <= 60) return "46' - 60'";
+      if (baseMin <= 75) return "61' - 75'";
+      if (baseMin <= 90) return "76' - 90'";
+      return "Extra Tiempo";
+    }
+
+    let hasRealStatsData = false;
+
+    if (state.realResults) {
+      Object.keys(state.realResults).forEach(matchId => {
+        const real = state.realResults[matchId];
+        const match = WORLD_CUP_2026_MATCHES.find(m => m.id === parseInt(matchId));
+        if (!real || !real.api_data || !match) return;
+
+        const apiData = real.api_data;
+        const team1 = getTeamName(match.id, 1, match.team1);
+        const team2 = getTeamName(match.id, 2, match.team2);
+
+        // Agrupar Goleadores
+        if (apiData.scorers) {
+          if (Array.isArray(apiData.scorers.home)) {
+            apiData.scorers.home.forEach(s => {
+              if (s.player) {
+                const name = s.player.trim();
+                if (name) {
+                  scorersCount[name] = (scorersCount[name] || 0) + 1;
+                  hasRealStatsData = true;
+                }
+              }
+              if (s.minute) {
+                const interval = getMinuteInterval(s.minute);
+                if (interval) minutesCount[interval]++;
+              }
+            });
+          }
+          if (Array.isArray(apiData.scorers.away)) {
+            apiData.scorers.away.forEach(s => {
+              if (s.player) {
+                const name = s.player.trim();
+                if (name) {
+                  scorersCount[name] = (scorersCount[name] || 0) + 1;
+                  hasRealStatsData = true;
+                }
+              }
+              if (s.minute) {
+                const interval = getMinuteInterval(s.minute);
+                if (interval) minutesCount[interval]++;
+              }
+            });
+          }
+        }
+
+        // Agrupar Tarjetas
+        if (!teamCardsCount[team1]) teamCardsCount[team1] = { yellow: 0, red: 0 };
+        if (!teamCardsCount[team2]) teamCardsCount[team2] = { yellow: 0, red: 0 };
+
+        if (apiData.yellow_cards) {
+          if (Array.isArray(apiData.yellow_cards.home)) {
+            teamCardsCount[team1].yellow += apiData.yellow_cards.home.length;
+            if (apiData.yellow_cards.home.length > 0) hasRealStatsData = true;
+          }
+          if (Array.isArray(apiData.yellow_cards.away)) {
+            teamCardsCount[team2].yellow += apiData.yellow_cards.away.length;
+            if (apiData.yellow_cards.away.length > 0) hasRealStatsData = true;
+          }
+        }
+
+        if (apiData.red_cards) {
+          if (Array.isArray(apiData.red_cards.home)) {
+            teamCardsCount[team1].red += apiData.red_cards.home.length;
+            if (apiData.red_cards.home.length > 0) hasRealStatsData = true;
+          }
+          if (Array.isArray(apiData.red_cards.away)) {
+            teamCardsCount[team2].red += apiData.red_cards.away.length;
+            if (apiData.red_cards.away.length > 0) hasRealStatsData = true;
+          }
+        }
+      });
+    }
+
+    if (!hasRealStatsData) {
+      $('#container-top-scorers').hide();
+      $('#placeholder-top-scorers').show();
+
+      $('#container-goals-by-minute').hide();
+      $('#placeholder-goals-by-minute').show();
+
+      $('#container-team-cards').hide();
+      $('#placeholder-team-cards').css('display', 'flex');
+
+      if (chartTopScorers) { chartTopScorers.destroy(); chartTopScorers = null; }
+      if (chartGoalsByMinute) { chartGoalsByMinute.destroy(); chartGoalsByMinute = null; }
+      if (chartTeamCards) { chartTeamCards.destroy(); chartTeamCards = null; }
+    } else {
+      $('#container-top-scorers').show();
+      $('#placeholder-top-scorers').hide();
+
+      $('#container-goals-by-minute').show();
+      $('#placeholder-goals-by-minute').hide();
+
+      $('#container-team-cards').show();
+      $('#placeholder-team-cards').hide();
+
+      // A. Máximos Goleadores (Top 10)
+      const sortedScorers = Object.entries(scorersCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      const scorersLabels = sortedScorers.map(item => item[0]);
+      const scorersData = sortedScorers.map(item => item[1]);
+
+      if (chartTopScorers) {
+        chartTopScorers.destroy();
+      }
+
+      const ctxScorers = document.getElementById('chart-top-scorers');
+      if (ctxScorers) {
+        chartTopScorers = new Chart(ctxScorers, {
+          type: 'bar',
+          data: {
+            labels: scorersLabels,
+            datasets: [{
+              label: 'Goles',
+              data: scorersData,
+              backgroundColor: hexOrRgbToRgba(primaryColor, 0.75),
+              borderColor: primaryColor,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: gridColor,
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: textColor },
+                grid: { color: gridColor }
+              },
+              y: {
+                ticks: {
+                  color: labelColor,
+                  font: { family: 'system-ui, -apple-system, sans-serif' }
+                },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // B. Distribución de Goles por Minuto
+      const infoColor = getThemeColor('--info', '#0ea5e9');
+      const minLabels = ["1' - 15'", "16' - 30'", "31' - 45'", "46' - 60'", "61' - 75'", "76' - 90'", "Extra Tiempo"];
+      const minData = minLabels.map(lbl => minutesCount[lbl]);
+
+      if (chartGoalsByMinute) {
+        chartGoalsByMinute.destroy();
+      }
+
+      const ctxGoalsMin = document.getElementById('chart-goals-by-minute');
+      if (ctxGoalsMin) {
+        chartGoalsByMinute = new Chart(ctxGoalsMin, {
+          type: 'bar',
+          data: {
+            labels: minLabels,
+            datasets: [{
+              label: 'Goles',
+              data: minData,
+              backgroundColor: hexOrRgbToRgba(infoColor, 0.75),
+              borderColor: infoColor,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: gridColor,
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: labelColor },
+                grid: { display: false }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: textColor },
+                grid: { color: gridColor }
+              }
+            }
+          }
+        });
+      }
+
+      // C. Equipos Más Sancionados (Top 10)
+      const sortedTeamsCards = Object.entries(teamCardsCount)
+        .map(([team, cards]) => ({
+          team,
+          yellow: cards.yellow,
+          red: cards.red,
+          points: (cards.red * 3) + cards.yellow
+        }))
+        .filter(t => t.points > 0)
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 10);
+
+      const teamLabels = sortedTeamsCards.map(item => item.team);
+      const yellowData = sortedTeamsCards.map(item => item.yellow);
+      const redData = sortedTeamsCards.map(item => item.red);
+
+      if (chartTeamCards) {
+        chartTeamCards.destroy();
+      }
+
+      const ctxTeamCards = document.getElementById('chart-team-cards');
+      if (ctxTeamCards) {
+        chartTeamCards = new Chart(ctxTeamCards, {
+          type: 'bar',
+          data: {
+            labels: teamLabels,
+            datasets: [
+              {
+                label: 'Tarjetas Amarillas',
+                data: yellowData,
+                backgroundColor: 'rgba(251, 191, 36, 0.75)', // yellow
+                borderColor: '#fbbf24',
+                borderWidth: 1,
+                borderRadius: 4
+              },
+              {
+                label: 'Tarjetas Rojas',
+                data: redData,
+                backgroundColor: 'rgba(239, 68, 68, 0.75)', // red
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                labels: { color: labelColor }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: gridColor,
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: textColor },
+                grid: { color: gridColor }
+              },
+              y: {
+                stacked: true,
+                ticks: {
+                  color: labelColor,
+                  font: { family: 'system-ui, -apple-system, sans-serif' }
+                },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    lucide.createIcons();
   }
 
   function renderMatchSpecificAnalytics(matchId) {

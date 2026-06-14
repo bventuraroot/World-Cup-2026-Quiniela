@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela 2026 - Calendario</title>
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 
 <body>
@@ -179,6 +179,48 @@
     </div>
   </div>
 
+  <!-- Modal de Detalle de Pronosticadores -->
+  <div id="pred-players-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  ">
+    <div class="glass-card" style="
+      width: 100%;
+      max-width: 450px;
+      margin: 1.5rem;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-20px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+    " id="pred-players-modal-card">
+      <h3 class="card-title" style="margin-bottom: 0.8rem; border: none; padding: 0; display: flex; align-items: center; gap: 0.5rem;" id="pred-modal-title">
+        <i data-lucide="users"></i> Pronósticos del Partido
+      </h3>
+      <p id="pred-modal-teams" style="color: var(--primary); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem; text-align: center;"></p>
+      <p id="pred-modal-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 1.2rem; text-align: center;"></p>
+
+      <div style="flex-grow: 1; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1.5rem;" id="pred-modal-lists">
+        <!-- Listas de quienes sí y quienes no -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button id="btn-pred-players-close" class="btn btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -190,7 +232,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=16"></script>
 </body>
 
 </html>

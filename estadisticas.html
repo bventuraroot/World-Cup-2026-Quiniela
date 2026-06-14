@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela 2026 - Estadísticas</title>
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 
 <body>
@@ -187,6 +187,55 @@
           </div>
         </div>
       </div>
+
+      <!-- Divider / Real Tournament Stats Title -->
+      <div class="section-header" style="margin: 2.5rem 0 1.5rem 0; display: flex; align-items: center; gap: 0.75rem;">
+        <i data-lucide="trophy" style="width: 24px; height: 24px; color: var(--primary);"></i>
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--text-primary);">Estadísticas Reales del Torneo</h2>
+      </div>
+
+      <!-- Real Stats Grid -->
+      <div class="config-grid" style="gap: 1.5rem; margin-bottom: 2rem;">
+        <!-- Left: Top Scorers & Goals by Minute -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="glass-card" id="card-top-scorers">
+            <h3 class="card-title"><i data-lucide="target"></i> Máximos Goleadores</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Top 10 jugadores con más goles anotados en el torneo.</p>
+            <div style="height: 250px; position: relative;" id="container-top-scorers">
+              <canvas id="chart-top-scorers"></canvas>
+            </div>
+            <div id="placeholder-top-scorers" style="display: none; text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
+              <i data-lucide="target" style="width: 36px; height: 36px; color: var(--text-muted); margin-bottom: 0.8rem; opacity: 0.5;"></i>
+              <p style="font-size: 0.85rem;">Los goles del mundial se mostrarán aquí una vez que comiencen los partidos.</p>
+            </div>
+          </div>
+
+          <div class="glass-card" id="card-goals-by-minute">
+            <h3 class="card-title"><i data-lucide="clock"></i> Distribución de Goles por Minuto</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Goles anotados agrupados por intervalos de tiempo de juego.</p>
+            <div style="height: 250px; position: relative;" id="container-goals-by-minute">
+              <canvas id="chart-goals-by-minute"></canvas>
+            </div>
+            <div id="placeholder-goals-by-minute" style="display: none; text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
+              <i data-lucide="clock" style="width: 36px; height: 36px; color: var(--text-muted); margin-bottom: 0.8rem; opacity: 0.5;"></i>
+              <p style="font-size: 0.85rem;">La distribución del tiempo de los goles se mostrará aquí una vez que comiencen los partidos.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Cards & discipline -->
+        <div class="glass-card" id="card-team-cards" style="display: flex; flex-direction: column;">
+          <h3 class="card-title"><i data-lucide="alert-triangle"></i> Equipos Más Sancionados</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.2rem;">Suma de tarjetas amarillas y rojas recibidas por selección nacional.</p>
+          <div style="flex-grow: 1; min-height: 350px; position: relative;" id="container-team-cards">
+            <canvas id="chart-team-cards"></canvas>
+          </div>
+          <div id="placeholder-team-cards" style="display: none; text-align: center; padding: 6rem 1rem; color: var(--text-secondary); flex-grow: 1; justify-content: center; align-items: center; flex-direction: column;">
+            <i data-lucide="alert-triangle" style="width: 36px; height: 36px; color: var(--text-muted); margin-bottom: 0.8rem; opacity: 0.5;"></i>
+            <p style="font-size: 0.85rem;">Las amonestaciones y expulsiones del mundial se mostrarán aquí una vez que comiencen los partidos.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -259,7 +308,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 
 </html>

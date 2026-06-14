@@ -1062,6 +1062,14 @@ footer a:hover {
   padding: 0.35rem 0.6rem;
   border-radius: 6px;
   border: 1px dashed var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.schedule-pred-stats:hover {
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 /* Shake animation for invalid PIN */
