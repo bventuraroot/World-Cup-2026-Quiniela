@@ -1220,13 +1220,69 @@ $(document).ready(function() {
       const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
       const isFinished = real.status === 'finished';
 
+      // --- EXTRAER DATOS ENRIQUECIDOS ---
+      const resolvedVenue = (real.api_data && real.api_data.venue) ? real.api_data.venue : match.ground;
+      
+      let liveClockInfo = '';
+      if (real.status === 'live' && real.api_data && real.api_data.clock) {
+        liveClockInfo = ` (${real.api_data.clock})`;
+      }
+
       let statusBadgeHTML = '';
       if (real.status === 'finished') {
         statusBadgeHTML = '<span class="match-status-badge status-finished">Finalizado</span>';
       } else if (real.status === 'live') {
-        statusBadgeHTML = '<span class="match-status-badge status-live">En Vivo</span>';
+        statusBadgeHTML = `<span class="match-status-badge status-live">En Vivo${liveClockInfo}</span>`;
       } else {
         statusBadgeHTML = '<span class="match-status-badge status-scheduled">Pendiente</span>';
+      }
+
+      let tvHTML = '';
+      if (real.api_data && real.api_data.broadcasts && real.api_data.broadcasts.length > 0) {
+        tvHTML = `
+          <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.3rem; width: 100%;">
+            <i data-lucide="tv" style="width: 12px; height: 12px;"></i>
+            <span>Transmisión: ${real.api_data.broadcasts.join(', ')}</span>
+          </div>
+        `;
+      }
+
+      let homeIncidencesHTML = '';
+      let awayIncidencesHTML = '';
+
+      if (real.api_data) {
+        const scorers = real.api_data.scorers || { home: [], away: [] };
+        const redCards = real.api_data.red_cards || { home: [], away: [] };
+
+        const homeInc = [];
+        if (scorers.home) {
+          scorers.home.forEach(s => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (redCards.home) {
+          redCards.home.forEach(rc => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+          });
+        }
+        if (homeInc.length > 0) {
+          homeIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%; text-align: left; margin-bottom: 0.2rem;">${homeInc.join('')}</div>`;
+        }
+
+        const awayInc = [];
+        if (scorers.away) {
+          scorers.away.forEach(s => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (redCards.away) {
+          redCards.away.forEach(rc => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; margin-left: 2.5rem; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+          });
+        }
+        if (awayInc.length > 0) {
+          awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%; text-align: left; margin-bottom: 0.2rem;">${awayInc.join('')}</div>`;
+        }
       }
 
       let footerFeedbackHTML = '';
@@ -1350,40 +1406,49 @@ $(document).ready(function() {
           
           <div class="match-card-body">
             <!-- Team 1 -->
-            <div class="team-row">
-              <div class="team-info">
-                ${flag1HTML}
-                <span class="team-name" title="${resolvedTeam1}">${resolvedTeam1}</span>
+            <div style="display: flex; flex-direction: column; width: 100%; margin-bottom: 0.4rem;">
+              <div class="team-row" style="margin-bottom: 0.1rem;">
+                <div class="team-info">
+                  ${flag1HTML}
+                  <span class="team-name" title="${resolvedTeam1}">${resolvedTeam1}</span>
+                </div>
+                <div class="score-input-container">
+                  <input type="number" min="0" max="99" class="input-goal pred-input" 
+                    data-match-id="${match.id}" data-team="1" 
+                    value="${pred.goals1 !== null && pred.goals1 !== undefined ? pred.goals1 : ''}" 
+                    ${disabledAttr}>
+                </div>
               </div>
-              <div class="score-input-container">
-                <input type="number" min="0" max="99" class="input-goal pred-input" 
-                  data-match-id="${match.id}" data-team="1" 
-                  value="${pred.goals1 !== null && pred.goals1 !== undefined ? pred.goals1 : ''}" 
-                  ${disabledAttr}>
-              </div>
+              ${homeIncidencesHTML}
             </div>
             
             <!-- Team 2 -->
-            <div class="team-row">
-              <div class="team-info">
-                ${flag2HTML}
-                <span class="team-name" title="${resolvedTeam2}">${resolvedTeam2}</span>
+            <div style="display: flex; flex-direction: column; width: 100%; margin-bottom: 0.4rem;">
+              <div class="team-row" style="margin-bottom: 0.1rem;">
+                <div class="team-info">
+                  ${flag2HTML}
+                  <span class="team-name" title="${resolvedTeam2}">${resolvedTeam2}</span>
+                </div>
+                <div class="score-input-container">
+                  <input type="number" min="0" max="99" class="input-goal pred-input" 
+                    data-match-id="${match.id}" data-team="2" 
+                    value="${pred.goals2 !== null && pred.goals2 !== undefined ? pred.goals2 : ''}" 
+                    ${disabledAttr}>
+                </div>
               </div>
-              <div class="score-input-container">
-                <input type="number" min="0" max="99" class="input-goal pred-input" 
-                  data-match-id="${match.id}" data-team="2" 
-                  value="${pred.goals2 !== null && pred.goals2 !== undefined ? pred.goals2 : ''}" 
-                  ${disabledAttr}>
-              </div>
+              ${awayIncidencesHTML}
             </div>
 
             ${lockBadgeHTML}
             ${footerFeedbackHTML}
           </div>
 
-          <div class="match-card-footer">
-            <span class="match-venue" title="${match.ground}">${match.ground}</span>
-            ${statusBadgeHTML}
+          <div class="match-card-footer" style="flex-direction: column; align-items: stretch; gap: 0.3rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <span class="match-venue" title="${resolvedVenue}"><i data-lucide="map-pin" style="width: 11px; height: 11px; display: inline-align; vertical-align: middle; margin-right: 0.15rem;"></i> ${resolvedVenue}</span>
+              ${statusBadgeHTML}
+            </div>
+            ${tvHTML}
           </div>
         </div>
       `);
@@ -1706,6 +1771,14 @@ $(document).ready(function() {
 
       const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
 
+      // --- EXTRAER DATOS ENRIQUECIDOS ---
+      const resolvedVenue = (real.api_data && real.api_data.venue) ? real.api_data.venue : match.ground;
+      
+      let liveClockInfo = '';
+      if (real.status === 'live' && real.api_data && real.api_data.clock) {
+        liveClockInfo = ` (${real.api_data.clock})`;
+      }
+
       let scoreHTML = '';
       let statusBadgeHTML = '';
 
@@ -1714,10 +1787,58 @@ $(document).ready(function() {
         statusBadgeHTML = '<span class="match-status-badge status-finished">Finalizado</span>';
       } else if (real.status === 'live') {
         scoreHTML = `<span class="schedule-score-display" style="color: var(--info); border-color: var(--info); box-shadow: 0 0 8px rgba(14, 165, 233, 0.25);">${real.goals1 !== null ? real.goals1 : 0} - ${real.goals2 !== null ? real.goals2 : 0}</span>`;
-        statusBadgeHTML = '<span class="match-status-badge status-live">En Vivo</span>';
+        statusBadgeHTML = `<span class="match-status-badge status-live">En Vivo${liveClockInfo}</span>`;
       } else {
         scoreHTML = '<span class="schedule-vs-badge">VS</span>';
         statusBadgeHTML = '<span class="match-status-badge status-scheduled">Pendiente</span>';
+      }
+
+      let tvHTML = '';
+      if (real.api_data && real.api_data.broadcasts && real.api_data.broadcasts.length > 0) {
+        tvHTML = `
+          <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.3rem; width: 100%;">
+            <i data-lucide="tv" style="width: 12px; height: 12px;"></i>
+            <span>Transmisión: ${real.api_data.broadcasts.join(', ')}</span>
+          </div>
+        `;
+      }
+
+      let homeIncidencesHTML = '';
+      let awayIncidencesHTML = '';
+
+      if (real.api_data) {
+        const scorers = real.api_data.scorers || { home: [], away: [] };
+        const redCards = real.api_data.red_cards || { home: [], away: [] };
+
+        const homeInc = [];
+        if (scorers.home) {
+          scorers.home.forEach(s => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (redCards.home) {
+          redCards.home.forEach(rc => {
+            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+          });
+        }
+        if (homeInc.length > 0) {
+          homeIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${homeInc.join('')}</div>`;
+        }
+
+        const awayInc = [];
+        if (scorers.away) {
+          scorers.away.forEach(s => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+          });
+        }
+        if (redCards.away) {
+          redCards.away.forEach(rc => {
+            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+          });
+        }
+        if (awayInc.length > 0) {
+          awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${awayInc.join('')}</div>`;
+        }
       }
 
       let predictedCount = 0;
@@ -1770,14 +1891,26 @@ $(document).ready(function() {
               </div>
               
             </div>
+
+            <!-- Incidences row -->
+            ${(homeIncidencesHTML || awayIncidencesHTML) ? `
+              <div class="match-incidences-container" style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.4rem; margin-top: 0.4rem; gap: 0.5rem;">
+                <div style="flex: 1; text-align: left;">
+                  ${homeIncidencesHTML}
+                </div>
+                <div style="flex: 1; text-align: right;">
+                  ${awayIncidencesHTML}
+                </div>
+              </div>
+            ` : ''}
           </div>
 
           <div class="match-card-footer" style="flex-direction: column; gap: 0.5rem; align-items: stretch; border-top: none; padding-top: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.5rem; margin-top: 0.2rem;">
-              <span class="match-venue" title="${match.ground}">${match.ground}</span>
+              <span class="match-venue" title="${resolvedVenue}"><i data-lucide="map-pin" style="width: 11px; height: 11px; display: inline-align; vertical-align: middle; margin-right: 0.15rem;"></i> ${resolvedVenue}</span>
               ${statusBadgeHTML}
             </div>
-            
+            ${tvHTML}
             <div class="schedule-pred-stats">
               <i data-lucide="users" style="width: 13px; height: 13px;"></i>
               <span>${predictedCount} de ${totalPlayers} jugadores pronosticaron este partido</span>
@@ -1947,14 +2080,81 @@ $(document).ready(function() {
             const finalGoals1 = reversed ? goals2 : goals1;
             const finalGoals2 = reversed ? goals1 : goals2;
 
+            // --- EXTRAER DATOS ENRIQUECIDOS ---
+            const espnVenue = comps.venue ? comps.venue.fullName : null;
+
+            const espnBroadcasts = [];
+            if (comps.broadcasts) {
+              comps.broadcasts.forEach(b => {
+                if (b.names) {
+                  b.names.forEach(name => {
+                    if (espnBroadcasts.indexOf(name) === -1) {
+                      espnBroadcasts.push(name);
+                    }
+                  });
+                }
+              });
+            }
+
+            const espnDisplayClock = event.status ? event.status.displayClock : null;
+
+            const scorers = { home: [], away: [] };
+            const red_cards = { home: [], away: [] };
+
+            if (comps.details) {
+              comps.details.forEach(det => {
+                const isGoal = det.type && det.type.text && (det.type.text.toLowerCase().indexOf('goal') !== -1);
+                let isRedCard = det.redCard === true;
+                
+                if (!isGoal && !isRedCard && det.type && det.type.text) {
+                  const typeText = det.type.text.toLowerCase();
+                  if (typeText.indexOf('red card') !== -1) {
+                    isRedCard = true;
+                  }
+                }
+
+                if (isGoal || isRedCard) {
+                  const teamId = det.team ? det.team.id : null;
+                  const minute = det.clock ? det.clock.displayValue : '';
+                  
+                  let player = '';
+                  if (det.athletesInvolved && det.athletesInvolved[0]) {
+                    player = det.athletesInvolved[0].displayName || det.athletesInvolved[0].shortName || '';
+                  }
+
+                  if (teamId !== null) {
+                    let side = (teamId == homeComp.team.id) ? 'home' : 'away';
+                    if (reversed) {
+                      side = (side === 'home') ? 'away' : 'home';
+                    }
+
+                    if (isGoal) {
+                      scorers[side].push({ player: player, minute: minute });
+                    } else {
+                      red_cards[side].push({ player: player, minute: minute });
+                    }
+                  }
+                }
+              });
+            }
+
+            const api_data = {
+              venue: espnVenue,
+              broadcasts: espnBroadcasts,
+              clock: espnDisplayClock,
+              scorers: scorers,
+              red_cards: red_cards
+            };
+
             const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, status: 'scheduled' };
 
-            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.status !== status) {
+            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.status !== status || JSON.stringify(currentReal.api_data) !== JSON.stringify(api_data)) {
               if (!state.realResults) state.realResults = {};
               state.realResults[localMatch.id] = {
                 goals1: finalGoals1,
                 goals2: finalGoals2,
-                status: status
+                status: status,
+                api_data: api_data
               };
 
               saveQueue.push({
@@ -1963,7 +2163,8 @@ $(document).ready(function() {
                   match_id: localMatch.id,
                   goals1: finalGoals1,
                   goals2: finalGoals2,
-                  status: status
+                  status: status,
+                  api_data: api_data
                 },
                 onSuccess: () => { updatedResultsCount++; }
               });

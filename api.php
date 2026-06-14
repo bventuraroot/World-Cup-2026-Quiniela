@@ -63,8 +63,15 @@ try {
         match_id VARCHAR(50) PRIMARY KEY,
         goals1 INT NULL,
         goals2 INT NULL,
-        status VARCHAR(20) NOT NULL
+        status VARCHAR(20) NOT NULL,
+        api_data LONGTEXT NULL
     )");
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_real_results ADD COLUMN api_data LONGTEXT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_match_teams (
         match_id VARCHAR(50) PRIMARY KEY,
@@ -313,7 +320,8 @@ if ($action === 'get') {
             $realResults->{$r['match_id']} = [
                 'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
                 'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
-                'status' => $r['status']
+                'status' => $r['status'],
+                'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
             ];
         }
 
@@ -432,16 +440,17 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             write_api_log("ADMIN: Limpieza de TODOS los marcadores reales.");
             echo json_encode(['status' => 'success']);
         } elseif (isset($data['match_id'])) {
-            $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) 
-                                   VALUES (:mId, :g1, :g2, :status) 
-                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status");
+            $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status, api_data) 
+                                   VALUES (:mId, :g1, :g2, :status, :apiData) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status, api_data = :apiData");
             $stmt->execute([
                 'mId' => $data['match_id'],
                 'g1' => ($data['goals1'] !== null && $data['goals1'] !== "") ? intval($data['goals1']) : null,
                 'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? intval($data['goals2']) : null,
-                'status' => isset($data['status']) ? $data['status'] : 'scheduled'
+                'status' => isset($data['status']) ? $data['status'] : 'scheduled',
+                'apiData' => isset($data['api_data']) ? (is_array($data['api_data']) ? json_encode($data['api_data'], JSON_UNESCAPED_UNICODE) : $data['api_data']) : null
             ]);
-            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . ", Estado: " . ($data['status'] ?? 'N/A'));
+            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . ", Estado: " . ($data['status'] ?? 'N/A') . ", Has api_data: " . (isset($data['api_data']) ? 'yes' : 'no'));
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Datos de partido no especificados.']);

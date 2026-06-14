@@ -145,12 +145,13 @@ if (!$local_matches) {
 // 2. Cargar marcadores actuales de la BD para comparar y no re-escribir innecesariamente
 $current_real_results = [];
 try {
-    $stmt = $pdo->query("SELECT match_id, goals1, goals2, status FROM quiniela_real_results");
+    $stmt = $pdo->query("SELECT match_id, goals1, goals2, status, api_data FROM quiniela_real_results");
     while ($row = $stmt->fetch()) {
         $current_real_results[$row['match_id']] = [
             'goals1' => $row['goals1'] !== null ? intval($row['goals1']) : null,
             'goals2' => $row['goals2'] !== null ? intval($row['goals2']) : null,
-            'status' => $row['status']
+            'status' => $row['status'],
+            'api_data' => $row['api_data']
         ];
     }
 } catch (PDOException $e) {
@@ -187,9 +188,9 @@ $updated_results = 0;
 $updated_teams = 0;
 
 // Preparar declaraciones SQL
-$stmt_save_result = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) 
-                                   VALUES (:mId, :g1, :g2, :status) 
-                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status");
+$stmt_save_result = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status, api_data) 
+                                   VALUES (:mId, :g1, :g2, :status, :apiData) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status, api_data = :apiData");
 
 $stmt_save_team = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) 
                                  VALUES (:mId, :t1, :t2) 
@@ -296,17 +297,90 @@ foreach ($events as $event) {
         $finalGoals2 = $reversed ? $goals1 : $goals2;
         
         $mId = $localMatch['id'];
+        
+        // --- EXTRAER DATOS ENRIQUECIDOS ---
+        $espnVenue = isset($comps['venue']['fullName']) ? $comps['venue']['fullName'] : null;
+        
+        $espnBroadcasts = [];
+        if (isset($comps['broadcasts'])) {
+            foreach ($comps['broadcasts'] as $b) {
+                if (isset($b['names'])) {
+                    foreach ($b['names'] as $name) {
+                        if (!in_array($name, $espnBroadcasts)) {
+                            $espnBroadcasts[] = $name;
+                        }
+                    }
+                }
+            }
+        }
+        
+        $espnDisplayClock = isset($event['status']['displayClock']) ? $event['status']['displayClock'] : null;
+        
+        $scorers = ['home' => [], 'away' => []];
+        $red_cards = ['home' => [], 'away' => []];
+        
+        if (isset($comps['details'])) {
+            foreach ($comps['details'] as $det) {
+                $isGoal = isset($det['type']['text']) && (strpos(strtolower($det['type']['text']), 'goal') !== false);
+                $isRedCard = isset($det['redCard']) && $det['redCard'] === true;
+                
+                if (!$isGoal && !$isRedCard && isset($det['type']['text'])) {
+                    $typeText = strtolower($det['type']['text']);
+                    if (strpos($typeText, 'red card') !== false) {
+                        $isRedCard = true;
+                    }
+                }
+                
+                if ($isGoal || $isRedCard) {
+                    $teamId = isset($det['team']['id']) ? $det['team']['id'] : null;
+                    $minute = isset($det['clock']['displayValue']) ? $det['clock']['displayValue'] : '';
+                    
+                    $player = '';
+                    if (isset($det['athletesInvolved'][0]['displayName'])) {
+                        $player = $det['athletesInvolved'][0]['displayName'];
+                    } elseif (isset($det['athletesInvolved'][0]['shortName'])) {
+                        $player = $det['athletesInvolved'][0]['shortName'];
+                    }
+                    
+                    if ($teamId !== null) {
+                        $side = ($teamId == $homeComp['team']['id']) ? 'home' : 'away';
+                        if ($reversed) {
+                            $side = ($side === 'home') ? 'away' : 'home';
+                        }
+                        
+                        if ($isGoal) {
+                            $scorers[$side][] = [
+                                'player' => $player,
+                                'minute' => $minute
+                            ];
+                        } else {
+                            $red_cards[$side][] = [
+                                'player' => $player,
+                                'minute' => $minute
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        
+        $api_data = [
+            'venue' => $espnVenue,
+            'broadcasts' => $espnBroadcasts,
+            'clock' => $espnDisplayClock,
+            'scorers' => $scorers,
+            'red_cards' => $red_cards
+        ];
+        
+        $api_data_json = json_encode($api_data, JSON_UNESCAPED_UNICODE);
+        
         $hasChanged = false;
         
         if (!isset($current_real_results[$mId])) {
-            // No existe resultado en la BD
-            if ($finalGoals1 !== null || $finalGoals2 !== null || $status !== 'scheduled') {
-                $hasChanged = true;
-            }
+            $hasChanged = true;
         } else {
-            // Existe resultado, comparar
             $curr = $current_real_results[$mId];
-            if ($curr['goals1'] !== $finalGoals1 || $curr['goals2'] !== $finalGoals2 || $curr['status'] !== $status) {
+            if ($curr['goals1'] !== $finalGoals1 || $curr['goals2'] !== $finalGoals2 || $curr['status'] !== $status || $curr['api_data'] !== $api_data_json) {
                 $hasChanged = true;
             }
         }
@@ -316,10 +390,11 @@ foreach ($events as $event) {
                 'mId' => $mId,
                 'g1' => $finalGoals1,
                 'g2' => $finalGoals2,
-                'status' => $status
+                'status' => $status,
+                'apiData' => $api_data_json
             ]);
             $updated_results++;
-            write_cron_log("Marcador actualizado: Partido ID $mId -> " . ($finalGoals1 ?? 'N/A') . " - " . ($finalGoals2 ?? 'N/A') . " (Estado: $status)");
+            write_cron_log("Marcador actualizado (Enriquecido): Partido ID $mId -> " . ($finalGoals1 ?? 'N/A') . " - " . ($finalGoals2 ?? 'N/A') . " (Estado: $status)");
         }
     }
 }
