@@ -31,9 +31,10 @@ if (file_exists($config_file)) {
 $connected = false;
 $conn_error = '';
 try {
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass, [
+    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
     ]);
 
     // 1. Auto-creación de la tabla de estado heredada (para migración si existe)
@@ -86,6 +87,17 @@ try {
         config_key VARCHAR(50) PRIMARY KEY,
         config_value VARCHAR(255) NULL
     )");
+
+    // Asegurar que las tablas utilicen el juego de caracteres utf8mb4 para evitar fallas de codificación
+    try {
+        $pdo->exec("ALTER TABLE quiniela_players CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("ALTER TABLE quiniela_predictions CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("ALTER TABLE quiniela_real_results CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("ALTER TABLE quiniela_match_teams CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("ALTER TABLE quiniela_config CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    } catch (PDOException $e) {
+        // Ignorar si no se tienen permisos o falla
+    }
 
     $connected = true;
 
