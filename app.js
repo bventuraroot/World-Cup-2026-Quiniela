@@ -3694,6 +3694,7 @@ $(document).ready(function() {
         renderChampionVotesGrid(teams);
       } else if (page === 'estadisticas.html') {
         initAnalyticsTab();
+        renderAnalyticsTab();
       } else if (page === 'admin.html') {
         renderAdminGrid();
         const teams = getParticipatingTeams();
