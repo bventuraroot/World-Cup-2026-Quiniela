@@ -3651,22 +3651,28 @@ $(document).ready(function() {
     // Sincronizar UI del Administrador en carga
     updateAdminUI();
 
-    const path = window.location.pathname;
-    let page = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
-    if (page === '' || page === 'index.php') {
-      page = 'index.html';
+    const path = window.location.pathname.toLowerCase();
+    function isCurrentPage(name) {
+      const filename = path.substring(path.lastIndexOf('/') + 1);
+      if (name === 'index') {
+        return filename === '' || filename === 'index.html' || filename === 'index.php';
+      }
+      return filename.indexOf(name) !== -1;
     }
 
+    const isAdminPage = isCurrentPage('admin');
+    const isConfigPage = isCurrentPage('ajustes');
+
     // Proteger páginas administrativas en la carga inicial
-    if ((page === 'admin.html' || page === 'ajustes.html') && !isAdminMode) {
+    if ((isAdminPage || isConfigPage) && !isAdminMode) {
       $('main').css('opacity', '0');
       openAdminModal(function() {
         $('main').css('opacity', '1');
-        if (page === 'admin.html') {
+        if (isAdminPage) {
           renderAdminGrid();
           const teams = getParticipatingTeams();
           populateChampionDropdowns(teams);
-        } else if (page === 'ajustes.html') {
+        } else if (isConfigPage) {
           loadDbConfig();
           $('#btn-save-db-config').off('click').on('click', function() {
             saveDbConfig();
@@ -3677,29 +3683,29 @@ $(document).ready(function() {
       });
     } else {
       // Inicializar vistas específicas de la página activa
-      if (page === 'index.html') {
+      if (isCurrentPage('index')) {
         renderDashboard();
-      } else if (page === 'calendario.html') {
+      } else if (isCurrentPage('calendario')) {
         renderScheduleGrid();
-      } else if (page === 'clasificacion.html') {
+      } else if (isCurrentPage('clasificacion')) {
         renderLeaderboard();
-      } else if (page === 'pronosticos.html') {
+      } else if (isCurrentPage('pronosticos')) {
         renderPlayersSelector();
         if (activePlayerId) {
           renderPredictionsGrid();
         }
-      } else if (page === 'campeon.html') {
+      } else if (isCurrentPage('campeon')) {
         const teams = getParticipatingTeams();
         populateChampionDropdowns(teams);
         renderChampionVotesGrid(teams);
-      } else if (page === 'estadisticas.html') {
+      } else if (isCurrentPage('estadisticas')) {
         initAnalyticsTab();
         renderAnalyticsTab();
-      } else if (page === 'admin.html') {
+      } else if (isAdminPage) {
         renderAdminGrid();
         const teams = getParticipatingTeams();
         populateChampionDropdowns(teams);
-      } else if (page === 'ajustes.html') {
+      } else if (isConfigPage) {
         loadDbConfig();
         $('#btn-save-db-config').off('click').on('click', function() {
           saveDbConfig();
