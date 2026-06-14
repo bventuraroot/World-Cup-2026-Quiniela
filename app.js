@@ -144,6 +144,7 @@ $(document).ready(function() {
         url: 'api.php?action=get',
         type: 'GET',
         dataType: 'json',
+        cache: false,
         success: function(data) {
           if (data && !data.status) { // Si no es un JSON con error
             state = data;
@@ -2071,6 +2072,7 @@ $(document).ready(function() {
       url: espnUrl,
       type: 'GET',
       dataType: 'json',
+      cache: false,
       success: async function(data) {
         const events = data.events || [];
         if (events.length === 0) {
@@ -3018,6 +3020,7 @@ $(document).ready(function() {
       url: 'api.php?action=get_db_config',
       type: 'GET',
       dataType: 'json',
+      cache: false,
       success: function(res) {
         if (res && res.status === 'success') {
           $('#db-config-host').val(res.db_host || '');
