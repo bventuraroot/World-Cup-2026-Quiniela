@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiniela 2026 - Estadísticas</title>
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+
+<body>
+
+  <!-- Glows de Fondo -->
+  <div class="bg-glows">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+  </div>
+
+  <!-- Navbar -->
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">MX</div>
+        <div class="brand-text">QUINIELA<span> WORLD CUP 2026</span></div>
+      </a>
+      <div class="nav-controls">
+        <button id="btn-force-reload" class="btn btn-secondary" title="Actualizar Caché" onclick="window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + '?r=' + Date.now() + window.location.hash;">
+          <i data-lucide="refresh-cw"></i> <span>Actualizar Caché</span>
+        </button>
+        <button id="admin-login-toggle" class="btn btn-secondary" title="Acceso Administrador">
+          <i data-lucide="lock"></i> <span>Acceso Admin</span>
+        </button>
+        <button id="theme-toggle" class="btn btn-icon-only" title="Cambiar Tema">
+          <i data-lucide="sun"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- Tab Buttons -->
+    <nav class="tabs-nav">
+      <a href="index.html" class="tab-btn" id="nav-dashboard">
+        <i data-lucide="layout-dashboard"></i> Resumen
+      </a>
+      <a href="calendario.html" class="tab-btn" id="nav-schedule">
+        <i data-lucide="calendar-days"></i> Calendario
+      </a>
+      <a href="reglas.html" class="tab-btn" id="nav-rules">
+        <i data-lucide="book-open"></i> Reglas
+      </a>
+      <a href="clasificacion.html" class="tab-btn" id="nav-leaderboard">
+        <i data-lucide="trophy"></i> Clasificación
+      </a>
+      <a href="pronosticos.html" class="tab-btn" id="nav-predictions">
+        <i data-lucide="edit-3"></i> Pronósticos
+      </a>
+      <a href="campeon.html" class="tab-btn" id="nav-champion">
+        <i data-lucide="award"></i> Votar Campeón
+      </a>
+      <a href="estadisticas.html" class="tab-btn active" id="nav-analytics">
+        <i data-lucide="bar-chart-2"></i> Estadísticas
+      </a>
+      <a href="admin.html" class="tab-btn" id="nav-admin">
+        <i data-lucide="settings"></i> Admin Resultados
+      </a>
+      <a href="ajustes.html" class="tab-btn" id="nav-config">
+        <i data-lucide="sliders"></i> Ajustes / Exportar
+      </a>
+    </nav>
+
+    <!-- TAB: ANALYTICS (ESTADÍSTICAS) -->
+    <section id="tab-analytics" class="tab-panel active">
+      <!-- General stats grid -->
+      <div class="summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.5rem;">
+        <div class="card summary-card">
+          <div class="card-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--primary);">
+            <i data-lucide="users"></i>
+          </div>
+          <div class="card-info">
+            <h4 class="card-value" id="stats-total-players">0</h4>
+            <p class="card-label">Jugadores Registrados</p>
+          </div>
+        </div>
+        <div class="card summary-card">
+          <div class="card-icon" style="background: rgba(251, 191, 36, 0.1); color: var(--secondary);">
+            <i data-lucide="list-todo"></i>
+          </div>
+          <div class="card-info">
+            <h4 class="card-value" id="stats-total-predictions">0</h4>
+            <p class="card-label">Pronósticos Registrados</p>
+          </div>
+        </div>
+        <div class="card summary-card">
+          <div class="card-icon" style="background: rgba(14, 165, 233, 0.1); color: var(--info);">
+            <i data-lucide="percent"></i>
+          </div>
+          <div class="card-info">
+            <h4 class="card-value" id="stats-participation-rate">0%</h4>
+            <p class="card-label">Participación General</p>
+          </div>
+        </div>
+        <div class="card summary-card">
+          <div class="card-icon" style="background: rgba(99, 102, 241, 0.1); color: var(--accent);">
+            <i data-lucide="hash"></i>
+          </div>
+          <div class="card-info">
+            <h4 class="card-value" id="stats-most-common-score">-</h4>
+            <p class="card-label">Marcador Más Común</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main analytics layout -->
+      <div class="config-grid" style="gap: 1.5rem;">
+
+        <!-- Left: Tournament Favorites & Top Winners -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="glass-card">
+            <h3 class="card-title"><i data-lucide="award"></i> Selecciones Favoritas al Campeón</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Distribución de predicciones para el campeón del mundial.</p>
+            <div style="height: 250px; position: relative;">
+              <canvas id="chart-champion-votes"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h3 class="card-title"><i data-lucide="trending-up"></i> Equipos Más Votados a Ganar Partivos</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Selecciones nacionales con mayor cantidad de victorias pronosticadas acumuladas.</p>
+            <div style="height: 250px; position: relative;">
+              <canvas id="chart-team-popularity"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Match-by-Match Breakdown -->
+        <div class="glass-card" style="display: flex; flex-direction: column;">
+          <h3 class="card-title"><i data-lucide="pie-chart"></i> Análisis por Partido</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.2rem;">Selecciona un partido para analizar la tendencia de los pronósticos de la oficina.</p>
+
+          <!-- Match selector -->
+          <div class="form-group" style="margin-bottom: 1.2rem;">
+            <label class="form-label" for="stats-match-select">Seleccionar Partido</label>
+            <select id="stats-match-select" class="select-custom" style="width: 100%;">
+              <!-- Cargado dinámicamente -->
+            </select>
+          </div>
+
+          <div id="stats-match-details" style="display: none; flex-direction: column; gap: 1rem; flex-grow: 1; justify-content: center;">
+            <!-- Match card summary -->
+            <div id="stats-match-card-preview" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--border-radius-sm); text-align: center;">
+              <!-- Cargado dinámicamente -->
+            </div>
+
+            <!-- Chart and lists -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; flex-grow: 1; align-items: center; justify-content: center;">
+              <!-- Win/Loss/Draw Chart container -->
+              <div style="width: 200px; height: 200px; position: relative;">
+                <canvas id="chart-match-distribution"></canvas>
+              </div>
+
+              <!-- Goles Promedio / Marcadores Populares info -->
+              <div style="width: 100%; display: flex; flex-direction: column; gap: 0.8rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                  <span>Pronósticos registrados:</span>
+                  <span id="stats-match-votes-cast" style="font-weight: 700; color: var(--text-primary);">0 de 0</span>
+                </div>
+                <div id="stats-match-average-goals" style="display: flex; justify-content: space-around; font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                  <!-- Cargado dinámicamente -->
+                </div>
+                <div style="font-size: 0.85rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm);">
+                  <span style="font-weight: 600; display: block; margin-bottom: 0.4rem; color: var(--text-primary);">Marcadores más Pronosticados:</span>
+                  <div id="stats-match-popular-scores" style="display: flex; flex-direction: column; gap: 0.2rem;">
+                    <!-- Cargado dinámicamente -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="stats-no-players-placeholder"
+            style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+            <h3>No hay jugadores registrados</h3>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Registra jugadores para ver el análisis de estadísticas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 Quiniela de la Copa del Mundo - Desarrollado con <i data-lucide="heart"
+        style="width: 14px; height: 14px; color: var(--danger); fill: var(--danger); display: inline-block; vertical-align: middle;"></i>
+      para jugar en la oficina.</p>
+  </footer>
+
+  <!-- Modal de Login de Administrador -->
+  <div id="admin-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  ">
+    <div class="glass-card" style="
+      width: 100%;
+      max-width: 380px;
+      margin: 1.5rem;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-20px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    " id="admin-modal-card">
+      <h3 class="card-title" style="margin-bottom: 0.8rem; border: none; padding: 0;">
+        <i data-lucide="shield-alert"></i> Acceso Admin
+      </h3>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.2rem;">
+        Esta área requiere privilegios de organizador. Por favor, ingresa el PIN de seguridad (PIN de fábrica:
+        <strong>1234</strong>).
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="admin-pin-input">PIN de Seguridad</label>
+        <input type="password" id="admin-pin-input" class="input-text" placeholder="****" maxlength="10"
+          style="text-align: center; letter-spacing: 0.3em; font-size: 1.3rem;">
+        <span id="admin-login-error"
+          style="display: none; color: var(--danger); font-size: 0.8rem; margin-top: 0.4rem; font-weight: 500; text-align: center;">
+          PIN incorrecto. Reinténtalo.
+        </span>
+      </div>
+
+      <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem;">
+        <button id="btn-admin-cancel" class="btn btn-secondary"
+          style="font-size: 0.9rem; padding: 0.5rem 1rem;">Cancelar</button>
+        <button id="btn-admin-login" class="btn btn-primary"
+          style="font-size: 0.9rem; padding: 0.5rem 1.2rem;">Acceder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- CDN scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Local Scripts -->
+  <script src="matches.js"></script>
+  <script src="app.js?v=13"></script>
+</body>
+
+</html>

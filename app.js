@@ -130,6 +130,8 @@ $(document).ready(function() {
   let activePlayerId = null;
   let isAdminMode = false; // Estado de sesión del administrador
   let dbConnected = false; // Estado de conexión a la BD
+  let adminLoginSuccessCallback = null;
+  let adminLoginCancelCallback = null;
 
   let chartChampionVotes = null;
   let chartTeamPopularity = null;
@@ -496,7 +498,7 @@ $(document).ready(function() {
       $('#new-player-name, #btn-add-player, #btn-delete-player').prop('disabled', false);
 
       // Quitar clase bloqueada si existía en botones de tab
-      $('.tab-btn[data-target="#tab-admin"]').find('i').removeClass('lucide-lock').addClass('lucide-settings');
+      $('#nav-admin').find('i').removeClass('lucide-lock').addClass('lucide-settings');
     } else {
       // Modo Usuario / Cerrado
       $('#admin-login-toggle')
@@ -518,7 +520,7 @@ $(document).ready(function() {
       $('#new-player-name, #btn-add-player, #btn-delete-player').prop('disabled', true);
 
       // Cambiar icono en los botones de navegación de pestañas
-      $('.tab-btn[data-target="#tab-admin"]').find('i').removeClass('lucide-settings').addClass('lucide-lock');
+      $('#nav-admin').find('i').removeClass('lucide-settings').addClass('lucide-lock');
     }
     
     // Bloqueo de Configuración de Base de Datos
@@ -546,7 +548,10 @@ $(document).ready(function() {
   }
 
   // Abrir modal de Login
-  function openAdminModal() {
+  function openAdminModal(successCb, cancelCb) {
+    adminLoginSuccessCallback = successCb || null;
+    adminLoginCancelCallback = cancelCb || null;
+
     $('#admin-pin-input').val('');
     $('#admin-login-error').hide();
     $('#admin-modal').css('display', 'flex');
@@ -557,11 +562,20 @@ $(document).ready(function() {
   }
 
   // Cerrar modal de Login
-  function closeAdminModal() {
+  function closeAdminModal(isSuccess = false) {
     $('#admin-modal-card').css('transform', 'translateY(-20px)');
     setTimeout(() => {
       $('#admin-modal').fadeOut(150);
     }, 150);
+
+    if (!isSuccess && typeof adminLoginCancelCallback === 'function') {
+      const cb = adminLoginCancelCallback;
+      adminLoginCancelCallback = null;
+      adminLoginSuccessCallback = null;
+      cb();
+    } else {
+      adminLoginCancelCallback = null;
+    }
   }
 
   // Procesar Intento de Login
@@ -573,12 +587,23 @@ $(document).ready(function() {
       // Login Correcto
       isAdminMode = true;
       sessionStorage.setItem('quiniela_isAdmin', 'true');
-      closeAdminModal();
+      closeAdminModal(true);
       updateAdminUI();
       
-      // Redirigir automáticamente a la pestaña Admin
       showToast("Acceso Administrador concedido.");
-      $('.tab-btn[data-target="#tab-admin"]').click();
+      
+      if (typeof adminLoginSuccessCallback === 'function') {
+        const cb = adminLoginSuccessCallback;
+        adminLoginSuccessCallback = null;
+        cb();
+      } else {
+        const path = window.location.pathname;
+        let page = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+        if (page === '' || page === 'index.php') page = 'index.html';
+        if (page !== 'admin.html' && page !== 'ajustes.html') {
+          window.location.href = 'admin.html';
+        }
+      }
     } else {
       // Login Fallido: Vibrar modal y mostrar error
       $('#admin-login-error').fadeIn(150);
@@ -616,12 +641,17 @@ $(document).ready(function() {
         sessionStorage.removeItem('quiniela_isAdmin');
         updateAdminUI();
         
-        // Si estaba en la pestaña admin, redirigir a dashboard
-        if ($('.tab-panel.active').attr('id') === 'tab-admin') {
-          $('.tab-btn[data-target="#tab-dashboard"]').click();
+        const path = window.location.pathname;
+        let page = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+        if (page === '' || page === 'index.php') page = 'index.html';
+        
+        if (page === 'admin.html' || page === 'ajustes.html') {
+          window.location.href = 'index.html';
         } else {
-          // Rerenderizar Ajustes por si estaba en esa tab y bloquear campos
-          renderAdminGrid();
+          if (page === 'pronosticos.html') {
+            renderPlayersSelector();
+            if (activePlayerId) renderPredictionsGrid();
+          }
         }
         showToast("Sesión de Administrador cerrada.");
       }
@@ -3577,44 +3607,21 @@ $(document).ready(function() {
   }
 
   // ==========================================
-  // 8. MANEJO DE PESTAÑAS (TABS) CON COMPROBACIÓN DE ROL
+  // 8. INTERCEPCIÓN DE NAVEGACIÓN (TABS)
   // ==========================================
 
-  $('.tab-btn').on('click', function(e) {
-    const target = $(this).data('target');
+  $('.tabs-nav a').on('click', function(e) {
+    const href = $(this).attr('href');
 
-    // Controlar acceso restringido a la pestaña de administración
-    if (target === '#tab-admin' && !isAdminMode) {
+    // Controlar acceso restringido a las páginas administrativas
+    if ((href === 'admin.html' || href === 'ajustes.html') && !isAdminMode) {
       e.preventDefault();
       e.stopPropagation();
-      openAdminModal();
-      return; // Detener cambio de pestaña
-    }
-
-    $('.tab-btn').removeClass('active');
-    $(this).addClass('active');
-
-    $('.tab-panel').removeClass('active');
-    $(target).addClass('active');
-
-    if (target === '#tab-dashboard') {
-      renderDashboard();
-    } else if (target === '#tab-schedule') {
-      renderScheduleGrid();
-    } else if (target === '#tab-leaderboard') {
-      renderLeaderboard();
-    } else if (target === '#tab-predictions') {
-      renderPlayersSelector();
-      if (activePlayerId) {
-        renderPredictionsGrid();
-      }
-    } else if (target === '#tab-admin') {
-      renderAdminGrid();
-    } else if (target === '#tab-champion') {
-      const teams = getParticipatingTeams();
-      renderChampionVotesGrid(teams);
-    } else if (target === '#tab-analytics') {
-      renderAnalyticsTab();
+      openAdminModal(function() {
+        // Al acceder exitosamente, redirigir a la página correspondiente
+        window.location.href = href;
+      });
+      return;
     }
   });
 
@@ -3641,25 +3648,60 @@ $(document).ready(function() {
     // Sincronizar UI del Administrador en carga
     updateAdminUI();
 
-    const teams = getParticipatingTeams();
-    populateChampionDropdowns(teams);
-    renderChampionVotesGrid(teams);
-
-    renderDashboard();
-    renderLeaderboard();
-    renderPlayersSelector();
-    if (activePlayerId) {
-      renderPredictionsGrid();
+    const path = window.location.pathname;
+    let page = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+    if (page === '' || page === 'index.php') {
+      page = 'index.html';
     }
-    renderAdminGrid();
-    renderScheduleGrid();
-    initAnalyticsTab();
-    
-    // Configuración de base de datos
-    loadDbConfig();
-    $('#btn-save-db-config').off('click').on('click', function() {
-      saveDbConfig();
-    });
+
+    // Proteger páginas administrativas en la carga inicial
+    if ((page === 'admin.html' || page === 'ajustes.html') && !isAdminMode) {
+      $('main').css('opacity', '0');
+      openAdminModal(function() {
+        $('main').css('opacity', '1');
+        if (page === 'admin.html') {
+          renderAdminGrid();
+          const teams = getParticipatingTeams();
+          populateChampionDropdowns(teams);
+        } else if (page === 'ajustes.html') {
+          loadDbConfig();
+          $('#btn-save-db-config').off('click').on('click', function() {
+            saveDbConfig();
+          });
+        }
+      }, function() {
+        window.location.href = 'index.html';
+      });
+    } else {
+      // Inicializar vistas específicas de la página activa
+      if (page === 'index.html') {
+        renderDashboard();
+      } else if (page === 'calendario.html') {
+        renderScheduleGrid();
+      } else if (page === 'clasificacion.html') {
+        renderLeaderboard();
+      } else if (page === 'pronosticos.html') {
+        renderPlayersSelector();
+        if (activePlayerId) {
+          renderPredictionsGrid();
+        }
+      } else if (page === 'campeon.html') {
+        const teams = getParticipatingTeams();
+        populateChampionDropdowns(teams);
+        renderChampionVotesGrid(teams);
+      } else if (page === 'estadisticas.html') {
+        initAnalyticsTab();
+      } else if (page === 'admin.html') {
+        renderAdminGrid();
+        const teams = getParticipatingTeams();
+        populateChampionDropdowns(teams);
+      } else if (page === 'ajustes.html') {
+        loadDbConfig();
+        $('#btn-save-db-config').off('click').on('click', function() {
+          saveDbConfig();
+        });
+      }
+    }
 
     lucide.createIcons();
   });

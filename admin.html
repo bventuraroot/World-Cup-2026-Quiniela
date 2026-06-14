@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiniela 2026 - Administración</title>
+  <link rel="stylesheet" href="styles.css?v=13">
+</head>
+
+<body>
+
+  <!-- Glows de Fondo -->
+  <div class="bg-glows">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+  </div>
+
+  <!-- Navbar -->
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-logo">MX</div>
+        <div class="brand-text">QUINIELA<span> WORLD CUP 2026</span></div>
+      </a>
+      <div class="nav-controls">
+        <button id="btn-force-reload" class="btn btn-secondary" title="Actualizar Caché" onclick="window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + '?r=' + Date.now() + window.location.hash;">
+          <i data-lucide="refresh-cw"></i> <span>Actualizar Caché</span>
+        </button>
+        <button id="admin-login-toggle" class="btn btn-secondary" title="Acceso Administrador">
+          <i data-lucide="lock"></i> <span>Acceso Admin</span>
+        </button>
+        <button id="theme-toggle" class="btn btn-icon-only" title="Cambiar Tema">
+          <i data-lucide="sun"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- Tab Buttons -->
+    <nav class="tabs-nav">
+      <a href="index.html" class="tab-btn" id="nav-dashboard">
+        <i data-lucide="layout-dashboard"></i> Resumen
+      </a>
+      <a href="calendario.html" class="tab-btn" id="nav-schedule">
+        <i data-lucide="calendar-days"></i> Calendario
+      </a>
+      <a href="reglas.html" class="tab-btn" id="nav-rules">
+        <i data-lucide="book-open"></i> Reglas
+      </a>
+      <a href="clasificacion.html" class="tab-btn" id="nav-leaderboard">
+        <i data-lucide="trophy"></i> Clasificación
+      </a>
+      <a href="pronosticos.html" class="tab-btn" id="nav-predictions">
+        <i data-lucide="edit-3"></i> Pronósticos
+      </a>
+      <a href="campeon.html" class="tab-btn" id="nav-champion">
+        <i data-lucide="award"></i> Votar Campeón
+      </a>
+      <a href="estadisticas.html" class="tab-btn" id="nav-analytics">
+        <i data-lucide="bar-chart-2"></i> Estadísticas
+      </a>
+      <a href="admin.html" class="tab-btn active" id="nav-admin">
+        <i data-lucide="settings"></i> Admin Resultados
+      </a>
+      <a href="ajustes.html" class="tab-btn" id="nav-config">
+        <i data-lucide="sliders"></i> Ajustes / Exportar
+      </a>
+    </nav>
+
+    <!-- TAB: ADMIN RESULTS -->
+    <section id="tab-admin" class="tab-panel active">
+      <div class="glass-card">
+        <h2 class="card-title"><i data-lucide="shield-check"></i> Panel de Administración: Resultados Reales del Mundial</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Ingresa los marcadores oficiales de los partidos a medida que se jueguen. Los puntos de todos los
+          participantes se recalcularán automáticamente en tiempo real al actualizar un marcador.
+        </p>
+
+        <!-- Seccion de Campeon Oficial (Admin Only) -->
+        <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.15); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <i data-lucide="trophy" style="color: var(--secondary); width: 24px; height: 24px;"></i>
+            <div>
+              <h4 style="font-size: 0.95rem; font-weight: 700;">Definir Campeón Oficial del Mundial</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Selecciona la selección ganadora cuando finalice el torneo para calcular los puntos adicionales.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.8rem; align-items: center;">
+            <select id="admin-select-champion" class="select-custom" style="min-width: 200px;">
+              <option value="">-- Sin Definir --</option>
+              <!-- Cargado dinámicamente -->
+            </select>
+            <button id="btn-save-champion" class="btn btn-primary" style="height: 38px;">Guardar Campeón</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="filters-group">
+            <select id="filter-group-admin" class="select-custom">
+              <option value="ALL">Fase del Torneo (Todos)</option>
+              <option value="Group Stage">Fase de Grupos</option>
+              <option value="Group A">Grupo A</option>
+              <option value="Group B">Grupo B</option>
+              <option value="Group C">Grupo C</option>
+              <option value="Group D">Grupo D</option>
+              <option value="Group E">Grupo E</option>
+              <option value="Group F">Grupo F</option>
+              <option value="Group G">Grupo G</option>
+              <option value="Group H">Grupo H</option>
+              <option value="Group I">Grupo I</option>
+              <option value="Group J">Grupo J</option>
+              <option value="Group K">Grupo K</option>
+              <option value="Group L">Grupo L</option>
+              <option value="Knockout Stage">Eliminatorias</option>
+              <option value="Round of 32">Dieciseisavos (R32)</option>
+              <option value="Round of 16">Octavos (R16)</option>
+              <option value="Quarter-final">Cuartos de Final</option>
+              <option value="Semi-final">Semifinales</option>
+              <option value="Match for third place">Tercer Lugar</option>
+              <option value="Final">Final</option>
+            </select>
+            <select id="filter-status-admin" class="select-custom">
+              <option value="ALL">Estatus de Partidos (Todos)</option>
+              <option value="PLAYED">Jugados / Finalizados</option>
+              <option value="UNPLAYED">Pendientes por Jugar</option>
+            </select>
+          </div>
+          <div class="filters-group" style="gap: 0.8rem; flex-wrap: wrap;">
+            <button id="btn-sync-espn" class="btn btn-primary">
+              <i data-lucide="refresh-cw"></i> Sincronizar ESPN (En Vivo)
+            </button>
+            <button id="btn-clear-real-results" class="btn btn-danger">
+              <i data-lucide="trash-2"></i> Resetear Marcadores Reales
+            </button>
+          </div>
+        </div>
+
+        <!-- Matches Grid -->
+        <div class="matches-grid" id="admin-matches-grid">
+          <!-- Cargado dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 Quiniela de la Copa del Mundo - Desarrollado con <i data-lucide="heart" style="width: 14px; height: 14px; color: var(--danger); fill: var(--danger); display: inline-block; vertical-align: middle;"></i> para jugar en la oficina.</p>
+  </footer>
+
+  <!-- Modal de Login de Administrador -->
+  <div id="admin-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  ">
+    <div class="glass-card" style="
+      width: 100%;
+      max-width: 380px;
+      margin: 1.5rem;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-20px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    " id="admin-modal-card">
+      <h3 class="card-title" style="margin-bottom: 0.8rem; border: none; padding: 0;">
+        <i data-lucide="shield-alert"></i> Acceso Admin
+      </h3>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.2rem;">
+        Esta área requiere privilegios de organizador. Por favor, ingresa el PIN de seguridad (PIN de fábrica: <strong>1234</strong>).
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="admin-pin-input">PIN de Seguridad</label>
+        <input type="password" id="admin-pin-input" class="input-text" placeholder="****" maxlength="10" style="text-align: center; letter-spacing: 0.3em; font-size: 1.3rem;">
+        <span id="admin-login-error" style="display: none; color: var(--danger); font-size: 0.8rem; margin-top: 0.4rem; font-weight: 500; text-align: center;">
+          PIN incorrecto. Reinténtalo.
+        </span>
+      </div>
+
+      <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.5rem;">
+        <button id="btn-admin-cancel" class="btn btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">Cancelar</button>
+        <button id="btn-admin-login" class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1.2rem;">Acceder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- CDN scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Local Scripts -->
+  <script src="matches.js"></script>
+  <script src="app.js?v=13"></script>
+</body>
+
+</html>

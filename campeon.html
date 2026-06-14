@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiniela 2026 - Resumen</title>
+  <title>Quiniela 2026 - Votar Campeón</title>
   <link rel="stylesheet" href="styles.css?v=13">
 </head>
 
@@ -42,7 +42,7 @@
 
     <!-- Tab Buttons -->
     <nav class="tabs-nav">
-      <a href="index.html" class="tab-btn active" id="nav-dashboard">
+      <a href="index.html" class="tab-btn" id="nav-dashboard">
         <i data-lucide="layout-dashboard"></i> Resumen
       </a>
       <a href="calendario.html" class="tab-btn" id="nav-schedule">
@@ -57,7 +57,7 @@
       <a href="pronosticos.html" class="tab-btn" id="nav-predictions">
         <i data-lucide="edit-3"></i> Pronósticos
       </a>
-      <a href="campeon.html" class="tab-btn" id="nav-champion">
+      <a href="campeon.html" class="tab-btn active" id="nav-champion">
         <i data-lucide="award"></i> Votar Campeón
       </a>
       <a href="estadisticas.html" class="tab-btn" id="nav-analytics">
@@ -71,57 +71,54 @@
       </a>
     </nav>
 
-    <!-- TAB: DASHBOARD -->
-    <section id="tab-dashboard" class="tab-panel active">
-      <!-- Summary Cards -->
-      <div class="dashboard-summary">
-        <div class="glass-card summary-card">
-          <div class="summary-icon primary">
-            <i data-lucide="users"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Jugadores</h4>
-            <p id="stat-players">0</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon secondary">
-            <i data-lucide="calendar"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Partidos Jugados</h4>
-            <p id="stat-matches">0 / 104</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon accent">
-            <i data-lucide="check-square"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Pronósticos Totales</h4>
-            <p id="stat-predictions">0</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Podium & Highlights -->
+    <!-- TAB: CHAMPION PREDICTION (PUBLIC) -->
+    <section id="tab-champion" class="tab-panel active">
       <div class="glass-card">
-        <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
-        <div id="podium-container"
-          style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
-          <!-- Se cargará dinámicamente -->
-        </div>
-      </div>
-
-      <!-- Bottom Players (Red Cards) -->
-      <div class="glass-card" style="margin-top: 1.5rem;">
-        <h2 class="card-title" style="color: var(--danger);"><i data-lucide="frown"></i> Sótano de Posiciones: Tarjetas Rojas</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-          Compañeros en zona de tarjeta roja (los 3 últimos lugares de la quiniela). ¡A meterle ganas a los pronósticos!
+        <h2 class="card-title"><i data-lucide="award"></i> Votar por el Campeón del Mundo</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Cada participante puede elegir qué selección ganará la Copa del Mundo 2026. ¡Esta predicción es abierta para todos y no requiere clave de administrador!
         </p>
-        <div id="red-cards-container"
-          style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-around; padding: 1rem 0;">
-          <!-- Se cargará dinámicamente -->
+
+        <!-- Banner de Votación Cerrada -->
+        <div id="champion-closed-banner"
+          style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.15); padding: 0.8rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: none; align-items: center; gap: 0.6rem; color: var(--danger); font-size: 0.85rem; font-weight: 600;">
+          <i data-lucide="lock" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+          <span>La votación ha sido cerrada por el Administrador. No se admiten más cambios en tu pronóstico.</span>
+        </div>
+
+        <!-- Banner del Campeón Oficial -->
+        <div id="champion-official-banner"
+          style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
+          <div style="background-color: var(--primary-glow); color: var(--primary); padding: 0.5rem; border-radius: var(--border-radius-sm); display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="trophy" style="color: var(--secondary); width: 22px; height: 22px;"></i>
+          </div>
+          <div>
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Campeón Oficial del Mundial</h4>
+            <div id="champion-official-name" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">
+              <span style="color: var(--text-muted);">Pendiente de definición (se definirá por el Administrador al terminar el torneo)</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="champion-no-players" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+          <i data-lucide="users" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 1rem;"></i>
+          <h3>No hay jugadores registrados</h3>
+          <p style="margin-top: 0.5rem; font-size: 0.9rem;">Por favor, registra jugadores en la pestaña de Pronósticos para comenzar a votar por el campeón.</p>
+        </div>
+
+        <div id="champion-table-container" style="display: none; overflow-x: auto;">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th style="width: 250px;">Jugador</th>
+                <th>Predicción de Campeón</th>
+                <th style="width: 150px; text-align: center;">Estatus de Puntos</th>
+              </tr>
+            </thead>
+            <tbody id="champion-votes-tbody">
+              <!-- Cargado dinámicamente -->
+            </tbody>
+          </table>
         </div>
       </div>
     </section>

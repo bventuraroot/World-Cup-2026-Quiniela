@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiniela 2026 - Resumen</title>
+  <title>Quiniela 2026 - Calendario</title>
   <link rel="stylesheet" href="styles.css?v=13">
 </head>
 
@@ -42,10 +42,10 @@
 
     <!-- Tab Buttons -->
     <nav class="tabs-nav">
-      <a href="index.html" class="tab-btn active" id="nav-dashboard">
+      <a href="index.html" class="tab-btn" id="nav-dashboard">
         <i data-lucide="layout-dashboard"></i> Resumen
       </a>
-      <a href="calendario.html" class="tab-btn" id="nav-schedule">
+      <a href="calendario.html" class="tab-btn active" id="nav-schedule">
         <i data-lucide="calendar-days"></i> Calendario
       </a>
       <a href="reglas.html" class="tab-btn" id="nav-rules">
@@ -71,57 +71,51 @@
       </a>
     </nav>
 
-    <!-- TAB: DASHBOARD -->
-    <section id="tab-dashboard" class="tab-panel active">
-      <!-- Summary Cards -->
-      <div class="dashboard-summary">
-        <div class="glass-card summary-card">
-          <div class="summary-icon primary">
-            <i data-lucide="users"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Jugadores</h4>
-            <p id="stat-players">0</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon secondary">
-            <i data-lucide="calendar"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Partidos Jugados</h4>
-            <p id="stat-matches">0 / 104</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon accent">
-            <i data-lucide="check-square"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Pronósticos Totales</h4>
-            <p id="stat-predictions">0</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Podium & Highlights -->
+    <!-- TAB: CALENDARIO -->
+    <section id="tab-schedule" class="tab-panel active">
       <div class="glass-card">
-        <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
-        <div id="podium-container"
-          style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
-          <!-- Se cargará dinámicamente -->
-        </div>
-      </div>
-
-      <!-- Bottom Players (Red Cards) -->
-      <div class="glass-card" style="margin-top: 1.5rem;">
-        <h2 class="card-title" style="color: var(--danger);"><i data-lucide="frown"></i> Sótano de Posiciones: Tarjetas Rojas</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-          Compañeros en zona de tarjeta roja (los 3 últimos lugares de la quiniela). ¡A meterle ganas a los pronósticos!
+        <h2 class="card-title"><i data-lucide="calendar-days"></i> Calendario de Partidos - Mundial 2026</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          Consulta las fechas, horas, sedes y resultados de los 104 partidos del torneo. Filtra por fase o busca por país.
         </p>
-        <div id="red-cards-container"
-          style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-around; padding: 1rem 0;">
-          <!-- Se cargará dinámicamente -->
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="filters-group">
+            <select id="filter-group-schedule" class="select-custom">
+              <option value="ALL">Fase del Torneo (Todos)</option>
+              <option value="Group Stage">Fase de Grupos</option>
+              <option value="Group A">Grupo A</option>
+              <option value="Group B">Grupo B</option>
+              <option value="Group C">Grupo C</option>
+              <option value="Group D">Grupo D</option>
+              <option value="Group E">Grupo E</option>
+              <option value="Group F">Grupo F</option>
+              <option value="Group G">Grupo G</option>
+              <option value="Group H">Grupo H</option>
+              <option value="Group I">Grupo I</option>
+              <option value="Group J">Grupo J</option>
+              <option value="Group K">Grupo K</option>
+              <option value="Group L">Grupo L</option>
+              <option value="Knockout Stage">Eliminatorias</option>
+              <option value="Round of 32">Dieciseisavos (R32)</option>
+              <option value="Round of 16">Octavos (R16)</option>
+              <option value="Quarter-final">Cuartos de Final</option>
+              <option value="Semi-final">Semifinales</option>
+              <option value="Match for third place">Tercer Lugar</option>
+              <option value="Final">Final</option>
+            </select>
+            <input type="text" id="search-team-schedule" class="input-text" placeholder="Buscar por selección..."
+              style="max-width: 250px; padding: 0.6rem 1rem;">
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+            Mostrando: <span id="schedule-matches-count" style="color: var(--primary); font-weight: 700;">0</span> partidos
+          </div>
+        </div>
+
+        <!-- Matches Grid -->
+        <div class="matches-grid" id="schedule-matches-grid">
+          <!-- Cargado dinámicamente -->
         </div>
       </div>
     </section>

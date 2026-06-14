@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiniela 2026 - Resumen</title>
+  <title>Quiniela 2026 - Clasificación</title>
   <link rel="stylesheet" href="styles.css?v=13">
 </head>
 
@@ -42,7 +42,7 @@
 
     <!-- Tab Buttons -->
     <nav class="tabs-nav">
-      <a href="index.html" class="tab-btn active" id="nav-dashboard">
+      <a href="index.html" class="tab-btn" id="nav-dashboard">
         <i data-lucide="layout-dashboard"></i> Resumen
       </a>
       <a href="calendario.html" class="tab-btn" id="nav-schedule">
@@ -51,7 +51,7 @@
       <a href="reglas.html" class="tab-btn" id="nav-rules">
         <i data-lucide="book-open"></i> Reglas
       </a>
-      <a href="clasificacion.html" class="tab-btn" id="nav-leaderboard">
+      <a href="clasificacion.html" class="tab-btn active" id="nav-leaderboard">
         <i data-lucide="trophy"></i> Clasificación
       </a>
       <a href="pronosticos.html" class="tab-btn" id="nav-predictions">
@@ -71,57 +71,37 @@
       </a>
     </nav>
 
-    <!-- TAB: DASHBOARD -->
-    <section id="tab-dashboard" class="tab-panel active">
-      <!-- Summary Cards -->
-      <div class="dashboard-summary">
-        <div class="glass-card summary-card">
-          <div class="summary-icon primary">
-            <i data-lucide="users"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Jugadores</h4>
-            <p id="stat-players">0</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon secondary">
-            <i data-lucide="calendar"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Partidos Jugados</h4>
-            <p id="stat-matches">0 / 104</p>
-          </div>
-        </div>
-        <div class="glass-card summary-card">
-          <div class="summary-icon accent">
-            <i data-lucide="check-square"></i>
-          </div>
-          <div class="summary-info">
-            <h4>Pronósticos Totales</h4>
-            <p id="stat-predictions">0</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Podium & Highlights -->
+    <!-- TAB: LEADERBOARD -->
+    <section id="tab-leaderboard" class="tab-panel active">
       <div class="glass-card">
-        <h2 class="card-title"><i data-lucide="award"></i> Podio de Líderes</h2>
-        <div id="podium-container"
-          style="display: flex; justify-content: space-around; align-items: flex-end; padding: 2rem 0; min-height: 200px; flex-wrap: wrap; gap: 2rem;">
-          <!-- Se cargará dinámicamente -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <h2 class="card-title" style="margin-bottom: 0; border: none; padding: 0;"><i data-lucide="list-ordered"></i> Tabla General</h2>
+          <button id="btn-export-excel-board" class="btn btn-primary">
+            <i data-lucide="download"></i> Exportar a Excel
+          </button>
         </div>
-      </div>
-
-      <!-- Bottom Players (Red Cards) -->
-      <div class="glass-card" style="margin-top: 1.5rem;">
-        <h2 class="card-title" style="color: var(--danger);"><i data-lucide="frown"></i> Sótano de Posiciones: Tarjetas Rojas</h2>
         <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-          Compañeros en zona de tarjeta roja (los 3 últimos lugares de la quiniela). ¡A meterle ganas a los pronósticos!
+          Haz clic en la fila de cualquier jugador para expandir y ver todas sus predicciones y su puntuación detallada por partido.
         </p>
-        <div id="red-cards-container"
-          style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-around; padding: 1rem 0;">
-          <!-- Se cargará dinámicamente -->
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Pos</th>
+                <th>Jugador</th>
+                <th style="text-align: center;">Partidos Pronosticados</th>
+                <th style="text-align: center; color: var(--primary);">Exacto</th>
+                <th style="text-align: center; color: var(--info);">Cercano</th>
+                <th style="text-align: center; color: var(--secondary);">Ganador</th>
+                <th style="text-align: center; color: var(--danger);">Fallados</th>
+                <th style="text-align: center;">Campeón Pronosticado</th>
+                <th style="text-align: right; font-weight: 700;">Puntos Totales</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <!-- Cargado por JS -->
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
