@@ -67,7 +67,9 @@ if ($connected) {
     try {
         $stmt = $pdo->query("SELECT id, name, champion_prediction, champion_prediction_text, champion_prediction_id FROM quiniela_players");
         while ($row = $stmt->fetch()) {
-            $key = 'p_' . $row['id'];
+            $idStr = sprintf('%.0f', $row['id']);
+            $key = 'p_' . $idStr;
+            $row['id'] = $idStr;
             $existing_players[$key] = $row;
         }
     } catch (PDOException $e) {
@@ -81,7 +83,8 @@ if ($connected) {
     try {
         $stmt = $pdo->query("SELECT player_id, match_id, goals1, goals2, unlocked FROM quiniela_predictions");
         while ($row = $stmt->fetch()) {
-            $key = 'p_' . $row['player_id'];
+            $idStr = sprintf('%.0f', $row['player_id']);
+            $key = 'p_' . $idStr;
             $existing_predictions[$key][$row['match_id']] = [
                 'goals1' => $row['goals1'],
                 'goals2' => $row['goals2'],
@@ -119,9 +122,10 @@ $players = [];
 
 // 1. Cargar la lista predefinida oficial
 foreach ($default_players as $id => $name) {
-    $key = 'p_' . $id;
+    $idStr = sprintf('%.0f', $id);
+    $key = 'p_' . $idStr;
     $players[$key] = [
-        'id' => $id,
+        'id' => $idStr,
         'name' => $name,
         'champion_prediction' => null,
         'champion_prediction_text' => null,
@@ -133,8 +137,10 @@ foreach ($default_players as $id => $name) {
 
 // 2. Fusionar con los datos actuales de la Base de Datos (sobrescribe/añade)
 foreach ($existing_players as $key => $row) {
+    $idStr = sprintf('%.0f', $row['id']);
+    $key = 'p_' . $idStr;
     $players[$key] = [
-        'id' => $row['id'],
+        'id' => $idStr,
         'name' => $row['name'],
         'champion_prediction' => $row['champion_prediction'],
         'champion_prediction_text' => $row['champion_prediction_text'],
@@ -163,7 +169,7 @@ if ($log_found) {
             
             // 1. Jugador Agregado
             if (preg_match('/ADMIN: Jugador agregado - ID: (\d+), Nombre: (.+)/', $line, $matches)) {
-                $id = $matches[1];
+                $id = sprintf('%.0f', $matches[1]);
                 $key = 'p_' . $id;
                 
                 // Conservar nombre oficial/BD si ya está cargado
@@ -181,7 +187,7 @@ if ($log_found) {
             }
             // 2. Jugador Eliminado
             elseif (preg_match('/ADMIN: Jugador eliminado - ID: (\d+)/', $line, $matches)) {
-                $id = $matches[1];
+                $id = sprintf('%.0f', $matches[1]);
                 $key = 'p_' . $id;
                 // No eliminar si es parte de la lista predefinida oficial o de la base de datos
                 if (!isset($default_players[$id]) && !isset($existing_players[$key])) {
@@ -191,7 +197,7 @@ if ($log_found) {
             }
             // 3. Pronóstico Guardado
             elseif (preg_match('/Pronóstico guardado - Jugador: (\d+), Partido: (\w+), Marcador: ([0-9]*|N\/A)-([0-9]*|N\/A)/', $line, $matches)) {
-                $pId = $matches[1];
+                $pId = sprintf('%.0f', $matches[1]);
                 $key = 'p_' . $pId;
                 $mId = $matches[2];
                 $g1 = ($matches[3] === 'N/A' || $matches[3] === '') ? null : $matches[3];
@@ -224,7 +230,7 @@ if ($log_found) {
             }
             // 4. Voto Campeón Guardado
             elseif (preg_match('/Voto campeón guardado - Jugador: (\d+), Selección: (.+)/', $line, $matches)) {
-                $pId = $matches[1];
+                $pId = sprintf('%.0f', $matches[1]);
                 $key = 'p_' . $pId;
                 $sel = trim($matches[2]);
                 
@@ -293,7 +299,36 @@ if (!empty($existing_players)) {
             }
         }
     }
+    unset($p); // Romper la referencia al último elemento
 }
+
+// DEDUPLICACIÓN ESTRICTA: Garantizar que no exista ningún ID repetido en el arreglo final
+$unique_players = [];
+foreach ($players as $key => $p) {
+    // Limpiar el ID a string numérico puro
+    $clean_id = preg_replace('/\D/', '', $p['id']);
+    if ($clean_id === '') continue;
+    
+    $target_key = 'p_' . $clean_id;
+    
+    if (!isset($unique_players[$target_key])) {
+        $unique_players[$target_key] = $p;
+    } else {
+        // Si ya existe, fusionar/preferir la versión con mejor procedencia
+        $existing = $unique_players[$target_key];
+        
+        // Preferir origen 'db' o 'official' sobre 'log' o 'log_prediction'
+        $sources_priority = ['db' => 4, 'official' => 3, 'log' => 2, 'log_prediction' => 1];
+        
+        $p_priority = isset($sources_priority[$p['source']]) ? $sources_priority[$p['source']] : 0;
+        $existing_priority = isset($sources_priority[$existing['source']]) ? $sources_priority[$existing['source']] : 0;
+        
+        if ($p_priority > $existing_priority) {
+            $unique_players[$target_key] = $p;
+        }
+    }
+}
+$players = $unique_players;
 
 // Buscar en logs si se solicita
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -844,6 +879,35 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         <span class="nav-user">Sesión de Administrador Activa</span>
         <a href="recuperar_logs.php?logout=1" class="logout-link">Cerrar Sesión</a>
       </div>
+
+      <!-- PANEL DE DIAGNÓSTICO PARA EL DESARROLLADOR -->
+      <details style="background: rgba(15, 23, 42, 0.9); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: left;">
+        <summary style="cursor: pointer; color: var(--secondary); font-weight: bold; font-size: 0.9rem;">🔍 Panel de Diagnóstico Técnico (Claves/Tipos)</summary>
+        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary); max-height: 400px; overflow-y: auto;">
+          <p><strong>PHP_INT_SIZE:</strong> <?php echo PHP_INT_SIZE; ?> (<?php echo PHP_INT_SIZE === 4 ? '32-bit' : '64-bit'; ?>)</p>
+          <p><strong>Jugadores en Base de Datos (quiniela_players):</strong></p>
+          <pre><?php 
+            if ($connected) {
+                try {
+                    $stmt = $pdo->query("SELECT id, name, champion_prediction FROM quiniela_players");
+                    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        echo "  ID: " . $r['id'] . " (" . gettype($r['id']) . ") | Name: " . $r['name'] . "\n";
+                    }
+                } catch (Exception $e) {
+                    echo "  Error: " . $e->getMessage() . "\n";
+                }
+            } else {
+                echo "  No conectado a la base de datos.\n";
+            }
+          ?></pre>
+          <p><strong>Arreglo \$players en memoria (antes de renderizar):</strong></p>
+          <pre><?php 
+            foreach ($players as $k => $p) {
+                echo "  Key: '$k' => ID: " . $p['id'] . " (" . gettype($p['id']) . ") | Name: " . $p['name'] . " | Source: " . $p['source'] . "\n";
+            }
+          ?></pre>
+        </div>
+      </details>
       
       <?php if ($restore_error): ?>
         <div class="alert alert-danger">

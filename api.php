@@ -319,7 +319,7 @@ if ($action === 'get') {
         foreach ($db_players as $db_p) {
             $pId = $db_p['id'];
             $players[] = [
-                'id' => intval($pId),
+                'id' => (string)$pId,
                 'name' => $db_p['name'],
                 'championPrediction' => $db_p['champion_prediction'],
                 'championPredictionText' => $db_p['champion_prediction_text'],
