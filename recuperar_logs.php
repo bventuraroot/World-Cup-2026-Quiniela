@@ -225,9 +225,19 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         
         // 2. Insertar jugadores reconstruidos (usando nombres editados si se enviaron)
         $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) 
-                                    VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
+                                    VALUES (:id, :name, :champ, :champ_txt, :champ_id)
+                                    ON DUPLICATE KEY UPDATE name = :name, champion_prediction = :champ, champion_prediction_text = :champ_txt, champion_prediction_id = :champ_id");
+        
+        $inserted_ids = [];
         foreach ($players as $p) {
             $pId = $p['id'];
+            
+            // Evitar duplicados exactos si PHP realiza conversiones extrañas de tipos
+            if (in_array($pId, $inserted_ids)) {
+                continue;
+            }
+            $inserted_ids[] = $pId;
+            
             $name = isset($_POST['player_names'][$pId]) ? trim($_POST['player_names'][$pId]) : '';
             if ($name === '') {
                 $name = $p['name'];
@@ -243,7 +253,8 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         
         // 3. Insertar predicciones reconstruidas
         $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) 
-                                  VALUES (:player_id, :match_id, :goals1, :goals2, :unlocked)");
+                                  VALUES (:player_id, :match_id, :goals1, :goals2, :unlocked)
+                                  ON DUPLICATE KEY UPDATE goals1 = :goals1, goals2 = :goals2, unlocked = :unlocked");
         foreach ($predictions as $pId => $preds) {
             foreach ($preds as $mId => $pred) {
                 $stmtPred->execute([
