@@ -906,7 +906,7 @@ $(document).ready(function() {
     });
   }
 
-  // Obtener los MVPs de cada día basado en partidos finalizados
+  // Obtener los MVPs de cada día (top 3) basado en partidos finalizados
   function getDailyMVPs() {
     if (typeof WORLD_CUP_2026_MATCHES === 'undefined' || !state.players || state.players.length === 0) {
       return [];
@@ -929,7 +929,7 @@ $(document).ready(function() {
     // 2. Calcular los puntos por día de cada jugador
     Object.keys(finishedMatchesByDate).forEach(date => {
       const matches = finishedMatchesByDate[date];
-      const playerPoints = {};
+      const playerPoints = [];
 
       state.players.forEach(player => {
         let totalDailyPoints = 0;
@@ -937,36 +937,31 @@ $(document).ready(function() {
           const result = getPlayerPointsForMatch(player.id, match.id);
           totalDailyPoints += result.points;
         });
-        playerPoints[player.id] = {
-          id: player.id,
-          name: player.name,
-          points: totalDailyPoints
-        };
-      });
-
-      // Encontrar el puntaje máximo del día
-      let maxPoints = -1;
-      state.players.forEach(player => {
-        const pts = playerPoints[player.id].points;
-        if (pts > maxPoints) {
-          maxPoints = pts;
+        
+        // Solo incluir a jugadores con puntos > 0
+        if (totalDailyPoints > 0) {
+          playerPoints.push({
+            id: player.id,
+            name: player.name,
+            points: totalDailyPoints
+          });
         }
       });
 
-      // Obtener los jugadores que lograron el puntaje máximo (solo si maxPoints > 0)
-      let mvps = [];
-      if (maxPoints > 0) {
-        state.players.forEach(player => {
-          if (playerPoints[player.id].points === maxPoints) {
-            mvps.push(playerPoints[player.id]);
-          }
-        });
-      }
+      // Ordenar por puntos desc, luego nombre asc
+      playerPoints.sort((a, b) => {
+        if (b.points !== a.points) {
+          return b.points - a.points;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      // Tomar el top 3 de jugadores con puntos
+      const topPlayers = playerPoints.slice(0, 3);
 
       dailyMVPs.push({
         date,
-        maxPoints: maxPoints > 0 ? maxPoints : 0,
-        mvps
+        topPlayers
       });
     });
 
@@ -1154,7 +1149,7 @@ $(document).ready(function() {
       });
     }
 
-    // Renderizar MVP del Día
+    // Renderizar MVP del Día (Top 3)
     const mvpContainer = $('#mvp-container');
     if (mvpContainer.length > 0) {
       mvpContainer.empty();
@@ -1169,8 +1164,54 @@ $(document).ready(function() {
         `);
       } else {
         dailyMVPs.forEach(dayData => {
-          if (dayData.maxPoints > 0) {
-            const mvpNames = dayData.mvps.map(m => m.name).join(', ');
+          if (dayData.topPlayers.length > 0) {
+            let top3Html = '';
+            let currentRank = 1;
+            let prevPoints = -1;
+
+            dayData.topPlayers.forEach((p, idx) => {
+              if (idx > 0 && p.points < prevPoints) {
+                currentRank = idx + 1;
+              }
+              prevPoints = p.points;
+
+              // Definir colores premium para los badges del podio
+              let badgeColor = 'var(--text-secondary)';
+              let badgeBg = 'rgba(255, 255, 255, 0.08)';
+              if (currentRank === 1) {
+                badgeColor = '#0b0f19';
+                badgeBg = 'var(--primary)'; // Oro / Amarillo
+              } else if (currentRank === 2) {
+                badgeColor = '#0b0f19';
+                badgeBg = '#94a3b8'; // Plata
+              } else if (currentRank === 3) {
+                badgeColor = '#0b0f19';
+                badgeBg = '#ea580c'; // Bronce
+              }
+
+              top3Html += `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%;">
+                    <span style="
+                      display: inline-flex;
+                      align-items: center;
+                      justify-content: center;
+                      width: 20px;
+                      height: 20px;
+                      border-radius: 50%;
+                      background: ${badgeBg};
+                      color: ${badgeColor};
+                      font-size: 0.7rem;
+                      font-weight: 800;
+                      flex-shrink: 0;
+                    ">${currentRank}°</span>
+                    <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                  </div>
+                  <span style="font-size: 0.85rem; font-weight: 700; color: var(--primary); flex-shrink: 0;">+${p.points} Pts</span>
+                </div>
+              `;
+            });
+
             mvpContainer.append(`
               <div class="mvp-day-card" style="
                 background: rgba(255, 255, 255, 0.03);
@@ -1178,25 +1219,21 @@ $(document).ready(function() {
                 border-radius: var(--border-radius-md);
                 padding: 1rem;
                 flex: 1 1 calc(25% - 1rem);
-                min-width: 200px;
+                min-width: 220px;
                 max-width: 280px;
                 display: flex;
                 flex-direction: column;
-                gap: 0.3rem;
+                gap: 0.4rem;
                 box-shadow: var(--shadow-sm);
                 backdrop-filter: var(--glass-blur);
                 transition: transform var(--transition-fast), border-color var(--transition-fast);
               " onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='rgba(251, 191, 36, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(255, 255, 255, 0.08)'">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.3rem;">
                   <i data-lucide="calendar" style="width: 12px; height: 12px; color: var(--primary);"></i>
                   ${formatDateSpanish(dayData.date)}
                 </div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: 'Outfit'; margin-top: 0.2rem; word-break: break-word;">
-                  ${mvpNames}
-                </div>
-                <div style="font-size: 0.85rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 0.25rem; margin-top: auto; padding-top: 0.3rem;">
-                  <i data-lucide="trophy" style="width: 14px; height: 14px;"></i>
-                  +${dayData.maxPoints} Pts
+                <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                  ${top3Html}
                 </div>
               </div>
             `);
@@ -1208,7 +1245,7 @@ $(document).ready(function() {
                 border-radius: var(--border-radius-md);
                 padding: 1rem;
                 flex: 1 1 calc(25% - 1rem);
-                min-width: 200px;
+                min-width: 220px;
                 max-width: 280px;
                 display: flex;
                 flex-direction: column;
@@ -1217,12 +1254,12 @@ $(document).ready(function() {
                 backdrop-filter: var(--glass-blur);
                 opacity: 0.75;
               ">
-                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.3rem;">
                   <i data-lucide="calendar" style="width: 12px; height: 12px;"></i>
                   ${formatDateSpanish(dayData.date)}
                 </div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-muted); font-family: 'Outfit'; margin-top: 0.2rem;">
-                  Ninguno
+                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-muted); font-family: 'Outfit';">
+                  Ninguno con puntos
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-top: auto; padding-top: 0.3rem;">
                   <i data-lucide="minus" style="width: 14px; height: 14px;"></i>

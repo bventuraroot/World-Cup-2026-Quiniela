@@ -48,63 +48,7 @@ try {
 }
 
 try {
-    // 1. Consultar jugadores
-    $players = [];
-    $stmt = $pdo->query("SELECT * FROM quiniela_players ORDER BY name ASC");
-    $db_players = $stmt->fetchAll();
-
-    // 2. Consultar predicciones
-    $preds = [];
-    $stmtPred = $pdo->query("SELECT * FROM quiniela_predictions");
-    foreach ($stmtPred->fetchAll() as $pr) {
-        $pId = $pr['player_id'];
-        $mId = $pr['match_id'];
-        if (!isset($preds[$pId])) {
-            $preds[$pId] = [];
-        }
-        $preds[$pId][$mId] = [
-            'goals1' => $pr['goals1'],
-            'goals2' => $pr['goals2'],
-            'unlocked' => intval($pr['unlocked']) === 1
-        ];
-    }
-
-    foreach ($db_players as $db_p) {
-        $pId = $db_p['id'];
-        $players[] = [
-            'id' => (string)$pId,
-            'name' => $db_p['name'],
-            'championPrediction' => $db_p['champion_prediction'],
-            'championPredictionText' => $db_p['champion_prediction_text'],
-            'championPredictionId' => $db_p['champion_prediction_id'],
-            'bonusPoints' => isset($db_p['bonus_points']) ? intval($db_p['bonus_points']) : 0,
-            'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
-        ];
-    }
-
-    // 3. Consultar resultados reales
-    $realResults = new stdClass();
-    $stmtReal = $pdo->query("SELECT * FROM quiniela_real_results");
-    foreach ($stmtReal->fetchAll() as $r) {
-        $realResults->{$r['match_id']} = [
-            'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
-            'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
-            'status' => $r['status'],
-            'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
-        ];
-    }
-
-    // 4. Consultar nombres de equipos editados
-    $matchTeams = new stdClass();
-    $stmtTeams = $pdo->query("SELECT * FROM quiniela_match_teams");
-    foreach ($stmtTeams->fetchAll() as $t) {
-        $matchTeams->{$t['match_id']} = [
-            'team1' => $t['team1'],
-            'team2' => $t['team2']
-        ];
-    }
-
-    // 5. Consultar configuración
+    // 1. Consultar configuración
     $config = [
         'pointsExact' => 3,
         'pointsWinner' => 1,
@@ -131,6 +75,166 @@ try {
                 $config[$k] = $v;
             }
         }
+    }
+
+    // 2. Consultar resultados reales
+    $realResults = new stdClass();
+    $stmtReal = $pdo->query("SELECT * FROM quiniela_real_results");
+    foreach ($stmtReal->fetchAll() as $r) {
+        $realResults->{$r['match_id']} = [
+            'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
+            'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
+            'status' => $r['status'],
+            'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
+        ];
+    }
+
+    // 3. Consultar nombres de equipos editados
+    $matchTeams = new stdClass();
+    $stmtTeams = $pdo->query("SELECT * FROM quiniela_match_teams");
+    foreach ($stmtTeams->fetchAll() as $t) {
+        $matchTeams->{$t['match_id']} = [
+            'team1' => $t['team1'],
+            'team2' => $t['team2']
+        ];
+    }
+
+    // 4. Cargar matches.js
+    $local_matches = [];
+    $matches_file = __DIR__ . '/matches.js';
+    if (file_exists($matches_file)) {
+        $js_content = file_get_contents($matches_file);
+        $start_pos = strpos($js_content, '[');
+        $end_pos = strrpos($js_content, ']') + 1;
+        if ($start_pos !== false && $end_pos !== false) {
+            $json_str = substr($js_content, $start_pos, $end_pos - $start_pos);
+            $local_matches = json_decode($json_str, true) ?: [];
+        }
+    }
+
+    // 5. Consultar jugadores
+    $stmt = $pdo->query("SELECT * FROM quiniela_players ORDER BY name ASC");
+    $db_players = $stmt->fetchAll();
+
+    // 6. Consultar predicciones
+    $preds = [];
+    $stmtPred = $pdo->query("SELECT * FROM quiniela_predictions");
+    foreach ($stmtPred->fetchAll() as $pr) {
+        $pId = $pr['player_id'];
+        $mId = $pr['match_id'];
+        if (!isset($preds[$pId])) {
+            $preds[$pId] = [];
+        }
+        $preds[$pId][$mId] = [
+            'goals1' => $pr['goals1'],
+            'goals2' => $pr['goals2'],
+            'unlocked' => intval($pr['unlocked']) === 1
+        ];
+    }
+
+    // 7. Pre-calcular minDistance para cada partido finalizado
+    $minDistances = [];
+    $ptsExactCfg = isset($config['pointsExact']) ? intval($config['pointsExact']) : 3;
+    $ptsWinnerCfg = isset($config['pointsWinner']) ? intval($config['pointsWinner']) : 1;
+    $ptsClosestCfg = isset($config['pointsClosest']) ? intval($config['pointsClosest']) : 1;
+    $ptsChampionCfg = isset($config['pointsChampion']) ? intval($config['pointsChampion']) : 10;
+
+    foreach ($local_matches as $match) {
+        $mId = $match['id'];
+        if (isset($realResults->{$mId})) {
+            $real = $realResults->{$mId};
+            if ($real['status'] === 'finished') {
+                $r1 = $real['goals1'];
+                $r2 = $real['goals2'];
+                if ($r1 !== null && $r2 !== null) {
+                    $minDist = 999999;
+                    foreach ($db_players as $db_p) {
+                        $pId = $db_p['id'];
+                        if (isset($preds[$pId][$mId])) {
+                            $pred = $preds[$pId][$mId];
+                            if ($pred['goals1'] !== null && $pred['goals1'] !== '' && $pred['goals2'] !== null && $pred['goals2'] !== '') {
+                                $p1 = intval($pred['goals1']);
+                                $p2 = intval($pred['goals2']);
+                                
+                                $isExact = ($p1 === $r1 && $p2 === $r2);
+                                if (!$isExact) {
+                                    $dist = abs($p1 - $r1) + abs($p2 - $r2);
+                                    if ($dist < $minDist) {
+                                        $minDist = $dist;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    $minDistances[$mId] = $minDist;
+                }
+            }
+        }
+    }
+
+    // 8. Construir lista de jugadores con puntos totales pre-calculados (sumando bonus_points y predicciones)
+    $players = [];
+    foreach ($db_players as $db_p) {
+        $pId = $db_p['id'];
+        $bonus = isset($db_p['bonus_points']) ? intval($db_p['bonus_points']) : 0;
+        $totalPoints = $bonus;
+
+        if (isset($preds[$pId])) {
+            foreach ($preds[$pId] as $mId => $pred) {
+                if (isset($realResults->{$mId})) {
+                    $real = $realResults->{$mId};
+                    if ($real['status'] === 'finished') {
+                        $r1 = $real['goals1'];
+                        $r2 = $real['goals2'];
+                        
+                        if ($r1 !== null && $r2 !== null && $pred['goals1'] !== null && $pred['goals1'] !== '' && $pred['goals2'] !== null && $pred['goals2'] !== '') {
+                            $p1 = intval($pred['goals1']);
+                            $p2 = intval($pred['goals2']);
+                            
+                            if ($p1 === $r1 && $p2 === $r2) {
+                                $totalPoints += ($ptsExactCfg + $ptsWinnerCfg);
+                            } else {
+                                $predDiff = $p1 - $p2;
+                                $realDiff = $r1 - $r2;
+                                $isWinner = ($predDiff > 0 && $realDiff > 0) || ($predDiff < 0 && $realDiff < 0) || ($predDiff === 0 && $realDiff === 0);
+                                
+                                $pointsEarned = 0;
+                                if ($isWinner) {
+                                    $pointsEarned += $ptsWinnerCfg;
+                                }
+                                
+                                $minDist = isset($minDistances[$mId]) ? $minDistances[$mId] : 999999;
+                                $dist = abs($p1 - $r1) + abs($p2 - $r2);
+                                if ($minDist !== 999999 && $dist === $minDist) {
+                                    $pointsEarned += $ptsClosestCfg;
+                                }
+                                
+                                $totalPoints += $pointsEarned;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Puntos de campeón
+        if ($db_p['champion_prediction'] && $realChampion) {
+            if ($db_p['champion_prediction'] === $realChampion) {
+                $totalPoints += $ptsChampionCfg;
+            }
+        }
+
+        $players[] = [
+            'id' => (string)$pId,
+            'name' => $db_p['name'],
+            'championPrediction' => $db_p['champion_prediction'],
+            'championPredictionText' => $db_p['champion_prediction_text'],
+            'championPredictionId' => $db_p['champion_prediction_id'],
+            'bonusPoints' => $bonus,
+            'points' => $totalPoints,        // Para compatibilidad
+            'totalPoints' => $totalPoints,   // Para compatibilidad
+            'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
+        ];
     }
 
     // Unificar el estado consolidado
