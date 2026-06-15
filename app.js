@@ -468,7 +468,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').show();
       
       // Habilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting').prop('disabled', false);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', false);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', false);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', false);
       
@@ -490,7 +490,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').hide();
       
       // Deshabilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting').prop('disabled', true);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', true);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', true);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', true);
       
@@ -1288,6 +1288,97 @@ $(document).ready(function() {
         }
       });
     });
+  }
+
+  // Auto-ajustar puntos para que coincidan exactamente con la tabla previa al incidente
+  function autoAdjustPreIncidentPoints() {
+    const targetPointsMap = {
+      '1781052620631': 34, // Carlos Cardoza
+      '1781053224616': 33, // Jorge Varela
+      '1781051130474': 27, // Brian Ventura
+      '1781052553597': 26, // Karla Reyes
+      '1781051937433': 26, // Sussy Escobar
+      '1781052648683': 22, // Walter Campos
+      '1781051800815': 22, // Eduardo Mata
+      '1781052521483': 19, // Elsa Milla
+      '1781052534647': 18, // Mario Estrada
+      '1781052568919': 16, // Hector Garcia
+      '1781052600345': 11, // JC Andreu
+      '1781052640891': 4   // Raquel Mejia
+    };
+
+    // Guardar bonusPoints actuales para restauración en memoria temporal
+    const savedBonus = state.players.map(p => ({ id: p.id, bonus: p.bonusPoints || 0 }));
+    
+    // Poner todos a 0 para el cálculo de puntos de predicción puros
+    state.players.forEach(p => p.bonusPoints = 0);
+    
+    // Calcular puntos base a partir de pronósticos y resultados reales procesados en el sistema
+    const baseLeaderboard = getPlayersLeaderboard();
+    
+    // Restaurar los bonus en memoria
+    state.players.forEach(p => {
+      const saved = savedBonus.find(s => s.id === p.id);
+      p.bonusPoints = saved ? saved.bonus : 0;
+    });
+    
+    // Ejecutar el guardado secuencial sincrónico de las diferencias calculadas
+    let successCount = 0;
+    let completedCount = 0;
+    const totalCount = baseLeaderboard.length;
+    
+    if (totalCount === 0) {
+      showToast("No hay jugadores registrados para realizar el ajuste.", "error");
+      return;
+    }
+
+    baseLeaderboard.forEach(item => {
+      const pId = item.id;
+      const target = targetPointsMap[pId];
+      if (target !== undefined) {
+        const base = item.totalPoints; // Puntos calculados de predicciones
+        const diff = target - base;
+        
+        // Guardar en memoria
+        const player = state.players.find(pl => pl.id == pId);
+        if (player) {
+          player.bonusPoints = diff;
+        }
+        
+        // Enviar al servidor mediante AJAX
+        $.ajax({
+          url: 'api.php?action=save_bonus_points',
+          type: 'POST',
+          data: JSON.stringify({ player_id: pId, bonus_points: diff }),
+          contentType: 'application/json',
+          success: function(res) {
+            successCount++;
+            completedCount++;
+            if (completedCount === totalCount) {
+              finishSync();
+            }
+          },
+          error: function() {
+            completedCount++;
+            if (completedCount === totalCount) {
+              finishSync();
+            }
+          }
+        });
+      } else {
+        completedCount++;
+        if (completedCount === totalCount) {
+          finishSync();
+        }
+      }
+    });
+
+    function finishSync() {
+      showToast(`Ajuste completado: ${successCount} jugadores sincronizados con éxito.`, "success");
+      renderBonusPointsList();
+      renderLeaderboard();
+      renderDashboard();
+    }
   }
 
   // Renderizar Selector de Jugadores en Pronósticos
@@ -4153,6 +4244,9 @@ $(document).ready(function() {
             saveDbConfig();
           });
           renderBonusPointsList();
+          $('#btn-sync-pre-incident-points').off('click').on('click', function() {
+            autoAdjustPreIncidentPoints();
+          });
         }
       }, function() {
         window.location.href = 'index.html';
@@ -4187,6 +4281,9 @@ $(document).ready(function() {
           saveDbConfig();
         });
         renderBonusPointsList();
+        $('#btn-sync-pre-incident-points').off('click').on('click', function() {
+          autoAdjustPreIncidentPoints();
+        });
       }
     }
 
