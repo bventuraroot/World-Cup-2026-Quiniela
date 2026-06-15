@@ -317,7 +317,7 @@ $(document).ready(function() {
     
     // 2. Determinar endpoint y payload específico para la base de datos MySQL
     const ctx = changeCtx || {};
-    let url = 'api.php?action=save'; // fallback completo
+    let url = 'api.php?action=save'; // fallback completo para casos no clasificados
     let payload = state;
 
     if (ctx.type === 'prediction') {
@@ -370,7 +370,8 @@ $(document).ready(function() {
           match_id: matchId,
           goals1: res ? res.goals1 : null,
           goals2: res ? res.goals2 : null,
-          status: res ? res.status : 'scheduled'
+          status: res ? res.status : 'scheduled',
+          api_data: res ? res.api_data : null
         };
       }
     } else if (ctx.type === 'match-teams') {
@@ -392,9 +393,20 @@ $(document).ready(function() {
       payload = {
         realChampion: state.realChampion
       };
-    } else if (ctx.type === 'players-list') {
-      url = 'api.php?action=import_state';
-      payload = state;
+    } else if (ctx.type === 'add-player') {
+      url = 'api.php?action=add_player';
+      payload = {
+        id: ctx.player.id,
+        name: ctx.player.name
+      };
+    } else if (ctx.type === 'delete-player') {
+      url = 'api.php?action=delete_player';
+      payload = {
+        id: ctx.playerId
+      };
+    } else if (ctx.type === 'reset-players') {
+      url = 'api.php?action=reset_players';
+      payload = {};
     } else if (ctx.type === 'full-overwrite') {
       url = 'api.php?action=import_state';
       payload = state;
@@ -412,52 +424,14 @@ $(document).ready(function() {
             console.log(`[Quiniela DB Success] Guardado exitoso de tipo "${ctx.type || 'completo'}"`, response);
           } else {
             console.warn(`[Quiniela DB Warning] Fallo en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Respuesta:`, response);
-            if (url !== 'api.php?action=save') {
-              console.warn("Intentando guardar con fallback completo en action=save...");
-              $.ajax({
-                url: 'api.php?action=save',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(state),
-                success: function(respFallback) {
-                  console.log(`[Quiniela DB Fallback Success] Fallback completo guardado con éxito.`, respFallback);
-                },
-                error: function(xhrFb, statusFb, errFb) {
-                  console.error(`[Quiniela DB Fallback Error] Falló el guardado del fallback completo:`, errFb);
-                }
-              });
-            }
           }
         },
         error: function(xhr, status, error) {
           console.warn(`[Quiniela DB Error] Error de red en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Detalles:`, error);
-          if (url !== 'api.php?action=save') {
-            console.warn("Reintentando con guardado completo de fallback en action=save...");
-            $.ajax({
-              url: 'api.php?action=save',
-              type: 'POST',
-              contentType: 'application/json',
-              data: JSON.stringify(state),
-              success: function(respFallback) {
-                console.log(`[Quiniela DB Fallback Success] Fallback completo guardado con éxito tras error de red.`, respFallback);
-              },
-              error: function(xhrFb, statusFb, errFb) {
-                console.error(`[Quiniela DB Fallback Error] Falló el guardado del fallback completo tras error de red:`, errFb);
-              }
-            });
-          }
         }
       });
     } catch (e) {
       console.warn("[Quiniela DB Exception] Excepción en saveState:", e);
-      try {
-        $.ajax({
-          url: 'api.php?action=save',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify(state)
-        });
-      } catch (err) {}
     }
   }
 
@@ -2478,7 +2452,7 @@ $(document).ready(function() {
     state.players.push(newPlayer);
     activePlayerId = newPlayer.id;
 
-    saveState({ type: 'players-list' });
+    saveState({ type: 'add-player', player: newPlayer });
     nameInput.val('');
     
     renderPlayersSelector();
@@ -2520,7 +2494,7 @@ $(document).ready(function() {
         activePlayerId = null;
       }
 
-      saveState({ type: 'players-list' });
+      saveState({ type: 'delete-player', playerId: player.id });
 
       renderPlayersSelector();
       renderPredictionsGrid();
@@ -2813,7 +2787,7 @@ $(document).ready(function() {
     if (confirm("¿Estás seguro de que deseas eliminar a TODOS los jugadores y sus predicciones? Los marcadores reales se mantendrán intactos.")) {
       state.players = [];
       activePlayerId = null;
-      saveState({ type: 'players-list' });
+      saveState({ type: 'reset-players' });
 
       renderDashboard();
       renderLeaderboard();

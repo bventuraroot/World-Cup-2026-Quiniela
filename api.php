@@ -665,13 +665,18 @@ function importFullStateJSON($pdo, $state_json) {
 
         // Real results
         if (isset($state_json['realResults']) && is_array($state_json['realResults'])) {
-            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status) VALUES (:match_id, :goals1, :goals2, :status)");
+            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status, api_data) VALUES (:match_id, :goals1, :goals2, :status, :api_data)");
             foreach ($state_json['realResults'] as $mId => $r) {
+                $apiDataVal = null;
+                if (isset($r['api_data'])) {
+                    $apiDataVal = is_array($r['api_data']) ? json_encode($r['api_data'], JSON_UNESCAPED_UNICODE) : $r['api_data'];
+                }
                 $stmtReal->execute([
                     'match_id' => $mId,
                     'goals1' => ($r['goals1'] !== null && $r['goals1'] !== "") ? intval($r['goals1']) : null,
                     'goals2' => ($r['goals2'] !== null && $r['goals2'] !== "") ? intval($r['goals2']) : null,
-                    'status' => isset($r['status']) ? $r['status'] : 'scheduled'
+                    'status' => isset($r['status']) ? $r['status'] : 'scheduled',
+                    'api_data' => $apiDataVal
                 ]);
             }
         }
