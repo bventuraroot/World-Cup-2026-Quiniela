@@ -45,13 +45,30 @@ if ($connected) {
     }
 }
 
-// Obtener jugadores ya registrados en la base de datos (con sus IDs reales)
+// Obtener jugadores ya registrados en la base de datos
 $existing_players = [];
 if ($connected) {
     try {
-        $stmt = $pdo->query("SELECT id, name FROM quiniela_players");
+        $stmt = $pdo->query("SELECT id, name, champion_prediction, champion_prediction_text, champion_prediction_id FROM quiniela_players");
         while ($row = $stmt->fetch()) {
-            $existing_players[$row['id']] = $row['name'];
+            $existing_players[$row['id']] = $row;
+        }
+    } catch (PDOException $e) {
+        // Ignorar si la tabla no existe o está vacía
+    }
+}
+
+// Obtener predicciones ya registradas en la base de datos
+$existing_predictions = [];
+if ($connected) {
+    try {
+        $stmt = $pdo->query("SELECT player_id, match_id, goals1, goals2, unlocked FROM quiniela_predictions");
+        while ($row = $stmt->fetch()) {
+            $existing_predictions[$row['player_id']][$row['match_id']] = [
+                'goals1' => $row['goals1'],
+                'goals2' => $row['goals2'],
+                'unlocked' => $row['unlocked']
+            ];
         }
     } catch (PDOException $e) {
         // Ignorar si la tabla no existe o está vacía
@@ -79,9 +96,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pin'])) {
 
 $is_authenticated = isset($_SESSION['log_recovered_auth']) && $_SESSION['log_recovered_auth'] === true;
 
-// Inicializar contenedores de datos reconstruidos
+// Inicializar contenedores de datos reconstruidos pre-cargados con los de la Base de Datos
 $players = [];
-$predictions = [];
+foreach ($existing_players as $id => $row) {
+    $players[$id] = [
+        'id' => $id,
+        'name' => $row['name'],
+        'champion_prediction' => $row['champion_prediction'],
+        'champion_prediction_text' => $row['champion_prediction_text'],
+        'champion_prediction_id' => $row['champion_prediction_id'],
+        'auto_created' => false,
+        'source' => 'db'
+    ];
+}
+
+$predictions = $existing_predictions;
 $match_teams = [];
 $real_results = [];
 $total_lines_processed = 0;
@@ -101,10 +130,11 @@ if ($log_found) {
                 $players[$id] = [
                     'id' => $id,
                     'name' => $name,
-                    'champion_prediction' => null,
-                    'champion_prediction_text' => null,
-                    'champion_prediction_id' => null,
-                    'auto_created' => false
+                    'champion_prediction' => isset($players[$id]) ? $players[$id]['champion_prediction'] : null,
+                    'champion_prediction_text' => isset($players[$id]) ? $players[$id]['champion_prediction_text'] : null,
+                    'champion_prediction_id' => isset($players[$id]) ? $players[$id]['champion_prediction_id'] : null,
+                    'auto_created' => false,
+                    'source' => 'log'
                 ];
             }
             // 2. Jugador Eliminado
@@ -126,7 +156,7 @@ if ($log_found) {
                     $unlocked = 1;
                 }
                 
-                // Auto-crear jugador si no existe explícitamente en el log
+                // Auto-crear jugador si no existe explícitamente en el log ni en BD
                 if (!isset($players[$pId])) {
                     $players[$pId] = [
                         'id' => $pId,
@@ -134,7 +164,8 @@ if ($log_found) {
                         'champion_prediction' => null,
                         'champion_prediction_text' => null,
                         'champion_prediction_id' => null,
-                        'auto_created' => true
+                        'auto_created' => true,
+                        'source' => 'log_prediction'
                     ];
                 }
                 
@@ -149,7 +180,7 @@ if ($log_found) {
                 $pId = $matches[1];
                 $sel = trim($matches[2]);
                 
-                // Auto-crear jugador si no existe explícitamente en el log
+                // Auto-crear jugador si no existe explícitamente en el log ni en BD
                 if (!isset($players[$pId])) {
                     $players[$pId] = [
                         'id' => $pId,
@@ -157,7 +188,8 @@ if ($log_found) {
                         'champion_prediction' => null,
                         'champion_prediction_text' => null,
                         'champion_prediction_id' => null,
-                        'auto_created' => true
+                        'auto_created' => true,
+                        'source' => 'log_prediction'
                     ];
                 }
                 
@@ -205,9 +237,12 @@ if ($log_found) {
 // Cruzar con los nombres ya existentes en la Base de Datos para no forzar a re-escribirlos
 if (!empty($existing_players)) {
     foreach ($players as $id => &$p) {
-        if (isset($existing_players[$id]) && trim($existing_players[$id]) !== '') {
-            $p['name'] = trim($existing_players[$id]);
+        if (isset($existing_players[$id]) && trim($existing_players[$id]['name']) !== '') {
+            $p['name'] = trim($existing_players[$id]['name']);
             $p['auto_created'] = false; // Ya no cuenta como auto_created genérico, es un jugador existente real
+            if ($p['source'] === 'log_prediction') {
+                $p['source'] = 'db'; // Actualizar origen a BD si proviene de ella
+            }
         }
     }
 }
@@ -328,6 +363,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
       --primary-glow: rgba(16, 185, 129, 0.2);
       --secondary: #fbbf24;
       --danger: #f43f5e;
+      --info: #0ea5e9;
       --border-radius-md: 14px;
       --border-radius-lg: 20px;
     }
@@ -650,6 +686,32 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
       margin-left: 0.5rem;
       display: inline-block;
     }
+
+    .badge-db {
+      background: rgba(14, 165, 233, 0.1);
+      color: var(--info);
+      border: 1px solid rgba(14, 165, 233, 0.25);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+      display: inline-block;
+    }
+
+    .badge-log {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -766,6 +828,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                 <tr>
                   <th>ID Jugador</th>
                   <th>Nombre a Guardar (Editable)</th>
+                  <th>Estado / Origen</th>
                   <th>Voto Campeón</th>
                   <th>Pronósticos</th>
                 </tr>
@@ -776,14 +839,28 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                     $pId = $p['id'];
                     $predCount = isset($predictions[$pId]) ? count($predictions[$pId]) : 0;
                     $vote = $p['champion_prediction'] ? $p['champion_prediction'] : '<em style="color: var(--text-muted);">Sin predicción</em>';
+                    
+                    // Determinar procedencia/estado para mostrar el badge
+                    $badge_text = '';
+                    $badge_class = '';
+                    if ($p['auto_created']) {
+                        $badge_text = 'Auto-Creado';
+                        $badge_class = 'badge-auto';
+                    } elseif (isset($existing_players[$pId])) {
+                        $badge_text = 'En Base de Datos';
+                        $badge_class = 'badge-db';
+                    } else {
+                        $badge_text = 'Reconstruido';
+                        $badge_class = 'badge-log';
+                    }
                   ?>
                   <tr>
                     <td><code><?php echo htmlspecialchars($pId); ?></code></td>
                     <td>
                       <input type="text" name="player_names[<?php echo $pId; ?>]" value="<?php echo htmlspecialchars($p['name']); ?>" class="player-name-field" required autocomplete="off">
-                      <?php if ($p['auto_created']): ?>
-                        <span class="badge-auto">Auto-Creado</span>
-                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <span class="<?php echo $badge_class; ?>"><?php echo $badge_text; ?></span>
                     </td>
                     <td><?php echo $vote; ?></td>
                     <td style="font-weight: 700; color: var(--primary);"><?php echo $predCount; ?> / 104</td>
@@ -791,7 +868,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                 <?php endforeach; ?>
                 <?php if (empty($players)): ?>
                   <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                       No se encontraron registros de jugadores en el log.
                     </td>
                   </tr>
