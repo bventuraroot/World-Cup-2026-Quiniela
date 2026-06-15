@@ -295,6 +295,26 @@ if (!empty($existing_players)) {
     }
 }
 
+// Buscar en logs si se solicita
+$search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
+$search_results = [];
+if ($search_query !== '' && $log_found) {
+    $file_handle = fopen($log_file, 'r');
+    if ($file_handle) {
+        $line_num = 0;
+        while (($line = fgets($file_handle)) !== false) {
+            $line_num++;
+            if (stripos($line, $search_query) !== false) {
+                $search_results[] = [
+                    'line' => $line_num,
+                    'content' => trim($line)
+                ];
+            }
+        }
+        fclose($file_handle);
+    }
+}
+
 // Ejecutar Restauración Real en la Base de Datos
 $restore_success = false;
 $restore_error = '';
@@ -943,6 +963,38 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
           Se procesaron <?php echo $total_lines_processed; ?> líneas de <code>api_debug.log</code>.
         </p>
       <?php endif; ?>
+      
+      <!-- Buscador en Logs -->
+      <div style="margin-top: 3rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
+        <h2 style="font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--text-primary);">🔍 Buscador en Registro (api_debug.log)</h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+          Ingresa el ID del jugador o una palabra clave para ver todas sus apariciones en el archivo de registro.
+        </p>
+        
+        <form method="GET" action="recuperar_logs.php" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+          <input type="text" name="search" placeholder="Ej: 1781051937433 o Sussy" value="<?php echo htmlspecialchars($search_query); ?>" style="flex: 1; padding: 0.7rem 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: white;">
+          <button type="submit" class="btn" style="width: auto; padding: 0 1.5rem;">Buscar</button>
+        </form>
+        
+        <?php if ($search_query !== ''): ?>
+          <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+            Resultados para "<?php echo htmlspecialchars($search_query); ?>": <?php echo count($search_results); ?> coincidencias
+          </h3>
+          <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; scrollbar-width: thin;">
+            <?php foreach ($search_results as $res): ?>
+              <div style="margin-bottom: 0.5rem; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem;">
+                <span style="color: var(--primary); font-weight: bold;">Línea <?php echo $res['line']; ?>:</span> 
+                <?php echo htmlspecialchars($res['content']); ?>
+              </div>
+            <?php endforeach; ?>
+            <?php if (empty($search_results)): ?>
+              <div style="color: var(--text-muted); text-align: center; padding: 1rem;">
+                No se encontró ninguna línea con ese término.
+              </div>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+      </div>
     <?php endif; ?>
   </div>
 </body>
