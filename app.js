@@ -906,6 +906,91 @@ $(document).ready(function() {
     });
   }
 
+  // Obtener los MVPs de cada día basado en partidos finalizados
+  function getDailyMVPs() {
+    if (typeof WORLD_CUP_2026_MATCHES === 'undefined' || !state.players || state.players.length === 0) {
+      return [];
+    }
+
+    // 1. Agrupar partidos finalizados por fecha
+    const finishedMatchesByDate = {};
+    WORLD_CUP_2026_MATCHES.forEach(match => {
+      const real = state.realResults[match.id];
+      if (real && real.status === 'finished') {
+        if (!finishedMatchesByDate[match.date]) {
+          finishedMatchesByDate[match.date] = [];
+        }
+        finishedMatchesByDate[match.date].push(match);
+      }
+    });
+
+    const dailyMVPs = [];
+
+    // 2. Calcular los puntos por día de cada jugador
+    Object.keys(finishedMatchesByDate).forEach(date => {
+      const matches = finishedMatchesByDate[date];
+      const playerPoints = {};
+
+      state.players.forEach(player => {
+        let totalDailyPoints = 0;
+        matches.forEach(match => {
+          const result = getPlayerPointsForMatch(player.id, match.id);
+          totalDailyPoints += result.points;
+        });
+        playerPoints[player.id] = {
+          id: player.id,
+          name: player.name,
+          points: totalDailyPoints
+        };
+      });
+
+      // Encontrar el puntaje máximo del día
+      let maxPoints = -1;
+      state.players.forEach(player => {
+        const pts = playerPoints[player.id].points;
+        if (pts > maxPoints) {
+          maxPoints = pts;
+        }
+      });
+
+      // Obtener los jugadores que lograron el puntaje máximo (solo si maxPoints > 0)
+      let mvps = [];
+      if (maxPoints > 0) {
+        state.players.forEach(player => {
+          if (playerPoints[player.id].points === maxPoints) {
+            mvps.push(playerPoints[player.id]);
+          }
+        });
+      }
+
+      dailyMVPs.push({
+        date,
+        maxPoints: maxPoints > 0 ? maxPoints : 0,
+        mvps
+      });
+    });
+
+    // Ordenar fechas de manera descendente (las más recientes primero)
+    dailyMVPs.sort((a, b) => b.date.localeCompare(a.date));
+
+    return dailyMVPs;
+  }
+
+  // Formatear fecha a español
+  function formatDateSpanish(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const day = parseInt(parts[2], 10);
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const year = parts[0];
+    const months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return `${day} de ${months[monthIdx]}, ${year}`;
+  }
+
   // ==========================================
   // 3. COMPONENTES RENDERIZADOS
   // ==========================================
@@ -1067,6 +1152,87 @@ $(document).ready(function() {
           </div>
         `);
       });
+    }
+
+    // Renderizar MVP del Día
+    const mvpContainer = $('#mvp-container');
+    if (mvpContainer.length > 0) {
+      mvpContainer.empty();
+      const dailyMVPs = getDailyMVPs();
+
+      if (dailyMVPs.length === 0) {
+        mvpContainer.append(`
+          <div style="text-align: center; color: var(--text-secondary); width: 100%; padding: 1.5rem 0;">
+            <i data-lucide="info" style="width: 32px; height: 32px; color: var(--text-muted); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+            <p style="font-size: 0.9rem;">Los MVPs de cada día aparecerán aquí conforme finalicen los partidos.</p>
+          </div>
+        `);
+      } else {
+        dailyMVPs.forEach(dayData => {
+          if (dayData.maxPoints > 0) {
+            const mvpNames = dayData.mvps.map(m => m.name).join(', ');
+            mvpContainer.append(`
+              <div class="mvp-day-card" style="
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: var(--border-radius-md);
+                padding: 1rem;
+                flex: 1 1 calc(25% - 1rem);
+                min-width: 200px;
+                max-width: 280px;
+                display: flex;
+                flex-direction: column;
+                gap: 0.3rem;
+                box-shadow: var(--shadow-sm);
+                backdrop-filter: var(--glass-blur);
+                transition: transform var(--transition-fast), border-color var(--transition-fast);
+              " onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='rgba(251, 191, 36, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(255, 255, 255, 0.08)'">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                  <i data-lucide="calendar" style="width: 12px; height: 12px; color: var(--primary);"></i>
+                  ${formatDateSpanish(dayData.date)}
+                </div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: 'Outfit'; margin-top: 0.2rem; word-break: break-word;">
+                  ${mvpNames}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 0.25rem; margin-top: auto; padding-top: 0.3rem;">
+                  <i data-lucide="trophy" style="width: 14px; height: 14px;"></i>
+                  +${dayData.maxPoints} Pts
+                </div>
+              </div>
+            `);
+          } else {
+            mvpContainer.append(`
+              <div class="mvp-day-card" style="
+                background: rgba(255, 255, 255, 0.015);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: var(--border-radius-md);
+                padding: 1rem;
+                flex: 1 1 calc(25% - 1rem);
+                min-width: 200px;
+                max-width: 280px;
+                display: flex;
+                flex-direction: column;
+                gap: 0.3rem;
+                box-shadow: var(--shadow-sm);
+                backdrop-filter: var(--glass-blur);
+                opacity: 0.75;
+              ">
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                  <i data-lucide="calendar" style="width: 12px; height: 12px;"></i>
+                  ${formatDateSpanish(dayData.date)}
+                </div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-muted); font-family: 'Outfit'; margin-top: 0.2rem;">
+                  Ninguno
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-top: auto; padding-top: 0.3rem;">
+                  <i data-lucide="minus" style="width: 14px; height: 14px;"></i>
+                  0 Pts
+                </div>
+              </div>
+            `);
+          }
+        });
+      }
     }
 
     lucide.createIcons();
