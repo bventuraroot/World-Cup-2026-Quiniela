@@ -90,7 +90,8 @@ if ($log_found) {
                     'name' => $name,
                     'champion_prediction' => null,
                     'champion_prediction_text' => null,
-                    'champion_prediction_id' => null
+                    'champion_prediction_id' => null,
+                    'auto_created' => false
                 ];
             }
             // 2. Jugador Eliminado
@@ -112,24 +113,44 @@ if ($log_found) {
                     $unlocked = 1;
                 }
                 
-                // Solo guardar si el jugador sigue activo
-                if (isset($players[$pId])) {
-                    $predictions[$pId][$mId] = [
-                        'goals1' => $g1,
-                        'goals2' => $g2,
-                        'unlocked' => $unlocked
+                // Auto-crear jugador si no existe explícitamente en el log
+                if (!isset($players[$pId])) {
+                    $players[$pId] = [
+                        'id' => $pId,
+                        'name' => "Jugador " . substr($pId, -4),
+                        'champion_prediction' => null,
+                        'champion_prediction_text' => null,
+                        'champion_prediction_id' => null,
+                        'auto_created' => true
                     ];
                 }
+                
+                $predictions[$pId][$mId] = [
+                    'goals1' => $g1,
+                    'goals2' => $g2,
+                    'unlocked' => $unlocked
+                ];
             }
             // 4. Voto Campeón Guardado
             elseif (preg_match('/Voto campeón guardado - Jugador: (\d+), Selección: (.+)/', $line, $matches)) {
                 $pId = $matches[1];
                 $sel = trim($matches[2]);
-                if (isset($players[$pId])) {
-                    $players[$pId]['champion_prediction'] = $sel;
-                    $players[$pId]['champion_prediction_text'] = $sel;
-                    $players[$pId]['champion_prediction_id'] = $sel;
+                
+                // Auto-crear jugador si no existe explícitamente en el log
+                if (!isset($players[$pId])) {
+                    $players[$pId] = [
+                        'id' => $pId,
+                        'name' => "Jugador " . substr($pId, -4),
+                        'champion_prediction' => null,
+                        'champion_prediction_text' => null,
+                        'champion_prediction_id' => null,
+                        'auto_created' => true
+                    ];
                 }
+                
+                $players[$pId]['champion_prediction'] = $sel;
+                $players[$pId]['champion_prediction_text'] = $sel;
+                $players[$pId]['champion_prediction_id'] = $sel;
             }
             // 5. Equipos Personalizados Guardados (Fases de eliminación)
             elseif (preg_match('/ADMIN: Equipos personalizados guardados - Partido: (\w+), Eq1: (.+?), Eq2: (.+)/', $line, $matches)) {
@@ -179,13 +200,18 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         $pdo->exec("DELETE FROM quiniela_predictions");
         $pdo->exec("DELETE FROM quiniela_players");
         
-        // 2. Insertar jugadores reconstruidos
+        // 2. Insertar jugadores reconstruidos (usando nombres editados si se enviaron)
         $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) 
                                     VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
         foreach ($players as $p) {
+            $pId = $p['id'];
+            $name = isset($_POST['player_names'][$pId]) ? trim($_POST['player_names'][$pId]) : '';
+            if ($name === '') {
+                $name = $p['name'];
+            }
             $stmtPlayer->execute([
-                'id' => $p['id'],
-                'name' => $p['name'],
+                'id' => $pId,
+                'name' => $name,
                 'champ' => $p['champion_prediction'],
                 'champ_txt' => $p['champion_prediction_text'],
                 'champ_id' => $p['champion_prediction_id']
@@ -240,7 +266,9 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         @file_put_contents($log_file, "[$timestamp] ADMIN: RESTAURACIÓN COMPLETA DE BASE DE DATOS exitosa desde script recuperar_logs.php.\n", FILE_APPEND);
         
     } catch (PDOException $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         $restore_error = $e->getMessage();
     }
 }
@@ -317,7 +345,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
     
     .container {
       width: 100%;
-      max-width: 800px;
+      max-width: 850px;
       background-color: var(--surface-color);
       backdrop-filter: blur(12px);
       border: 1px solid var(--border-color);
@@ -411,7 +439,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
       transition: transform 0.15s, opacity 0.15s;
     }
     
-    .btn:hover {
+    .btn:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 0 15px var(--primary-glow);
     }
@@ -489,7 +517,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
     }
     
     .preview-table-container {
-      max-height: 300px;
+      max-height: 400px;
       overflow-y: auto;
       border: 1px solid var(--border-color);
       border-radius: var(--border-radius-md);
@@ -506,6 +534,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
     th, td {
       padding: 0.75rem 1rem;
       font-size: 0.9rem;
+      vertical-align: middle;
     }
     
     th {
@@ -553,6 +582,39 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
     
     .logout-link:hover {
       background: rgba(244, 63, 94, 0.1);
+    }
+
+    /* Estilo del input del nombre editable */
+    .player-name-field {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: #ffffff;
+      padding: 0.4rem 0.6rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      width: 100%;
+      max-width: 250px;
+      transition: all 0.2s;
+    }
+    
+    .player-name-field:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .badge-auto {
+      background: rgba(251, 191, 36, 0.1);
+      color: var(--secondary);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+      display: inline-block;
     }
   </style>
 </head>
@@ -631,70 +693,80 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         <div class="alert alert-warning">
           <strong>Aviso de Reescritura:</strong> Al pulsar "Confirmar Restauración", se vaciarán las tablas de jugadores y predicciones actuales, y se insertarán los registros listados a continuación. Los resultados reales y equipos en eliminatorias se actualizarán.
         </div>
-        
-        <!-- Resumen de Reconstrucción -->
-        <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-primary);">Datos Extraídos del Registro</h2>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-number"><?php echo count($players); ?></div>
-            <div class="summary-label">Jugadores</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-number">
-              <?php echo array_reduce($predictions, function($carry, $item) { return $carry + count($item); }, 0); ?>
-            </div>
-            <div class="summary-label">Pronósticos</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-number"><?php echo count($match_teams); ?></div>
-            <div class="summary-label">Llaves/Equipos</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-number"><?php echo count($real_results); ?></div>
-            <div class="summary-label">Resultados BD</div>
-          </div>
-        </div>
-        
-        <!-- Detalle de los Jugadores a Recuperar -->
-        <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem; color: var(--text-primary);">Detalle de Participantes</h2>
-        <div class="preview-table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID Jugador</th>
-                <th>Nombre</th>
-                <th>Voto Campeón</th>
-                <th>Pronósticos Hechos</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($players as $p): ?>
-                <?php 
-                  $pId = $p['id'];
-                  $predCount = isset($predictions[$pId]) ? count($predictions[$pId]) : 0;
-                  $vote = $p['champion_prediction'] ? $p['champion_prediction'] : '<em style="color: var(--text-muted);">Sin predicción</em>';
-                ?>
-                <tr>
-                  <td><code><?php echo htmlspecialchars($pId); ?></code></td>
-                  <td style="font-weight: 600; color: #ffffff;"><?php echo htmlspecialchars($p['name']); ?></td>
-                  <td><?php echo $vote; ?></td>
-                  <td style="font-weight: 700; color: var(--primary);"><?php echo $predCount; ?> / 104</td>
-                </tr>
-              <?php endforeach; ?>
-              <?php if (empty($players)): ?>
-                <tr>
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                    No se encontraron registros de jugadores en el log.
-                  </td>
-                </tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-        
-        <!-- Botón de Acción -->
+
         <form method="POST">
           <input type="hidden" name="action" value="restore">
+          
+          <!-- Resumen de Reconstrucción -->
+          <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-primary);">Datos Extraídos del Registro</h2>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-number"><?php echo count($players); ?></div>
+              <div class="summary-label">Jugadores</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-number">
+                <?php echo array_reduce($predictions, function($carry, $item) { return $carry + count($item); }, 0); ?>
+              </div>
+              <div class="summary-label">Pronósticos</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-number"><?php echo count($match_teams); ?></div>
+              <div class="summary-label">Llaves/Equipos</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-number"><?php echo count($real_results); ?></div>
+              <div class="summary-label">Resultados BD</div>
+            </div>
+          </div>
+          
+          <!-- Detalle de los Jugadores a Recuperar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h2 style="font-size: 1.25rem; color: var(--text-primary);">Detalle de Participantes</h2>
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">* Puedes editar los nombres antes de guardar</span>
+          </div>
+          
+          <div class="preview-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID Jugador</th>
+                  <th>Nombre a Guardar (Editable)</th>
+                  <th>Voto Campeón</th>
+                  <th>Pronósticos</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($players as $p): ?>
+                  <?php 
+                    $pId = $p['id'];
+                    $predCount = isset($predictions[$pId]) ? count($predictions[$pId]) : 0;
+                    $vote = $p['champion_prediction'] ? $p['champion_prediction'] : '<em style="color: var(--text-muted);">Sin predicción</em>';
+                  ?>
+                  <tr>
+                    <td><code><?php echo htmlspecialchars($pId); ?></code></td>
+                    <td>
+                      <input type="text" name="player_names[<?php echo $pId; ?>]" value="<?php echo htmlspecialchars($p['name']); ?>" class="player-name-field" required autocomplete="off">
+                      <?php if ($p['auto_created']): ?>
+                        <span class="badge-auto">Auto-Creado</span>
+                      <?php endif; ?>
+                    </td>
+                    <td><?php echo $vote; ?></td>
+                    <td style="font-weight: 700; color: var(--primary);"><?php echo $predCount; ?> / 104</td>
+                  </tr>
+                <?php endforeach; ?>
+                <?php if (empty($players)): ?>
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                      No se encontraron registros de jugadores en el log.
+                    </td>
+                  </tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Botón de Acción -->
           <button type="submit" class="btn" <?php echo !$connected || empty($players) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''; ?>>
             Confirmar Restauración en Base de Datos
           </button>
