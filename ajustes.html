@@ -6,6 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiniela 2026 - Ajustes</title>
   <link rel="stylesheet" href="styles.css?v=14">
+  <script>
+    // Capturador de errores de Javascript global para diagnóstico
+    window.addEventListener('error', function(e) {
+      console.error("Global Error Caught:", e);
+      var errDiv = document.getElementById('js-global-error');
+      if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'js-global-error';
+        errDiv.style.cssText = 'background: rgba(244,63,94,0.15); border: 1px solid #f43f5e; color: #f43f5e; padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; grid-column: span 2; display: flex; flex-direction: column; gap: 0.25rem;';
+        var grid = document.querySelector('.config-grid');
+        if (grid) {
+          grid.insertBefore(errDiv, grid.firstChild);
+        }
+      }
+      errDiv.innerHTML = '<strong>❌ Error de script detectado:</strong> ' + e.message + ' <br><small>Archivo: ' + e.filename.substring(e.filename.lastIndexOf("/") + 1) + ' | Línea: ' + e.lineno + '</small>';
+    });
+  </script>
 </head>
 
 <body>
@@ -343,7 +360,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=17"></script>
 </body>
 
 </html>
