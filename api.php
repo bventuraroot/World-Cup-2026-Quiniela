@@ -262,16 +262,20 @@ if ($action === 'save_db_config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     . "\$db_user = '$new_user';\n"
                     . "\$db_pass = '$new_pass';\n";
                     
+    $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
     if (file_put_contents($config_file, $config_content) !== false) {
         try {
             $test_pdo = new PDO("mysql:host=$new_host;dbname=$new_name;charset=utf8", $new_user, $new_pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ]);
+            write_api_log("ADMIN: Configuración de BD actualizada. Host: $new_host, DB: $new_name, Usuario: $new_user. IP: $ip_cliente");
             echo json_encode(['status' => 'success', 'message' => 'Configuración de base de datos actualizada y conectada con éxito.']);
         } catch (PDOException $e) {
+            write_api_log("ADMIN: Configuración de BD guardada pero prueba de conexión fallida. Host: $new_host, DB: $new_name. IP: $ip_cliente. Error: " . $e->getMessage());
             echo json_encode(['status' => 'warning', 'message' => 'Configuración guardada, pero la prueba de conexión falló: ' . $e->getMessage()]);
         }
     } else {
+        write_api_log("ERROR: No se pudo escribir db_config.php. IP: $ip_cliente");
         echo json_encode(['status' => 'error', 'message' => 'No se pudo escribir el archivo db_config.php. Verifique los permisos del servidor.']);
     }
     exit;
@@ -407,9 +411,11 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($data && isset($data['player_id']) && isset($data['match_id'])) {
         $pId = sprintf('%.0f', $data['player_id']);
         $mId = $data['match_id'];
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         if (isset($data['delete']) && $data['delete']) {
             $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :pId AND match_id = :mId");
             $stmt->execute(['pId' => $pId, 'mId' => $mId]);
+            write_api_log("Pronóstico ELIMINADO - Jugador: $pId, Partido: $mId. IP: $ip_cliente");
         } else {
             $stmt = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) 
                                    VALUES (:pId, :mId, :g1, :g2, :unlocked) 
@@ -421,8 +427,8 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? $data['goals2'] : null,
                 'unlocked' => isset($data['unlocked']) && $data['unlocked'] ? 1 : 0
             ]);
+            write_api_log("Pronóstico guardado - Jugador: $pId, Partido: $mId, Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (unlocked: " . (isset($data['unlocked']) && $data['unlocked'] ? 'si' : 'no') . "). IP: $ip_cliente");
         }
-        write_api_log("Pronóstico guardado - Jugador: $pId, Partido: $mId, Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (unlocked: " . (isset($data['unlocked']) && $data['unlocked'] ? 'si' : 'no') . ")");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -436,6 +442,7 @@ if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode($input, true);
     if ($data && isset($data['player_id'])) {
         $pId = sprintf('%.0f', $data['player_id']);
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         $stmt = $pdo->prepare("UPDATE quiniela_players 
                                SET champion_prediction = :champ, champion_prediction_text = :txt, champion_prediction_id = :cid 
                                WHERE id = :pId");
@@ -445,7 +452,7 @@ if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'txt' => isset($data['championPredictionText']) ? $data['championPredictionText'] : null,
             'cid' => isset($data['championPredictionId']) ? $data['championPredictionId'] : null
         ]);
-        write_api_log("Voto campeón guardado - Jugador: $pId, Selección: " . ($data['championPredictionText'] ?? 'N/A'));
+        write_api_log("Voto campeón guardado - Jugador: $pId, Selección: " . ($data['championPredictionText'] ?? 'N/A') . ". IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -460,9 +467,14 @@ if ($action === 'save_bonus_points' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($data && isset($data['player_id']) && isset($data['bonus_points'])) {
         $pId = sprintf('%.0f', $data['player_id']);
         $bonus = intval($data['bonus_points']);
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
+        // Obtener nombre del jugador para el log
+        $stmtName = $pdo->prepare("SELECT name FROM quiniela_players WHERE id = :pId");
+        $stmtName->execute(['pId' => $pId]);
+        $playerName = $stmtName->fetchColumn() ?: "ID:$pId";
         $stmt = $pdo->prepare("UPDATE quiniela_players SET bonus_points = :bonus WHERE id = :pId");
         $stmt->execute(['pId' => $pId, 'bonus' => $bonus]);
-        write_api_log("ADMIN: Puntos de ajuste guardados - Jugador: $pId, Puntos: $bonus");
+        write_api_log("ADMIN: Puntos de ajuste guardados - Jugador: $playerName (ID: $pId), Puntos: $bonus. IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -474,10 +486,11 @@ if ($action === 'save_bonus_points' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
+    $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
     if ($data) {
         if (isset($data['match_id']) && $data['match_id'] === 'all' && isset($data['reset']) && $data['reset']) {
             $pdo->exec("DELETE FROM quiniela_real_results");
-            write_api_log("ADMIN: Limpieza de TODOS los marcadores reales.");
+            write_api_log("ADMIN: Limpieza de TODOS los marcadores reales. IP: $ip_cliente");
             echo json_encode(['status' => 'success']);
         } elseif (isset($data['match_id'])) {
             $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status, api_data) 
@@ -490,7 +503,7 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => isset($data['status']) ? $data['status'] : 'scheduled',
                 'apiData' => isset($data['api_data']) ? (is_array($data['api_data']) ? json_encode($data['api_data'], JSON_UNESCAPED_UNICODE) : $data['api_data']) : null
             ]);
-            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . ", Estado: " . ($data['status'] ?? 'N/A') . ", Has api_data: " . (isset($data['api_data']) ? 'yes' : 'no'));
+            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . ", Estado: " . ($data['status'] ?? 'N/A') . ", Has api_data: " . (isset($data['api_data']) ? 'yes' : 'no') . ". IP: $ip_cliente");
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Datos de partido no especificados.']);
@@ -506,6 +519,7 @@ if ($action === 'save_match_team' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['match_id'])) {
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         $stmt = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) 
                                VALUES (:mId, :t1, :t2) 
                                ON DUPLICATE KEY UPDATE team1 = :t1, team2 = :t2");
@@ -514,7 +528,7 @@ if ($action === 'save_match_team' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             't1' => isset($data['team1']) ? $data['team1'] : null,
             't2' => isset($data['team2']) ? $data['team2'] : null
         ]);
-        write_api_log("ADMIN: Equipos personalizados guardados - Partido: " . $data['match_id'] . ", Eq1: " . ($data['team1'] ?? 'N/A') . ", Eq2: " . ($data['team2'] ?? 'N/A'));
+        write_api_log("ADMIN: Equipos personalizados guardados - Partido: " . $data['match_id'] . ", Eq1: " . ($data['team1'] ?? 'N/A') . ", Eq2: " . ($data['team2'] ?? 'N/A') . ". IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -527,19 +541,24 @@ if ($action === 'save_config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && is_array($data)) {
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         $stmt = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) 
                                VALUES (:key, :val) 
                                ON DUPLICATE KEY UPDATE config_value = :val");
+        $cambios = [];
         foreach ($data as $k => $v) {
+            $vOrig = $v;
             if (is_bool($v)) {
                 $v = $v ? '1' : '0';
             }
+            // Ocultar PIN en el log por seguridad
+            $cambios[] = $k . '=' . ($k === 'adminPin' ? '***' : strval($vOrig));
             $stmt->execute([
                 'key' => $k,
                 'val' => $v !== null ? strval($v) : null
             ]);
         }
-        write_api_log("ADMIN: Configuración de puntos/sistema actualizada.");
+        write_api_log("ADMIN: Configuración del sistema actualizada. Cambios: [" . implode(', ', $cambios) . "]. IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Cuerpo JSON no es un arreglo válido.']);
@@ -552,11 +571,12 @@ if ($action === 'save_real_champion' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['realChampion'])) {
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         $stmt = $pdo->prepare("INSERT INTO quiniela_config (config_key, config_value) 
                                VALUES ('realChampion', :val) 
                                ON DUPLICATE KEY UPDATE config_value = :val");
         $stmt->execute(['val' => $data['realChampion']]);
-        write_api_log("ADMIN: Campeón oficial guardado: " . $data['realChampion']);
+        write_api_log("ADMIN: Campeón oficial guardado: " . $data['realChampion'] . ". IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -569,12 +589,13 @@ if ($action === 'add_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['id']) && isset($data['name'])) {
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
         $stmt = $pdo->prepare("INSERT INTO quiniela_players (id, name) VALUES (:id, :name)");
         $stmt->execute([
             'id' => sprintf('%.0f', $data['id']),
             'name' => $data['name']
         ]);
-        write_api_log("ADMIN: Jugador agregado - ID: " . $data['id'] . ", Nombre: " . $data['name']);
+        write_api_log("ADMIN: Jugador agregado - ID: " . $data['id'] . ", Nombre: " . $data['name'] . ". IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos de jugador insuficientes.']);
@@ -588,6 +609,11 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode($input, true);
     if ($data && isset($data['id'])) {
         $pId = sprintf('%.0f', $data['id']);
+        $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
+        // Obtener nombre antes de eliminar
+        $stmtName = $pdo->prepare("SELECT name FROM quiniela_players WHERE id = :id");
+        $stmtName->execute(['id' => $pId]);
+        $playerName = $stmtName->fetchColumn() ?: "ID:$pId";
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare("DELETE FROM quiniela_players WHERE id = :id");
@@ -595,10 +621,11 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :id");
             $stmt->execute(['id' => $pId]);
             $pdo->commit();
-            write_api_log("ADMIN: Jugador eliminado - ID: " . $pId);
+            write_api_log("ADMIN: Jugador eliminado - Nombre: $playerName (ID: $pId). IP: $ip_cliente");
             echo json_encode(['status' => 'success']);
         } catch (Exception $e) {
             $pdo->rollBack();
+            write_api_log("ERROR: Fallo al eliminar jugador $playerName (ID: $pId). IP: $ip_cliente. Error: " . $e->getMessage());
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
     } else {
@@ -609,15 +636,17 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 10. Endpoint REST: Restablecer Jugadores
 if ($action === 'reset_players' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
     $pdo->beginTransaction();
     try {
         $pdo->exec("DELETE FROM quiniela_players");
         $pdo->exec("DELETE FROM quiniela_predictions");
         $pdo->commit();
-        write_api_log("ADMIN: Se eliminaron TODOS los jugadores y sus pronósticos.");
+        write_api_log("ADMIN ⚠️: Se eliminaron TODOS los jugadores y sus pronósticos. IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } catch (Exception $e) {
         $pdo->rollBack();
+        write_api_log("ERROR: Fallo en reset_players. IP: $ip_cliente. Error: " . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
     exit;
@@ -625,6 +654,7 @@ if ($action === 'reset_players' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 11. Endpoint REST: Restablecer Todo
 if ($action === 'reset_all' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
     $pdo->beginTransaction();
     try {
         $pdo->exec("DELETE FROM quiniela_players");
@@ -633,10 +663,11 @@ if ($action === 'reset_all' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("DELETE FROM quiniela_match_teams");
         $pdo->exec("DELETE FROM quiniela_config");
         $pdo->commit();
-        write_api_log("ADMIN: Reinicio COMPLETO de todo el sistema de quiniela.");
+        write_api_log("ADMIN 🚨: Reinicio COMPLETO de todo el sistema de quiniela. IP: $ip_cliente");
         echo json_encode(['status' => 'success']);
     } catch (Exception $e) {
         $pdo->rollBack();
+        write_api_log("ERROR: Fallo en reset_all. IP: $ip_cliente. Error: " . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
     exit;
@@ -752,25 +783,25 @@ function importFullStateJSON($pdo, $state_json) {
 }
 
 // 12. Endpoint REST: Importación de estado masivo
+// ENDPOINT DESHABILITADO: import_state
+// Esta acción fue bloqueada permanentemente para prevenir que versiones
+// antiguas de app.js (en caché del navegador) puedan borrar la base de datos.
+// La restauración masiva solo está permitida desde recuperar_logs.php (con PIN de admin).
 if ($action === 'import_state' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = file_get_contents('php://input');
-    $state_json = json_decode($input, true);
-    $res = importFullStateJSON($pdo, $state_json);
-    echo json_encode($res);
+    write_api_log("ADVERTENCIA DE SEGURIDAD: Se intentó ejecutar 'import_state' (sobrescritura masiva) desde " . ($_SERVER['REMOTE_ADDR'] ?? 'IP desconocida') . ". Acción BLOQUEADA.");
+    header('HTTP/1.1 403 Forbidden');
+    echo json_encode(['status' => 'error', 'message' => 'Esta operación de sobrescritura masiva está deshabilitada por seguridad. Usa recuperar_logs.php para restauraciones autorizadas.']);
     exit;
 }
 
-// 13. Endpoint de guardado original (retrocompatibilidad completa)
+// ENDPOINT DESHABILITADO: save (sobrescritura masiva completa)
+// Esta acción fue el vector del incidente de borrado de datos.
+// Ha sido bloqueada permanentemente. Los clientes modernos usan endpoints
+// dedicados (save_prediction, save_champion_vote, etc.) para cambios atómicos.
 if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = file_get_contents('php://input');
-    $state_json = json_decode($input, true);
-    if ($state_json === null) {
-        echo json_encode(['status' => 'error', 'message' => 'JSON inválido en el cuerpo del save.']);
-        exit;
-    }
-    // Ejecutar importación masiva estructurada
-    $res = importFullStateJSON($pdo, $state_json);
-    echo json_encode($res);
+    write_api_log("ADVERTENCIA DE SEGURIDAD: Se intentó ejecutar 'save' (sobrescritura masiva) desde " . ($_SERVER['REMOTE_ADDR'] ?? 'IP desconocida') . ". Acción BLOQUEADA. Probablemente un cliente con caché antigua.");
+    header('HTTP/1.1 403 Forbidden');
+    echo json_encode(['status' => 'error', 'message' => 'La sobrescritura masiva del estado está deshabilitada. Actualiza la página para cargar la última versión de la aplicación (Ctrl+F5 / Cmd+Shift+R).']);
     exit;
 }
 

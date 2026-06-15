@@ -317,8 +317,8 @@ $(document).ready(function() {
     
     // 2. Determinar endpoint y payload específico para la base de datos MySQL
     const ctx = changeCtx || {};
-    let url = 'api.php?action=save'; // fallback completo para casos no clasificados
-    let payload = state;
+    let url = null; // Sin fallback peligroso — si no hay contexto conocido, no se envía nada al servidor
+    let payload = null;
 
     if (ctx.type === 'prediction') {
       const { playerId, matchId } = ctx;
@@ -413,6 +413,11 @@ $(document).ready(function() {
     }
 
     try {
+      if (!url || !payload) {
+        // Sin contexto reconocido — no enviamos nada al servidor para evitar sobrescrituras accidentales
+        console.warn(`[Quiniela DB Skip] saveState() llamado sin contexto reconocido (tipo: "${ctx.type || 'desconocido'}"). No se realiza ninguna operación en la BD.`);
+        return;
+      }
       console.log(`[Quiniela DB Save] Iniciando guardado de tipo "${ctx.type || 'completo'}" en URL: ${url}`, payload);
       $.ajax({
         url: url,
