@@ -880,6 +880,7 @@ $(document).ready(function() {
         id: player.id,
         name: player.name,
         totalPoints,
+        bonusPoints: player.bonusPoints !== undefined ? parseInt(player.bonusPoints) : 0,
         exactHits,
         closestHits,
         winnerHits,
