@@ -522,6 +522,11 @@ $(document).ready(function() {
     }
     renderAdminGrid();
     
+    // Rerenderizar la lista de puntos de ajuste si estamos en ajustes
+    if (window.location.pathname.toLowerCase().indexOf('ajustes') !== -1) {
+      renderBonusPointsList();
+    }
+
     lucide.createIcons();
   }
 
@@ -809,7 +814,7 @@ $(document).ready(function() {
 
   function getPlayersLeaderboard() {
     return state.players.map(player => {
-      let totalPoints = 0;
+      let totalPoints = player.bonusPoints !== undefined ? parseInt(player.bonusPoints) : 0;
       let exactHits = 0;
       let closestHits = 0;
       let winnerHits = 0;
@@ -1218,6 +1223,71 @@ $(document).ready(function() {
     if (matchCount === 0) {
       container.append('<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 1.5rem;">Este jugador no ha registrado pronósticos ni hay partidos jugados.</p>');
     }
+  }
+
+  // Renderizar Lista de Puntos de Ajuste (Bonus) en Ajustes
+  function renderBonusPointsList() {
+    const container = $('#bonus-players-list');
+    if (!container.length) return;
+    
+    container.empty();
+    
+    if (!state.players || state.players.length === 0) {
+      container.html('<p style="color: var(--text-muted); font-size: 0.9rem; text-align: center;">No hay jugadores registrados.</p>');
+      return;
+    }
+    
+    state.players.forEach(p => {
+      const bonus = p.bonusPoints !== undefined ? p.bonusPoints : 0;
+      const html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm);">
+          <span style="font-weight: 500;">${p.name}</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="number" class="player-bonus-input input-text" data-player-id="${p.id}" value="${bonus}" style="width: 80px; text-align: center; padding: 0.3rem 0.5rem; font-size: 0.9rem;" ${isAdminMode ? '' : 'disabled'}>
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">pts extra</span>
+          </div>
+        </div>
+      `;
+      container.append(html);
+    });
+    
+    // Configurar event listener
+    $('.player-bonus-input').off('change').on('change', function() {
+      if (!isAdminMode) return;
+      const pId = $(this).data('player-id');
+      const val = parseInt($(this).val()) || 0;
+      
+      // Actualizar en memoria
+      const player = state.players.find(pl => pl.id == pId);
+      if (player) {
+        player.bonusPoints = val;
+      }
+      
+      // Guardar en la base de datos
+      $.ajax({
+        url: 'api.php?action=save_bonus_points',
+        type: 'POST',
+        data: JSON.stringify({ player_id: pId, bonus_points: val }),
+        contentType: 'application/json',
+        success: function(res) {
+          try {
+            const parsed = JSON.parse(res);
+            if (parsed.status === 'success') {
+              showToast("Puntos de ajuste actualizados.", "success");
+              renderLeaderboard();
+              renderDashboard();
+            } else {
+              showToast("Error al guardar puntos de ajuste.", "error");
+            }
+          } catch(e) {
+            console.error(e);
+          }
+        },
+        error: function() {
+          showToast("Error de conexión al guardar puntos.", "error");
+        }
+      });
+    });
   }
 
   // Renderizar Selector de Jugadores en Pronósticos
@@ -4082,6 +4152,7 @@ $(document).ready(function() {
           $('#btn-save-db-config').off('click').on('click', function() {
             saveDbConfig();
           });
+          renderBonusPointsList();
         }
       }, function() {
         window.location.href = 'index.html';
@@ -4115,6 +4186,7 @@ $(document).ready(function() {
         $('#btn-save-db-config').off('click').on('click', function() {
           saveDbConfig();
         });
+        renderBonusPointsList();
       }
     }
 

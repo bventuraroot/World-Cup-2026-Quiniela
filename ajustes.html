@@ -216,6 +216,21 @@
           </div>
         </div>
 
+        <!-- Manual Points Adjustments -->
+        <div class="glass-card config-card" id="points-adjustment-card" style="grid-column: span 2;">
+          <h2 class="card-title"><i data-lucide="award"></i> Puntos de Ajuste / Bonificaciones</h2>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+            Ingresa puntos de ajuste manuales para cada jugador (útil para conservar puntuaciones previas o aplicar penalizaciones/bonos). Los puntos se sumarán directamente al puntaje total de cada participante.
+          </p>
+          <div class="admin-only-lock-warning" style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.15); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--border-radius-sm); font-size: 0.8rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i data-lucide="lock" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+            <span>Acceso Administrador requerido para ajustar puntos manualmente.</span>
+          </div>
+          <div id="bonus-players-list" style="display: flex; flex-direction: column; gap: 0.8rem; max-height: 350px; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 0.5rem;">
+            <!-- Renderizado dinámico de la lista de jugadores y sus inputs de bonus -->
+          </div>
+        </div>
+
         <!-- Database Settings Config -->
         <div class="glass-card config-card" id="db-config-card">
           <h2 class="card-title"><i data-lucide="database"></i> Configuración de Base de Datos (MySQL)</h2>

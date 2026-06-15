@@ -65,11 +65,12 @@ $default_players = [
 $existing_players = [];
 if ($connected) {
     try {
-        $stmt = $pdo->query("SELECT id, name, champion_prediction, champion_prediction_text, champion_prediction_id FROM quiniela_players");
+        $stmt = $pdo->query("SELECT id, name, champion_prediction, champion_prediction_text, champion_prediction_id, bonus_points FROM quiniela_players");
         while ($row = $stmt->fetch()) {
             $idStr = sprintf('%.0f', $row['id']);
             $key = 'p_' . $idStr;
             $row['id'] = $idStr;
+            $row['bonus_points'] = isset($row['bonus_points']) ? intval($row['bonus_points']) : 0;
             $existing_players[$key] = $row;
         }
     } catch (PDOException $e) {
@@ -130,6 +131,7 @@ foreach ($default_players as $id => $name) {
         'champion_prediction' => null,
         'champion_prediction_text' => null,
         'champion_prediction_id' => null,
+        'bonus_points' => 0,
         'auto_created' => false,
         'source' => 'official'
     ];
@@ -145,6 +147,7 @@ foreach ($existing_players as $key => $row) {
         'champion_prediction' => $row['champion_prediction'],
         'champion_prediction_text' => $row['champion_prediction_text'],
         'champion_prediction_id' => $row['champion_prediction_id'],
+        'bonus_points' => isset($row['bonus_points']) ? intval($row['bonus_points']) : 0,
         'auto_created' => false,
         'source' => 'db'
     ];
@@ -181,6 +184,7 @@ if ($log_found) {
                     'champion_prediction' => isset($players[$key]) ? $players[$key]['champion_prediction'] : null,
                     'champion_prediction_text' => isset($players[$key]) ? $players[$key]['champion_prediction_text'] : null,
                     'champion_prediction_id' => isset($players[$key]) ? $players[$key]['champion_prediction_id'] : null,
+                    'bonus_points' => isset($players[$key]['bonus_points']) ? $players[$key]['bonus_points'] : 0,
                     'auto_created' => false,
                     'source' => 'log'
                 ];
@@ -217,6 +221,7 @@ if ($log_found) {
                         'champion_prediction' => null,
                         'champion_prediction_text' => null,
                         'champion_prediction_id' => null,
+                        'bonus_points' => 0,
                         'auto_created' => true,
                         'source' => 'log_prediction'
                     ];
@@ -242,6 +247,7 @@ if ($log_found) {
                         'champion_prediction' => null,
                         'champion_prediction_text' => null,
                         'champion_prediction_id' => null,
+                        'bonus_points' => 0,
                         'auto_created' => true,
                         'source' => 'log_prediction'
                     ];
@@ -362,9 +368,9 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
         $pdo->exec("DELETE FROM quiniela_players");
         
         // 2. Insertar jugadores reconstruidos (usando nombres editados si se enviaron)
-        $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) 
-                                    VALUES (:id, :name, :champ, :champ_txt, :champ_id)
-                                    ON DUPLICATE KEY UPDATE name = :name, champion_prediction = :champ, champion_prediction_text = :champ_txt, champion_prediction_id = :champ_id");
+        $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id, bonus_points) 
+                                    VALUES (:id, :name, :champ, :champ_txt, :champ_id, :bonus)
+                                    ON DUPLICATE KEY UPDATE name = :name, champion_prediction = :champ, champion_prediction_text = :champ_txt, champion_prediction_id = :champ_id, bonus_points = :bonus");
         
         $inserted_ids = [];
         foreach ($players as $p) {
@@ -385,7 +391,8 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                 'name' => $name,
                 'champ' => $p['champion_prediction'],
                 'champ_txt' => $p['champion_prediction_text'],
-                'champ_id' => $p['champion_prediction_id']
+                'champ_id' => $p['champion_prediction_id'],
+                'bonus' => isset($p['bonus_points']) ? intval($p['bonus_points']) : 0
             ]);
         }
         

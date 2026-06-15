@@ -51,7 +51,8 @@ try {
         name VARCHAR(100) UNIQUE NOT NULL,
         champion_prediction VARCHAR(100) NULL,
         champion_prediction_text VARCHAR(150) NULL,
-        champion_prediction_id VARCHAR(100) NULL
+        champion_prediction_id VARCHAR(100) NULL,
+        bonus_points INT DEFAULT 0
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS quiniela_predictions (
@@ -73,6 +74,12 @@ try {
 
     try {
         $pdo->exec("ALTER TABLE quiniela_real_results ADD COLUMN api_data LONGTEXT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_players ADD COLUMN bonus_points INT DEFAULT 0");
     } catch (PDOException $e) {
         // Ignorar si la columna ya existe
     }
@@ -324,6 +331,7 @@ if ($action === 'get') {
                 'championPrediction' => $db_p['champion_prediction'],
                 'championPredictionText' => $db_p['champion_prediction_text'],
                 'championPredictionId' => $db_p['champion_prediction_id'],
+                'bonusPoints' => isset($db_p['bonus_points']) ? intval($db_p['bonus_points']) : 0,
                 'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
             ];
         }
@@ -438,6 +446,23 @@ if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'cid' => isset($data['championPredictionId']) ? $data['championPredictionId'] : null
         ]);
         write_api_log("Voto campeón guardado - Jugador: $pId, Selección: " . ($data['championPredictionText'] ?? 'N/A'));
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
+    }
+    exit;
+}
+
+// 3.5 Endpoint REST: Guardar Puntos de Ajuste (Bonus) de un Jugador
+if ($action === 'save_bonus_points' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if ($data && isset($data['player_id']) && isset($data['bonus_points'])) {
+        $pId = sprintf('%.0f', $data['player_id']);
+        $bonus = intval($data['bonus_points']);
+        $stmt = $pdo->prepare("UPDATE quiniela_players SET bonus_points = :bonus WHERE id = :pId");
+        $stmt->execute(['pId' => $pId, 'bonus' => $bonus]);
+        write_api_log("ADMIN: Puntos de ajuste guardados - Jugador: $pId, Puntos: $bonus");
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Datos insuficientes.']);
@@ -634,7 +659,8 @@ function importFullStateJSON($pdo, $state_json) {
 
         // Players & predictions
         if (isset($state_json['players']) && is_array($state_json['players'])) {
-            $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
+            $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id, bonus_points) VALUES (:id, :name, :champ, :champ_txt, :champ_id, :bonus)
+                                        ON DUPLICATE KEY UPDATE name = :name, champion_prediction = :champ, champion_prediction_text = :champ_txt, champion_prediction_id = :champ_id, bonus_points = :bonus");
             $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :unlocked)");
             
             foreach ($state_json['players'] as $p) {
@@ -645,7 +671,8 @@ function importFullStateJSON($pdo, $state_json) {
                         'name' => $p['name'],
                         'champ' => isset($p['championPrediction']) ? $p['championPrediction'] : null,
                         'champ_txt' => isset($p['championPredictionText']) ? $p['championPredictionText'] : null,
-                        'champ_id' => isset($p['championPredictionId']) ? $p['championPredictionId'] : null
+                        'champ_id' => isset($p['championPredictionId']) ? $p['championPredictionId'] : null,
+                        'bonus' => isset($p['bonusPoints']) ? intval($p['bonusPoints']) : 0
                     ]);
                     
                     if (isset($p['predictions']) && is_array($p['predictions'])) {
