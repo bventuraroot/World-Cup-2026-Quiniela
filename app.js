@@ -1269,10 +1269,11 @@ $(document).ready(function() {
         type: 'POST',
         data: JSON.stringify({ player_id: pId, bonus_points: val }),
         contentType: 'application/json',
+        dataType: 'json',
         success: function(res) {
           try {
-            const parsed = JSON.parse(res);
-            if (parsed.status === 'success') {
+            const parsed = typeof res === 'string' ? JSON.parse(res) : res;
+            if (parsed && parsed.status === 'success') {
               showToast("Puntos de ajuste actualizados.", "success");
               renderLeaderboard();
               renderDashboard();
@@ -1280,7 +1281,8 @@ $(document).ready(function() {
               showToast("Error al guardar puntos de ajuste.", "error");
             }
           } catch(e) {
-            console.error(e);
+            console.error("Error parsing response:", e);
+            showToast("Error al procesar la respuesta del servidor.", "error");
           }
         },
         error: function() {
@@ -1305,6 +1307,22 @@ $(document).ready(function() {
       '1781052568919': 16, // Hector Garcia
       '1781052600345': 11, // JC Andreu
       '1781052640891': 4   // Raquel Mejia
+    };
+
+    // Mapa de nombres para fallback en caso de que los IDs del usuario difieran de los originales
+    const targetNamesMap = {
+      'carlos cardoza': 34,
+      'jorge varela': 33,
+      'brian ventura': 27,
+      'karla reyes': 26,
+      'sussy escobar': 26,
+      'walter campos': 22,
+      'eduardo mata': 22,
+      'elsa milla': 19,
+      'mario estrada': 18,
+      'hector garcia': 16,
+      'jc andreu': 11,
+      'raquel mejia': 4
     };
 
     // Guardar bonusPoints actuales para restauración en memoria temporal
@@ -1334,7 +1352,14 @@ $(document).ready(function() {
 
     baseLeaderboard.forEach(item => {
       const pId = item.id;
-      const target = targetPointsMap[pId];
+      let target = targetPointsMap[pId];
+      
+      // Fallback por nombre si el ID no se encuentra en el mapa
+      if (target === undefined && item.name) {
+        const normalizedName = item.name.trim().toLowerCase();
+        target = targetNamesMap[normalizedName];
+      }
+
       if (target !== undefined) {
         const base = item.totalPoints; // Puntos calculados de predicciones
         const diff = target - base;
@@ -1351,6 +1376,7 @@ $(document).ready(function() {
           type: 'POST',
           data: JSON.stringify({ player_id: pId, bonus_points: diff }),
           contentType: 'application/json',
+          dataType: 'json',
           success: function(res) {
             successCount++;
             completedCount++;
@@ -3296,6 +3322,17 @@ $(document).ready(function() {
       },
       error: function(xhr, status, error) {
         console.error("Error al obtener la configuración de BD:", error);
+        dbConnected = false;
+        const banner = $('#db-status-banner');
+        if (banner.length) {
+          banner.css({
+            'background': 'rgba(244, 63, 94, 0.08)',
+            'border': '1px solid rgba(244, 63, 94, 0.15)',
+            'color': 'var(--danger)'
+          }).html(`<i data-lucide="x-circle" style="width: 16px; height: 16px;"></i> Error de red al cargar configuración.`);
+          lucide.createIcons();
+        }
+        updateAdminUI();
       }
     });
   }
