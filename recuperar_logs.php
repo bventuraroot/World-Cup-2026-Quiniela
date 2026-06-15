@@ -45,6 +45,19 @@ if ($connected) {
     }
 }
 
+// Obtener jugadores ya registrados en la base de datos (con sus IDs reales)
+$existing_players = [];
+if ($connected) {
+    try {
+        $stmt = $pdo->query("SELECT id, name FROM quiniela_players");
+        while ($row = $stmt->fetch()) {
+            $existing_players[$row['id']] = $row['name'];
+        }
+    } catch (PDOException $e) {
+        // Ignorar si la tabla no existe o está vacía
+    }
+}
+
 // Cerrar sesión
 if (isset($_GET['logout'])) {
     unset($_SESSION['log_recovered_auth']);
@@ -186,6 +199,16 @@ if ($log_found) {
             }
         }
         fclose($file_handle);
+    }
+}
+
+// Cruzar con los nombres ya existentes en la Base de Datos para no forzar a re-escribirlos
+if (!empty($existing_players)) {
+    foreach ($players as $id => &$p) {
+        if (isset($existing_players[$id]) && trim($existing_players[$id]) !== '') {
+            $p['name'] = trim($existing_players[$id]);
+            $p['auto_created'] = false; // Ya no cuenta como auto_created genérico, es un jugador existente real
+        }
     }
 }
 
