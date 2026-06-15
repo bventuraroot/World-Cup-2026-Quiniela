@@ -45,6 +45,22 @@ if ($connected) {
     }
 }
 
+// Lista oficial predefinida de 12 jugadores de la base de datos como fuente de verdad absoluta
+$default_players = [
+    '1781051130474' => 'Brian Ventura',
+    '1781051800815' => 'Eduardo Mata',
+    '1781051937433' => 'Sussy Escobar',
+    '1781052521483' => 'Elsa Milla',
+    '1781052534647' => 'Mario Estrada',
+    '1781052553597' => 'Karla Reyes',
+    '1781052568919' => 'Hector Garcia',
+    '1781052600345' => 'JC Andreu',
+    '1781052620631' => 'Carlos Cardoza',
+    '1781052640891' => 'Raquel Mejia',
+    '1781052648683' => 'Walter Campos',
+    '1781053224616' => 'Jorge Varela'
+];
+
 // Obtener jugadores ya registrados en la base de datos (clave prefijada para evitar overflow 32-bit)
 $existing_players = [];
 if ($connected) {
@@ -98,8 +114,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pin'])) {
 
 $is_authenticated = isset($_SESSION['log_recovered_auth']) && $_SESSION['log_recovered_auth'] === true;
 
-// Inicializar contenedores de datos reconstruidos pre-cargados con los de la Base de Datos
+// Inicializar contenedores de datos reconstruidos pre-cargados
 $players = [];
+
+// 1. Cargar la lista predefinida oficial
+foreach ($default_players as $id => $name) {
+    $key = 'p_' . $id;
+    $players[$key] = [
+        'id' => $id,
+        'name' => $name,
+        'champion_prediction' => null,
+        'champion_prediction_text' => null,
+        'champion_prediction_id' => null,
+        'auto_created' => false,
+        'source' => 'official'
+    ];
+}
+
+// 2. Fusionar con los datos actuales de la Base de Datos (sobrescribe/añade)
 foreach ($existing_players as $key => $row) {
     $players[$key] = [
         'id' => $row['id'],
@@ -133,6 +165,10 @@ if ($log_found) {
             if (preg_match('/ADMIN: Jugador agregado - ID: (\d+), Nombre: (.+)/', $line, $matches)) {
                 $id = $matches[1];
                 $key = 'p_' . $id;
+                
+                // Conservar nombre oficial/BD si ya está cargado
+                $name = isset($players[$key]) ? $players[$key]['name'] : trim($matches[2]);
+                
                 $players[$key] = [
                     'id' => $id,
                     'name' => $name,
@@ -147,8 +183,11 @@ if ($log_found) {
             elseif (preg_match('/ADMIN: Jugador eliminado - ID: (\d+)/', $line, $matches)) {
                 $id = $matches[1];
                 $key = 'p_' . $id;
-                unset($players[$key]);
-                unset($predictions[$key]);
+                // No eliminar si es parte de la lista predefinida oficial o de la base de datos
+                if (!isset($default_players[$id]) && !isset($existing_players[$key])) {
+                    unset($players[$key]);
+                    unset($predictions[$key]);
+                }
             }
             // 3. Pronóstico Guardado
             elseif (preg_match('/Pronóstico guardado - Jugador: (\d+), Partido: (\w+), Marcador: ([0-9]*|N\/A)-([0-9]*|N\/A)/', $line, $matches)) {
@@ -164,7 +203,7 @@ if ($log_found) {
                     $unlocked = 1;
                 }
                 
-                // Auto-crear jugador si no existe explícitamente en el log ni en BD
+                // Auto-crear jugador si no existe explícitamente en el log, BD o lista oficial
                 if (!isset($players[$key])) {
                     $players[$key] = [
                         'id' => $pId,
@@ -189,7 +228,7 @@ if ($log_found) {
                 $key = 'p_' . $pId;
                 $sel = trim($matches[2]);
                 
-                // Auto-crear jugador si no existe explícitamente en el log ni en BD
+                // Auto-crear jugador si no existe explícitamente en el log, BD o lista oficial
                 if (!isset($players[$key])) {
                     $players[$key] = [
                         'id' => $pId,
@@ -249,7 +288,7 @@ if (!empty($existing_players)) {
         if (isset($existing_players[$key]) && trim($existing_players[$key]['name']) !== '') {
             $p['name'] = trim($existing_players[$key]['name']);
             $p['auto_created'] = false; // Ya no cuenta como auto_created genérico, es un jugador existente real
-            if ($p['source'] === 'log_prediction') {
+            if ($p['source'] === 'log_prediction' || $p['source'] === 'official') {
                 $p['source'] = 'db'; // Actualizar origen a BD si proviene de ella
             }
         }
@@ -849,7 +888,13 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                   <?php 
                     $pId = $p['id'];
                     $predCount = isset($predictions['p_' . $pId]) ? count($predictions['p_' . $pId]) : 0;
-                    $vote = $p['champion_prediction'] ? $p['champion_prediction'] : '<em style="color: var(--text-muted);">Sin predicción</em>';
+                    
+                    // Mostrar campeón de base de datos si tiene, sino del log
+                    $champPred = $p['champion_prediction'];
+                    if (!$champPred && isset($existing_players['p_' . $pId]) && $existing_players['p_' . $pId]['champion_prediction']) {
+                        $champPred = $existing_players['p_' . $pId]['champion_prediction'];
+                    }
+                    $vote = $champPred ? $champPred : '<em style="color: var(--text-muted);">Sin predicción</em>';
                     
                     // Determinar procedencia/estado para mostrar el badge
                     $badge_text = '';
@@ -861,7 +906,7 @@ if ($is_authenticated && isset($_POST['action']) && $_POST['action'] === 'restor
                         $badge_text = 'En Base de Datos';
                         $badge_class = 'badge-db';
                     } else {
-                        $badge_text = 'Reconstruido';
+                        $badge_text = 'Oficial Predefinido';
                         $badge_class = 'badge-log';
                     }
                   ?>
