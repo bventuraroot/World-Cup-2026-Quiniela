@@ -397,7 +397,7 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['player_id']) && isset($data['match_id'])) {
-        $pId = $data['player_id'];
+        $pId = sprintf('%.0f', $data['player_id']);
         $mId = $data['match_id'];
         if (isset($data['delete']) && $data['delete']) {
             $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :pId AND match_id = :mId");
@@ -427,7 +427,7 @@ if ($action === 'save_champion_vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['player_id'])) {
-        $pId = $data['player_id'];
+        $pId = sprintf('%.0f', $data['player_id']);
         $stmt = $pdo->prepare("UPDATE quiniela_players 
                                SET champion_prediction = :champ, champion_prediction_text = :txt, champion_prediction_id = :cid 
                                WHERE id = :pId");
@@ -546,7 +546,7 @@ if ($action === 'add_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($data && isset($data['id']) && isset($data['name'])) {
         $stmt = $pdo->prepare("INSERT INTO quiniela_players (id, name) VALUES (:id, :name)");
         $stmt->execute([
-            'id' => $data['id'],
+            'id' => sprintf('%.0f', $data['id']),
             'name' => $data['name']
         ]);
         write_api_log("ADMIN: Jugador agregado - ID: " . $data['id'] . ", Nombre: " . $data['name']);
@@ -562,7 +562,7 @@ if ($action === 'delete_player' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     if ($data && isset($data['id'])) {
-        $pId = $data['id'];
+        $pId = sprintf('%.0f', $data['id']);
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare("DELETE FROM quiniela_players WHERE id = :id");
@@ -639,8 +639,9 @@ function importFullStateJSON($pdo, $state_json) {
             
             foreach ($state_json['players'] as $p) {
                 if (isset($p['id']) && isset($p['name'])) {
+                    $pId = sprintf('%.0f', $p['id']);
                     $stmtPlayer->execute([
-                        'id' => $p['id'],
+                        'id' => $pId,
                         'name' => $p['name'],
                         'champ' => isset($p['championPrediction']) ? $p['championPrediction'] : null,
                         'champ_txt' => isset($p['championPredictionText']) ? $p['championPredictionText'] : null,
@@ -651,7 +652,7 @@ function importFullStateJSON($pdo, $state_json) {
                         foreach ($p['predictions'] as $mId => $pred) {
                             $unlocked = isset($pred['unlocked']) && $pred['unlocked'] ? 1 : 0;
                             $stmtPred->execute([
-                                'player_id' => $p['id'],
+                                'player_id' => $pId,
                                 'match_id' => $mId,
                                 'goals1' => (isset($pred['goals1']) && $pred['goals1'] !== "") ? $pred['goals1'] : null,
                                 'goals2' => (isset($pred['goals2']) && $pred['goals2'] !== "") ? $pred['goals2'] : null,

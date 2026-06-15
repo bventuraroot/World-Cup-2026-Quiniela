@@ -2444,7 +2444,7 @@ $(document).ready(function() {
     }
 
     const newPlayer = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: name,
       predictions: {}
     };
