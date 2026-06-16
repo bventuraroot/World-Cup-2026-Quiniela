@@ -2271,6 +2271,8 @@ $(document).ready(function() {
       return a.id - b.id;
     });
 
+    const matchesByDate = {};
+
     sortedMatches.forEach(match => {
       if (groupFilter !== 'ALL') {
         if (groupFilter === 'Group Stage' && match.group === '') return;
@@ -2291,204 +2293,257 @@ $(document).ready(function() {
 
       matchesCount++;
 
-      const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
-
-      // --- EXTRAER DATOS ENRIQUECIDOS ---
-      const resolvedVenue = (real.api_data && real.api_data.venue) ? real.api_data.venue : match.ground;
-      
-      let liveClockInfo = '';
-      if (real.status === 'live' && real.api_data && real.api_data.clock) {
-        liveClockInfo = ` (${real.api_data.clock})`;
+      if (!matchesByDate[match.date]) {
+        matchesByDate[match.date] = [];
       }
-
-      let scoreHTML = '';
-      let statusBadgeHTML = '';
-
-      const shootoutText = (real.api_data && real.api_data.shootout) ? `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.api_data.shootout.home}-${real.api_data.shootout.away} Pen)</div>` : '';
-
-      if (real.status === 'finished') {
-        scoreHTML = `
-          <div style="display: flex; flex-direction: column; align-items: center;">
-            <span class="schedule-score-display">${real.goals1} - ${real.goals2}</span>
-            ${shootoutText}
-          </div>
-        `;
-        statusBadgeHTML = '<span class="match-status-badge status-finished">Finalizado</span>';
-      } else if (real.status === 'live') {
-        scoreHTML = `<span class="schedule-score-display" style="color: var(--info); border-color: var(--info); box-shadow: 0 0 8px rgba(14, 165, 233, 0.25);">${real.goals1 !== null ? real.goals1 : 0} - ${real.goals2 !== null ? real.goals2 : 0}</span>`;
-        statusBadgeHTML = `<span class="match-status-badge status-live">En Vivo${liveClockInfo}</span>`;
-      } else {
-        scoreHTML = '<span class="schedule-vs-badge">VS</span>';
-        statusBadgeHTML = '<span class="match-status-badge status-scheduled">Pendiente</span>';
-      }
-
-      let tvHTML = '';
-      if (real.api_data && real.api_data.broadcasts && real.api_data.broadcasts.length > 0) {
-        tvHTML = `
-          <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.3rem; width: 100%;">
-            <i data-lucide="tv" style="width: 12px; height: 12px;"></i>
-            <span>Transmisión: ${real.api_data.broadcasts.join(', ')}</span>
-          </div>
-        `;
-      }
-
-      let homeIncidencesHTML = '';
-      let awayIncidencesHTML = '';
-      let detailsHTML = '';
-
-      if (real.api_data) {
-        const scorers = real.api_data.scorers || { home: [], away: [] };
-        const redCards = real.api_data.red_cards || { home: [], away: [] };
-        const yellowCards = real.api_data.yellow_cards || { home: [], away: [] };
-
-        const homeInc = [];
-        if (scorers.home) {
-          scorers.home.forEach(s => {
-            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
-          });
-        }
-        if (yellowCards.home) {
-          yellowCards.home.forEach(yc => {
-            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
-          });
-        }
-        if (redCards.home) {
-          redCards.home.forEach(rc => {
-            homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
-          });
-        }
-        if (homeInc.length > 0) {
-          homeIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${homeInc.join('')}</div>`;
-        }
-
-        const awayInc = [];
-        if (scorers.away) {
-          scorers.away.forEach(s => {
-            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
-          });
-        }
-        if (yellowCards.away) {
-          yellowCards.away.forEach(yc => {
-            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
-          });
-        }
-        if (redCards.away) {
-          redCards.away.forEach(rc => {
-            awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
-          });
-        }
-        if (awayInc.length > 0) {
-          awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${awayInc.join('')}</div>`;
-        }
-
-        const referee = real.api_data.referee;
-        const attendance = real.api_data.attendance;
-        const weather = real.api_data.weather;
-        
-        const detailsItems = [];
-        if (referee) detailsItems.push(`🏁 ${referee}`);
-        if (attendance) detailsItems.push(`👥 ${attendance.toLocaleString()}`);
-        if (weather) detailsItems.push(`🌤️ ${weather}`);
-        
-        if (detailsItems.length > 0) {
-          detailsHTML = `
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.25rem; width: 100%;">
-              <span>${detailsItems.join(' | ')}</span>
-            </div>
-          `;
-        }
-      }
-
-      let predictedCount = 0;
-      state.players.forEach(p => {
-        const pred = p.predictions[match.id];
-        if (pred && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "") {
-          predictedCount++;
-        }
+      matchesByDate[match.date].push({
+        match,
+        resolvedTeam1,
+        resolvedTeam2
       });
-      const totalPlayers = state.players.length;
-
-      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
-      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
-
-      grid.append(`
-        <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
-          <div class="match-card-header">
-            <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
-              <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
-              ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
-              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
-              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
-            </div>
-          </div>
-          
-          <div class="match-card-body" style="align-items: center; justify-content: center; padding: 0.5rem 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.8rem;">
-              
-              <!-- Team 1 -->
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; text-align: center;">
-                <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
-                  ${flag1HTML}
-                </div>
-                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam1}">${resolvedTeam1}</span>
-              </div>
-              
-              <!-- Score / VS -->
-              <div style="display: flex; align-items: center; justify-content: center; min-width: 80px;">
-                ${scoreHTML}
-              </div>
-              
-              <!-- Team 2 -->
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; text-align: center;">
-                <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
-                  ${flag2HTML}
-                </div>
-                <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam2}">${resolvedTeam2}</span>
-              </div>
-              
-            </div>
-
-            <!-- Incidences row -->
-            ${(homeIncidencesHTML || awayIncidencesHTML) ? `
-              <div class="match-incidences-container" style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.4rem; margin-top: 0.4rem; gap: 0.5rem;">
-                <div style="flex: 1; text-align: left;">
-                  ${homeIncidencesHTML}
-                </div>
-                <div style="flex: 1; text-align: right;">
-                  ${awayIncidencesHTML}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="match-card-footer" style="flex-direction: column; gap: 0.5rem; align-items: stretch; border-top: none; padding-top: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.5rem; margin-top: 0.2rem;">
-              <span class="match-venue" title="${resolvedVenue}"><i data-lucide="map-pin" style="width: 11px; height: 11px; display: inline-align; vertical-align: middle; margin-right: 0.15rem;"></i> ${resolvedVenue}</span>
-              ${statusBadgeHTML}
-            </div>
-            ${tvHTML}
-            ${detailsHTML}
-            <div class="schedule-pred-stats" data-match-id="${match.id}">
-              <i data-lucide="users" style="width: 13px; height: 13px;"></i>
-              <span>${predictedCount} de ${totalPlayers} jugadores pronosticaron este partido</span>
-            </div>
-          </div>
-        </div>
-      `);
     });
 
     $('#schedule-matches-count').text(matchesCount);
 
     if (matchesCount === 0) {
       grid.append(`
-        <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 4rem 2rem;">
-          <i data-lucide="filter" style="width: 48px; height: 48px; margin-bottom: 0.8rem; opacity: 0.6;"></i>
+        <div style="text-align: center; color: var(--text-muted); padding: 4rem 2rem; width: 100%;">
+          <i data-lucide="filter" style="width: 48px; height: 48px; margin-bottom: 0.8rem; opacity: 0.6; display: block; margin-left: auto; margin-right: auto;"></i>
           <p>No se encontraron partidos para la búsqueda seleccionada.</p>
         </div>
       `);
+      lucide.createIcons();
+      return;
     }
+
+    // Ordenar las fechas de forma ascendente
+    Object.keys(matchesByDate).sort().forEach(date => {
+      const dayMatches = matchesByDate[date];
+
+      // Formatear la fecha
+      const formattedDate = formatDateSpanish(date);
+
+      // Agregar cabecera del día
+      grid.append(`
+        <div class="schedule-day-group" style="margin-top: 1.5rem; margin-bottom: 0.8rem; width: 100%;">
+          <h3 style="
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1.5px solid rgba(16, 185, 129, 0.15);
+            padding-bottom: 0.4rem;
+          ">
+            <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
+            ${formattedDate}
+          </h3>
+        </div>
+      `);
+
+      // Crear un contenedor matches-grid para este día
+      const dayGridId = `day-grid-${date}`;
+      grid.append(`
+        <div class="matches-grid" id="${dayGridId}" style="margin-bottom: 1rem;"></div>
+      `);
+
+      const dayGrid = $(`#${dayGridId}`);
+
+      dayMatches.forEach(item => {
+        const match = item.match;
+        const resolvedTeam1 = item.resolvedTeam1;
+        const resolvedTeam2 = item.resolvedTeam2;
+
+        const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
+
+        // --- EXTRAER DATOS ENRIQUECIDOS ---
+        const resolvedVenue = (real.api_data && real.api_data.venue) ? real.api_data.venue : match.ground;
+        
+        let liveClockInfo = '';
+        if (real.status === 'live' && real.api_data && real.api_data.clock) {
+          liveClockInfo = ` (${real.api_data.clock})`;
+        }
+
+        let scoreHTML = '';
+        let statusBadgeHTML = '';
+
+        const shootoutText = (real.api_data && real.api_data.shootout) ? `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.api_data.shootout.home}-${real.api_data.shootout.away} Pen)</div>` : '';
+
+        if (real.status === 'finished') {
+          scoreHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <span class="schedule-score-display">${real.goals1} - ${real.goals2}</span>
+              ${shootoutText}
+            </div>
+          `;
+          statusBadgeHTML = '<span class="match-status-badge status-finished">Finalizado</span>';
+        } else if (real.status === 'live') {
+          scoreHTML = `<span class="schedule-score-display" style="color: var(--info); border-color: var(--info); box-shadow: 0 0 8px rgba(14, 165, 233, 0.25);">${real.goals1 !== null ? real.goals1 : 0} - ${real.goals2 !== null ? real.goals2 : 0}</span>`;
+          statusBadgeHTML = `<span class="match-status-badge status-live">En Vivo${liveClockInfo}</span>`;
+        } else {
+          scoreHTML = '<span class="schedule-vs-badge">VS</span>';
+          statusBadgeHTML = '<span class="match-status-badge status-scheduled">Pendiente</span>';
+        }
+
+        let tvHTML = '';
+        if (real.api_data && real.api_data.broadcasts && real.api_data.broadcasts.length > 0) {
+          tvHTML = `
+            <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.3rem; width: 100%;">
+              <i data-lucide="tv" style="width: 12px; height: 12px;"></i>
+              <span>Transmisión: ${real.api_data.broadcasts.join(', ')}</span>
+            </div>
+          `;
+        }
+
+        let homeIncidencesHTML = '';
+        let awayIncidencesHTML = '';
+        let detailsHTML = '';
+
+        if (real.api_data) {
+          const scorers = real.api_data.scorers || { home: [], away: [] };
+          const redCards = real.api_data.red_cards || { home: [], away: [] };
+          const yellowCards = real.api_data.yellow_cards || { home: [], away: [] };
+
+          const homeInc = [];
+          if (scorers.home) {
+            scorers.home.forEach(s => {
+              homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+            });
+          }
+          if (yellowCards.home) {
+            yellowCards.home.forEach(yc => {
+              homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
+            });
+          }
+          if (redCards.home) {
+            redCards.home.forEach(rc => {
+              homeInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-start; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+            });
+          }
+          if (homeInc.length > 0) {
+            homeIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${homeInc.join('')}</div>`;
+          }
+
+          const awayInc = [];
+          if (scorers.away) {
+            scorers.away.forEach(s => {
+              awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">⚽ <span style="font-size: 0.72rem; color: var(--text-secondary);">${s.player} (${s.minute})</span></div>`);
+            });
+          }
+          if (yellowCards.away) {
+            yellowCards.away.forEach(yc => {
+              awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end;">🟨 <span style="font-size: 0.72rem; color: var(--text-secondary);">${yc.player} (${yc.minute})</span></div>`);
+            });
+          }
+          if (redCards.away) {
+            redCards.away.forEach(rc => {
+              awayInc.push(`<div style="display: flex; align-items: center; gap: 0.2rem; justify-content: flex-end; color: #ef4444;"><span style="display: inline-block; width: 6px; height: 9px; background: #ef4444; border-radius: 1px; box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);"></span> <span style="font-size: 0.72rem;">${rc.player} (${rc.minute})</span></div>`);
+            });
+          }
+          if (awayInc.length > 0) {
+            awayIncidencesHTML = `<div style="display: flex; flex-direction: column; gap: 0.1rem; width: 100%;">${awayInc.join('')}</div>`;
+          }
+
+          const referee = real.api_data.referee;
+          const attendance = real.api_data.attendance;
+          const weather = real.api_data.weather;
+          
+          const detailsItems = [];
+          if (referee) detailsItems.push(`🏁 ${referee}`);
+          if (attendance) detailsItems.push(`👥 ${attendance.toLocaleString()}`);
+          if (weather) detailsItems.push(`🌤️ ${weather}`);
+          
+          if (detailsItems.length > 0) {
+            detailsHTML = `
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.25rem; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 0.25rem; width: 100%;">
+                <span>${detailsItems.join(' | ')}</span>
+              </div>
+            `;
+          }
+        }
+
+        let predictedCount = 0;
+        state.players.forEach(p => {
+          const pred = p.predictions[match.id];
+          if (pred && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "") {
+            predictedCount++;
+          }
+        });
+        const totalPlayers = state.players.length;
+
+        const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+        const flag2HTML = getTeamFlagHTML(resolvedTeam2);
+
+        dayGrid.append(`
+          <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
+            <div class="match-card-header">
+              <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
+                <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
+                ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
+                <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
+                <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+              </div>
+            </div>
+            
+            <div class="match-card-body" style="align-items: center; justify-content: center; padding: 0.5rem 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.8rem;">
+                
+                <!-- Team 1 -->
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; text-align: center;">
+                  <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
+                    ${flag1HTML}
+                  </div>
+                  <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam1}">${resolvedTeam1}</span>
+                </div>
+                
+                <!-- Score / VS -->
+                <div style="display: flex; align-items: center; justify-content: center; min-width: 80px;">
+                  ${scoreHTML}
+                </div>
+                
+                <!-- Team 2 -->
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; text-align: center;">
+                  <div style="height: 30px; display: flex; align-items: center; justify-content: center;">
+                    ${flag2HTML}
+                  </div>
+                  <span class="team-name" style="max-width: 100px; font-size: 0.85rem;" title="${resolvedTeam2}">${resolvedTeam2}</span>
+                </div>
+                
+              </div>
+
+              <!-- Incidences row -->
+              ${(homeIncidencesHTML || awayIncidencesHTML) ? `
+                <div class="match-incidences-container" style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.4rem; margin-top: 0.4rem; gap: 0.5rem;">
+                  <div style="flex: 1; text-align: left;">
+                    ${homeIncidencesHTML}
+                  </div>
+                  <div style="flex: 1; text-align: right;">
+                    ${awayIncidencesHTML}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="match-card-footer" style="flex-direction: column; gap: 0.5rem; align-items: stretch; border-top: none; padding-top: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.5rem; margin-top: 0.2rem;">
+                <span class="match-venue" title="${resolvedVenue}"><i data-lucide="map-pin" style="width: 11px; height: 11px; display: inline-align; vertical-align: middle; margin-right: 0.15rem;"></i> ${resolvedVenue}</span>
+                ${statusBadgeHTML}
+              </div>
+              ${tvHTML}
+              ${detailsHTML}
+              <div class="schedule-pred-stats" data-match-id="${match.id}">
+                <i data-lucide="users" style="width: 13px; height: 13px;"></i>
+                <span>${predictedCount} de ${totalPlayers} jugadores pronosticaron este partido</span>
+              </div>
+            </div>
+          </div>
+        `);
+      });
+    });
 
     lucide.createIcons();
   }
