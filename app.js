@@ -2252,6 +2252,20 @@ $(document).ready(function() {
     });
   }
 
+  // Obtener fecha actual en formato YYYY-MM-DD en la zona horaria de El Salvador (UTC-6)
+  function getElSalvadorDateString() {
+    const now = new Date();
+    const utcOffset = now.getTimezoneOffset() * 60000;
+    const utcTime = now.getTime() + utcOffset;
+    // El Salvador está a UTC-6 horas
+    const elSalvadorTime = new Date(utcTime - (6 * 3600000));
+    
+    const year = elSalvadorTime.getFullYear();
+    const month = String(elSalvadorTime.getMonth() + 1).padStart(2, '0');
+    const day = String(elSalvadorTime.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   // Renderizar Calendario general (con banderas y estadísticas)
   function renderScheduleGrid() {
     const grid = $('#schedule-matches-grid');
@@ -2270,6 +2284,28 @@ $(document).ready(function() {
       if (a.time && b.time) return a.time.localeCompare(b.time);
       return a.id - b.id;
     });
+
+    // Agrupar todos los partidos por fecha (del total de partidos) para determinar si un día completo ya finalizó
+    const allMatchesByDate = {};
+    WORLD_CUP_2026_MATCHES.forEach(match => {
+      if (!allMatchesByDate[match.date]) {
+        allMatchesByDate[match.date] = [];
+      }
+      allMatchesByDate[match.date].push(match);
+    });
+
+    const todayStr = getElSalvadorDateString();
+
+    const isActiveDate = (date) => {
+      // Si la fecha del partido es hoy o en el futuro, es activa
+      if (date >= todayStr) return true;
+      // Si la fecha es pasada, pero al menos un partido en esa fecha no ha finalizado aún
+      const matchesForDate = allMatchesByDate[date] || [];
+      return matchesForDate.some(m => {
+        const real = state.realResults[m.id] || { status: 'scheduled' };
+        return real.status !== 'finished';
+      });
+    };
 
     const matchesByDate = {};
 
@@ -2316,15 +2352,31 @@ $(document).ready(function() {
       return;
     }
 
-    // Ordenar las fechas de forma ascendente
-    Object.keys(matchesByDate).sort().forEach(date => {
-      const dayMatches = matchesByDate[date];
+    // Separar fechas filtradas en activas/futuras vs pasadas
+    const activeDates = [];
+    const pastDates = [];
 
-      // Formatear la fecha
+    Object.keys(matchesByDate).forEach(date => {
+      if (isActiveDate(date)) {
+        activeDates.push(date);
+      } else {
+        pastDates.push(date);
+      }
+    });
+
+    // Ordenar fechas: activas de forma ascendente (cercanos primero), pasadas de forma descendente (recientes primero)
+    activeDates.sort();
+    pastDates.sort().reverse();
+
+    // Función auxiliar para renderizar un día y sus partidos
+    function renderDay(date, container) {
+      const dayMatches = matchesByDate[date];
+      if (!dayMatches) return;
+
       const formattedDate = formatDateSpanish(date);
 
       // Agregar cabecera del día
-      grid.append(`
+      container.append(`
         <div class="schedule-day-group" style="margin-top: 1.5rem; margin-bottom: 0.8rem; width: 100%;">
           <h3 style="
             font-size: 1.15rem;
@@ -2345,7 +2397,7 @@ $(document).ready(function() {
 
       // Crear un contenedor matches-grid para este día
       const dayGridId = `day-grid-${date}`;
-      grid.append(`
+      container.append(`
         <div class="matches-grid" id="${dayGridId}" style="margin-bottom: 1rem;"></div>
       `);
 
@@ -2543,7 +2595,63 @@ $(document).ready(function() {
           </div>
         `);
       });
+    }
+
+    // Renderizar fechas activas
+    activeDates.forEach(date => {
+      renderDay(date, grid);
     });
+
+    // Renderizar fechas pasadas (dentro de contenedor colapsable)
+    if (pastDates.length > 0) {
+      let pastMatchesCount = 0;
+      pastDates.forEach(date => {
+        pastMatchesCount += matchesByDate[date].length;
+      });
+
+      const shouldExpandPast = (activeDates.length === 0) || (searchTerm !== '') || (groupFilter !== 'ALL');
+
+      grid.append(`
+        <div class="past-matches-header" style="margin-top: 2rem; margin-bottom: 1rem; width: 100%; display: flex; align-items: center; gap: 1rem;">
+          <hr style="flex-grow: 1; border: none; border-top: 1.5px solid var(--border-color); opacity: 0.3;">
+          <button id="btn-toggle-past-matches" class="btn btn-secondary" style="
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius-md);
+            background-color: var(--surface-color);
+            backdrop-filter: var(--glass-blur);
+            font-size: 0.88rem;
+            font-weight: 600;
+            white-space: nowrap;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+          ">
+            <i data-lucide="chevron-down" id="toggle-past-icon" style="
+              width: 16px; 
+              height: 16px; 
+              transition: transform var(--transition-normal);
+              transform: ${shouldExpandPast ? 'rotate(180deg)' : 'rotate(0deg)'};
+            "></i>
+            <span>Partidos Anteriores (${pastMatchesCount})</span>
+          </button>
+          <hr style="flex-grow: 1; border: none; border-top: 1.5px solid var(--border-color); opacity: 0.3;">
+        </div>
+        <div id="past-matches-container" style="
+          display: ${shouldExpandPast ? 'flex' : 'none'}; 
+          flex-direction: column; 
+          gap: 1rem; 
+          width: 100%;
+        "></div>
+      `);
+
+      const pastContainer = $('#past-matches-container');
+      pastDates.forEach(date => {
+        renderDay(date, pastContainer);
+      });
+    }
 
     lucide.createIcons();
   }
@@ -3329,6 +3437,22 @@ $(document).ready(function() {
     if (e.target === this) {
       closePredictionPlayersModal();
     }
+  });
+
+  // Toggle de partidos anteriores en el calendario
+  $(document).on('click', '#btn-toggle-past-matches', function() {
+    const container = $('#past-matches-container');
+    const icon = $('#toggle-past-icon');
+    
+    container.stop().slideToggle(250, function() {
+      const isVisible = container.is(':visible');
+      if (isVisible) {
+        container.css('display', 'flex');
+        icon.css('transform', 'rotate(180deg)');
+      } else {
+        icon.css('transform', 'rotate(0deg)');
+      }
+    });
   });
 
   // ==========================================
