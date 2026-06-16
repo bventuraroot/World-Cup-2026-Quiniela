@@ -304,7 +304,7 @@ if (!$connected) {
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
-if ($action === 'get') {
+if ($action === 'get' || $action === 'leaderboard') {
     try {
         // 1. Consultar configs
         $config = [
@@ -437,8 +437,18 @@ if ($action === 'get') {
             $bonus = isset($db_p['bonus_points']) ? intval($db_p['bonus_points']) : 0;
             $totalPoints = $bonus;
 
+            $exactHits = 0;
+            $closestHits = 0;
+            $winnerHits = 0;
+            $incorrects = 0;
+            $predictedCount = 0;
+
             if (isset($preds[$pId])) {
                 foreach ($preds[$pId] as $mId => $pred) {
+                    if ($pred['goals1'] !== null && $pred['goals1'] !== '' && $pred['goals2'] !== null && $pred['goals2'] !== '') {
+                        $predictedCount++;
+                    }
+
                     if (isset($realResults->{$mId})) {
                         $real = $realResults->{$mId};
                         if ($real['status'] === 'finished') {
@@ -451,25 +461,55 @@ if ($action === 'get') {
                                 
                                 if ($p1 === $r1 && $p2 === $r2) {
                                     $totalPoints += ($ptsExactCfg + $ptsWinnerCfg);
+                                    $exactHits++;
+                                    $winnerHits++;
                                 } else {
                                     $predDiff = $p1 - $p2;
                                     $realDiff = $r1 - $r2;
                                     $isWinner = ($predDiff > 0 && $realDiff > 0) || ($predDiff < 0 && $realDiff < 0) || ($predDiff === 0 && $realDiff === 0);
                                     
                                     $pointsEarned = 0;
-                                    if ($isWinner) {
-                                        $pointsEarned += $ptsWinnerCfg;
-                                    }
+                                    $isClosest = false;
                                     
                                     $minDist = isset($minDistances[$mId]) ? $minDistances[$mId] : 999999;
                                     $dist = abs($p1 - $r1) + abs($p2 - $r2);
                                     if ($minDist !== 999999 && $dist === $minDist) {
+                                        $isClosest = true;
+                                    }
+                                    
+                                    if ($isWinner && $isClosest) {
+                                        $pointsEarned += ($ptsWinnerCfg + $ptsClosestCfg);
+                                        $winnerHits++;
+                                        $closestHits++;
+                                    } elseif ($isWinner) {
+                                        $pointsEarned += $ptsWinnerCfg;
+                                        $winnerHits++;
+                                    } elseif ($isClosest) {
                                         $pointsEarned += $ptsClosestCfg;
+                                        $closestHits++;
+                                    } else {
+                                        $incorrects++;
                                     }
                                     
                                     $totalPoints += $pointsEarned;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // Evaluar partidos finalizados que no tienen predicción
+            foreach ($local_matches as $match) {
+                $mId = $match['id'];
+                if (isset($realResults->{$mId})) {
+                    $real = $realResults->{$mId};
+                    if ($real['status'] === 'finished') {
+                        $hasPred = isset($preds[$pId][$mId]) && 
+                                   $preds[$pId][$mId]['goals1'] !== null && $preds[$pId][$mId]['goals1'] !== '' && 
+                                   $preds[$pId][$mId]['goals2'] !== null && $preds[$pId][$mId]['goals2'] !== '';
+                        if (!$hasPred) {
+                            $incorrects++;
                         }
                     }
                 }
@@ -489,19 +529,94 @@ if ($action === 'get') {
                 'championPredictionText' => $db_p['champion_prediction_text'],
                 'championPredictionId' => $db_p['champion_prediction_id'],
                 'bonusPoints' => $bonus,
-                'points' => $totalPoints,        // Añadido para compatibilidad con otros procesos
-                'totalPoints' => $totalPoints,   // Añadido para compatibilidad con otros procesos
+                'points' => $totalPoints,
+                'totalPoints' => $totalPoints,
+                'exactHits' => $exactHits,
+                'closestHits' => $closestHits,
+                'winnerHits' => $winnerHits,
+                'incorrects' => $incorrects,
+                'predictedCount' => $predictedCount,
                 'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
             ];
         }
 
-        echo json_encode([
-            'players' => $players,
-            'realResults' => $realResults,
-            'matchTeams' => $matchTeams,
-            'config' => $config,
-            'realChampion' => $realChampion
-        ]);
+        // Ordenar clasificación según reglas de app.js:
+        // Puntos desc, exactHits desc, closestHits desc, winnerHits desc, name asc
+        usort($players, function($a, $b) {
+            if ($b['totalPoints'] !== $a['totalPoints']) {
+                return $b['totalPoints'] - $a['totalPoints'];
+            }
+            if ($b['exactHits'] !== $a['exactHits']) {
+                return $b['exactHits'] - $a['exactHits'];
+            }
+            if ($b['closestHits'] !== $a['closestHits']) {
+                return $b['closestHits'] - $a['closestHits'];
+            }
+            if ($b['winnerHits'] !== $a['winnerHits']) {
+                return $b['winnerHits'] - $a['winnerHits'];
+            }
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        // Asignar posiciones numéricas contemplando empates
+        $rankedPlayers = [];
+        $currentRank = 1;
+        $prevPoints = -1;
+        $prevExact = -1;
+        $prevClosest = -1;
+        $prevWinner = -1;
+
+        foreach ($players as $idx => $p) {
+            $isTie = ($idx > 0 && 
+                      $p['totalPoints'] === $prevPoints && 
+                      $p['exactHits'] === $prevExact && 
+                      $p['closestHits'] === $prevClosest && 
+                      $p['winnerHits'] === $prevWinner);
+            
+            if (!$isTie) {
+                $currentRank = $idx + 1;
+            }
+            
+            $prevPoints = $p['totalPoints'];
+            $prevExact = $p['exactHits'];
+            $prevClosest = $p['closestHits'];
+            $prevWinner = $p['winnerHits'];
+
+            $p['position'] = $currentRank;
+            $rankedPlayers[] = $p;
+        }
+
+        if ($action === 'leaderboard') {
+            // Retornar un JSON optimizado con la tabla de clasificación
+            $leaderboardOutput = [];
+            foreach ($rankedPlayers as $p) {
+                $leaderboardOutput[] = [
+                    'position' => $p['position'],
+                    'id' => $p['id'],
+                    'name' => $p['name'],
+                    'points' => $p['points'],
+                    'totalPoints' => $p['totalPoints'],
+                    'bonusPoints' => $p['bonusPoints'],
+                    'exactHits' => $p['exactHits'],
+                    'closestHits' => $p['closestHits'],
+                    'winnerHits' => $p['winnerHits'],
+                    'incorrects' => $p['incorrects'],
+                    'predictedCount' => $p['predictedCount'],
+                    'championPrediction' => $p['championPrediction'],
+                    'championPredictionText' => $p['championPredictionText']
+                ];
+            }
+            echo json_encode($leaderboardOutput, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } else {
+            // Retornar estado completo
+            echo json_encode([
+                'players' => $rankedPlayers,
+                'realResults' => $realResults,
+                'matchTeams' => $matchTeams,
+                'config' => $config,
+                'realChampion' => $realChampion
+            ]);
+        }
     } catch (PDOException $e) {
         echo json_encode(['status' => 'error', 'message' => 'Error al ensamblar el estado consolidado: ' . $e->getMessage()]);
     }
