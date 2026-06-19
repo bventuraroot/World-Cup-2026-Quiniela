@@ -513,11 +513,42 @@ tbody tr:hover {
   display: none;
 }
 
-.details-grid {
+.details-container {
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.details-day-header {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+  padding: 0.5rem 0.8rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--border-radius-sm);
+  margin-top: 1rem;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.details-day-header:first-of-type {
+  margin-top: 0;
+}
+
+.details-day-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.details-day-grid:last-of-type {
+  margin-bottom: 0.5rem;
 }
 
 .mini-prediction-card {

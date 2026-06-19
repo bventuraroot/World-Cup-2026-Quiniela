@@ -1321,10 +1321,12 @@ $(document).ready(function() {
           </td>
           <td style="text-align: right; font-weight: 700; font-size: 1.1rem; color: var(--primary);">${player.totalPoints}</td>
         </tr>
-        <tr class="player-details-row" id="${detailId}">
+        <tr class="player-details-row" id="${detailId}" style="display: none;">
           <td colspan="9" style="padding: 0;">
-            <div class="details-grid" id="details-grid-${player.id}">
-              <!-- Llenado al abrir para optimizar performance -->
+            <div class="details-wrapper" id="details-wrapper-${player.id}" style="display: none; overflow: hidden;">
+              <div class="details-container" id="details-container-${player.id}">
+                <!-- Llenado al abrir para optimizar performance -->
+              </div>
             </div>
           </td>
         </tr>
@@ -1334,13 +1336,21 @@ $(document).ready(function() {
     $('.player-row').off('click').on('click', function() {
       const playerId = $(this).data('player-id');
       const detailRow = $(`#detail-player-${playerId}`);
+      const wrapper = detailRow.find('.details-wrapper');
       
       if (detailRow.is(':visible')) {
-        detailRow.slideUp(150);
+        wrapper.slideUp(150, function() {
+          detailRow.hide();
+        });
       } else {
+        // Collapse all other detail rows and their wrappers
         $('.player-details-row').hide();
+        $('.details-wrapper').hide();
+        
         renderPlayerDetails(playerId);
-        detailRow.slideDown(200);
+        
+        detailRow.css('display', 'table-row');
+        wrapper.slideDown(200);
       }
     });
   }
@@ -1348,7 +1358,7 @@ $(document).ready(function() {
   // Renderizar detalles de un jugador expandido en la clasificación
   function renderPlayerDetails(playerId) {
     const player = state.players.find(p => p.id == playerId);
-    const container = $(`#details-grid-${playerId}`);
+    const container = $(`#details-container-${playerId}`);
     container.empty();
 
     if (!player) return;
@@ -1358,8 +1368,8 @@ $(document).ready(function() {
       return;
     }
 
-    let matchCount = 0;
-
+    // Group relevant matches by date
+    const matchesByDate = {};
     WORLD_CUP_2026_MATCHES.forEach(match => {
       const pred = player.predictions[match.id];
       const real = state.realResults[match.id];
@@ -1369,68 +1379,107 @@ $(document).ready(function() {
 
       if (!hasPred && !isFinished) return;
 
-      matchCount++;
-
-      let predText = "Sin Pronóstico";
-      if (hasPred) {
-        predText = `${pred.goals1} - ${pred.goals2}`;
+      if (!matchesByDate[match.date]) {
+        matchesByDate[match.date] = [];
       }
-
-      let realText = "Pendiente";
-      if (isFinished) {
-        realText = `${real.goals1} - ${real.goals2}`;
-      }
-
-      let ptsTagHTML = '';
-      let scoreClass = 'points-none';
-
-      if (isFinished && hasPred) {
-        const result = getPlayerPointsForMatch(player.id, match.id);
-        if (result.type === 'exact') {
-          scoreClass = 'points-exact';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto + Ganador)</span>`;
-        } else if (result.type === 'winner_closest') {
-          scoreClass = 'points-winner';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary); border: 1.2px solid var(--info);">+${result.points} pts (Ganador + Cercano)</span>`;
-        } else if (result.type === 'winner') {
-          scoreClass = 'points-winner';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary);">+${result.points} pts (Ganador)</span>`;
-        } else if (result.type === 'closest') {
-          scoreClass = 'points-winner';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--accent-glow); color: var(--info);">+${result.points} pts (Cercano)</span>`;
-        } else {
-          scoreClass = 'points-none';
-          ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">0 pts</span>`;
-        }
-      }
-
-      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
-      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
-      const flag1HTML = getTeamFlagHTML(resolvedTeam1);
-      const flag2HTML = getTeamFlagHTML(resolvedTeam2);
-
-      container.append(`
-        <div class="mini-prediction-card">
-          <div class="mini-pred-header">
-            <span>${match.round} ${match.group ? `• ${match.group}` : ''}</span>
-            <span>ID: ${match.id}</span>
-          </div>
-          <div class="mini-pred-teams" style="gap:0.4rem;">
-            <span style="display:flex; align-items:center; gap:0.4rem; overflow:hidden; text-overflow:ellipsis;" title="${resolvedTeam1} vs ${resolvedTeam2}">
-              ${flag1HTML} <span style="font-size:0.78rem;">vs</span> ${flag2HTML}
-            </span>
-            <span class="mini-pred-score ${scoreClass}">${predText}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.3rem; font-size: 0.75rem; color: var(--text-muted);">
-            <span>Real: ${realText}</span>
-            ${ptsTagHTML}
-          </div>
-        </div>
-      `);
+      matchesByDate[match.date].push({ match, pred, real, hasPred, isFinished });
     });
 
-    if (matchCount === 0) {
-      container.append('<p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 1.5rem;">Este jugador no ha registrado pronósticos ni hay partidos jugados.</p>');
+    // Get sorted dates (descending - most recent first)
+    const sortedDates = Object.keys(matchesByDate).sort((a, b) => b.localeCompare(a));
+
+    if (sortedDates.length === 0) {
+      container.append('<p style="text-align: center; color: var(--text-muted); padding: 1.5rem; width: 100%;">Este jugador no ha registrado pronósticos ni hay partidos jugados.</p>');
+      return;
+    }
+
+    // Loop through each date
+    sortedDates.forEach(date => {
+      // Append date header
+      const formattedDate = formatDateSpanish(date) || date;
+      container.append(`
+        <div class="details-day-header">
+          <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--primary);"></i>
+          <span>${formattedDate}</span>
+        </div>
+      `);
+
+      // Append grid for this day's matches
+      const dayGridId = `day-grid-${playerId}-${date}`;
+      container.append(`
+        <div class="details-day-grid" id="${dayGridId}"></div>
+      `);
+
+      const dayGrid = $(`#${dayGridId}`);
+
+      // Render matches in this day's grid
+      matchesByDate[date].forEach(({ match, pred, real, hasPred, isFinished }) => {
+        let predText = "Sin Pronóstico";
+        if (hasPred) {
+          predText = `${pred.goals1} - ${pred.goals2}`;
+        }
+
+        let realText = "Pendiente";
+        if (isFinished) {
+          realText = `${real.goals1} - ${real.goals2}`;
+        }
+
+        let ptsTagHTML = '';
+        let scoreClass = 'points-none';
+
+        if (isFinished) {
+          if (hasPred) {
+            const result = getPlayerPointsForMatch(player.id, match.id);
+            if (result.type === 'exact') {
+              scoreClass = 'points-exact';
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto)</span>`;
+            } else if (result.type === 'winner_closest') {
+              scoreClass = 'points-winner';
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary); border: 1.2px solid var(--info);">+${result.points} pts (Ganador + Cercano)</span>`;
+            } else if (result.type === 'winner') {
+              scoreClass = 'points-winner';
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary);">+${result.points} pts (Ganador)</span>`;
+            } else if (result.type === 'closest') {
+              scoreClass = 'points-winner';
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--accent-glow); color: var(--info);">+${result.points} pts (Cercano)</span>`;
+            } else {
+              scoreClass = 'points-none';
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">0 pts</span>`;
+            }
+          } else {
+            scoreClass = 'points-none';
+            ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">0 pts (Sin Pronóstico)</span>`;
+          }
+        }
+
+        const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+        const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+        const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+        const flag2HTML = getTeamFlagHTML(resolvedTeam2);
+
+        dayGrid.append(`
+          <div class="mini-prediction-card">
+            <div class="mini-pred-header">
+              <span>${match.round} ${match.group ? `• ${match.group}` : ''}</span>
+              <span>ID: ${match.id}</span>
+            </div>
+            <div class="mini-pred-teams" style="gap:0.4rem;">
+              <span style="display:flex; align-items:center; gap:0.4rem; overflow:hidden; text-overflow:ellipsis;" title="${resolvedTeam1} vs ${resolvedTeam2}">
+                ${flag1HTML} <span style="font-size:0.78rem;">vs</span> ${flag2HTML}
+              </span>
+              <span class="mini-pred-score ${scoreClass}">${predText}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.3rem; font-size: 0.75rem; color: var(--text-muted);">
+              <span>Real: ${realText}</span>
+              ${ptsTagHTML}
+            </div>
+          </div>
+        `);
+      });
+    });
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
     }
   }
 
