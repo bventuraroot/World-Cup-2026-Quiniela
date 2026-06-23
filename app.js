@@ -574,8 +574,14 @@ $(document).ready(function() {
     const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
     const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
 
+    const times = getFormattedMatchTimes(match.time);
     $('#pred-modal-teams').text(`${resolvedTeam1} vs ${resolvedTeam2}`);
-    $('#pred-modal-meta').text(`${match.round} ${match.group ? `• ${match.group}` : ''} | ${match.date} a las ${match.time}`);
+    $('#pred-modal-meta').html(`
+      ${match.round} ${match.group ? `• ${match.group}` : ''} | ${match.date}<br>
+      <span style="font-weight: 500;">Original: ${times.original}</span> &bull; 
+      <span style="color: var(--primary); font-weight: 600;">SV (UTC-6): ${times.sv}</span> &bull; 
+      <span style="color: var(--secondary); font-weight: 600;">CA (UTC-7): ${times.ca}</span>
+    `);
 
     const predicted = [];
     const missing = [];
@@ -984,6 +990,44 @@ $(document).ready(function() {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
     return `${day} de ${months[monthIdx]}, ${year}`;
+  }
+
+  // Obtener horarios en múltiples zonas (Original, El Salvador UTC-6, California UTC-7)
+  function getFormattedMatchTimes(timeStr) {
+    if (!timeStr) return { original: '', sv: '', ca: '' };
+    
+    const parts = timeStr.trim().split(' ');
+    if (parts.length < 2) return { original: timeStr, sv: timeStr, ca: timeStr };
+    
+    const timeVal = parts[0]; // e.g. "13:00" o "20:30"
+    const utcPart = parts[1]; // e.g. "UTC-6" o "UTC-4"
+    
+    const timeMatch = timeVal.match(/^(\d{1,2}):(\d{2})$/);
+    const utcMatch = utcPart.match(/^UTC([+-]\d+)$/);
+    
+    if (!timeMatch || !utcMatch) {
+      return { original: timeStr, sv: timeStr, ca: timeStr };
+    }
+    
+    const hours = parseInt(timeMatch[1], 10);
+    const minutes = timeMatch[2];
+    const origOffset = parseInt(utcMatch[1], 10);
+    
+    // El Salvador: siempre UTC-6
+    const svOffset = -6;
+    const svHours = (hours + (svOffset - origOffset) + 24) % 24;
+    const svTime = `${String(svHours).padStart(2, '0')}:${minutes}`;
+    
+    // California: UTC-7 (PDT en Junio/Julio 2026)
+    const caOffset = -7;
+    const caHours = (hours + (caOffset - origOffset) + 24) % 24;
+    const caTime = `${String(caHours).padStart(2, '0')}:${minutes}`;
+    
+    return {
+      original: timeStr,
+      sv: svTime,
+      ca: caTime
+    };
   }
 
   // ==========================================
@@ -1961,6 +2005,8 @@ $(document).ready(function() {
       const flag1HTML = getTeamFlagHTML(resolvedTeam1);
       const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
+      const times = getFormattedMatchTimes(match.time);
+
       grid.append(`
         <div class="match-card" style="${cardBorderGlow}">
           <div class="match-card-header">
@@ -1970,7 +2016,9 @@ $(document).ready(function() {
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
               <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
-              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+              <span style="display: flex; align-items: center; gap: 0.25rem;" title="Hora original de partido"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${times.original}</span>
+              <span style="font-size: 0.68rem; color: var(--primary); font-weight: 600;">SV: ${times.sv}</span>
+              <span style="font-size: 0.68rem; color: var(--secondary); font-weight: 600;">CA: ${times.ca}</span>
             </div>
           </div>
           
@@ -2161,6 +2209,8 @@ $(document).ready(function() {
       const flag1HTML = getTeamFlagHTML(resolvedTeam1);
       const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
+      const times = getFormattedMatchTimes(match.time);
+
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
           <div class="match-card-header">
@@ -2170,7 +2220,9 @@ $(document).ready(function() {
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
               <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
-              <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+              <span style="display: flex; align-items: center; gap: 0.25rem;" title="Hora original de partido"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${times.original}</span>
+              <span style="font-size: 0.68rem; color: var(--primary); font-weight: 600;">SV: ${times.sv}</span>
+              <span style="font-size: 0.68rem; color: var(--secondary); font-weight: 600;">CA: ${times.ca}</span>
             </div>
           </div>
           
@@ -2574,6 +2626,7 @@ $(document).ready(function() {
         });
         const totalPlayers = state.players.length;
 
+        const times = getFormattedMatchTimes(match.time);
         const flag1HTML = getTeamFlagHTML(resolvedTeam1);
         const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
@@ -2586,7 +2639,9 @@ $(document).ready(function() {
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
                 <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
-                <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${match.time}</span>
+                <span style="display: flex; align-items: center; gap: 0.25rem;" title="Hora original de partido"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${times.original}</span>
+                <span style="font-size: 0.68rem; color: var(--primary); font-weight: 600;">SV: ${times.sv}</span>
+                <span style="font-size: 0.68rem; color: var(--secondary); font-weight: 600;">CA: ${times.ca}</span>
               </div>
             </div>
             
@@ -3241,12 +3296,15 @@ $(document).ready(function() {
       const real = state.realResults[match.id] || { goals1: null, goals2: null, status: 'scheduled' };
       const resolvedT1 = getTeamName(match.id, 1, match.team1);
       const resolvedT2 = getTeamName(match.id, 2, match.team2);
+      const times = getFormattedMatchTimes(match.time);
       return {
         "ID Partido": match.id,
         "Fase/Jornada": match.round,
         "Grupo": match.group || "Eliminatorias",
         "Fecha": match.date,
-        "Hora": match.time,
+        "Hora Original": times.original,
+        "Hora El Salvador": times.sv,
+        "Hora California": times.ca,
         "Equipo 1": resolvedT1,
         "Goles Equipo 1": real.goals1 !== null ? real.goals1 : "",
         "Goles Equipo 2": real.goals2 !== null ? real.goals2 : "",
@@ -4472,7 +4530,7 @@ $(document).ready(function() {
     const flag1HTML = getTeamFlagHTML(resolvedTeam1);
     const flag2HTML = getTeamFlagHTML(resolvedTeam2);
     
-    // Tarjeta de Vista Previa del Partido
+    const times = getFormattedMatchTimes(match.time);
     const real = state.realResults[match.id];
     let scoreDisplay = "vs";
     if (real && real.goals1 !== null && real.goals1 !== undefined && real.goals2 !== null && real.goals2 !== undefined) {
@@ -4481,9 +4539,13 @@ $(document).ready(function() {
 
     const previewHTML = `
       <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
-        <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
           <span>${match.round} ${match.group ? `• ${match.group}` : ''}</span>
-          <span>${match.date} • ${match.time}</span>
+          <span style="text-align: right;">
+            ${match.date} &bull; ${times.original}<br>
+            <span style="color: var(--primary); font-weight: 600;">SV: ${times.sv}</span> &bull; 
+            <span style="color: var(--secondary); font-weight: 600;">CA: ${times.ca}</span>
+          </span>
         </div>
         <div style="display: flex; align-items: center; justify-content: space-around; width: 100%; gap: 1rem;">
           <div style="display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; gap: 0.25rem;">
