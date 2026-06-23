@@ -332,13 +332,15 @@ $(document).ready(function() {
             match_id: matchId,
             goals1: pred.goals1,
             goals2: pred.goals2,
-            unlocked: !!pred.unlocked
+            unlocked: !!pred.unlocked,
+            is_admin: isAdminMode
           };
         } else {
           payload = {
             player_id: playerId,
             match_id: matchId,
-            delete: true
+            delete: true,
+            is_admin: isAdminMode
           };
         }
       }
@@ -429,6 +431,11 @@ $(document).ready(function() {
             console.log(`[Quiniela DB Success] Guardado exitoso de tipo "${ctx.type || 'completo'}"`, response);
           } else {
             console.warn(`[Quiniela DB Warning] Fallo en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Respuesta:`, response);
+            if (response && response.message) {
+              showToast(response.message, "error");
+            } else {
+              showToast("Error al guardar cambios en la base de datos.", "error");
+            }
           }
         },
         error: function(xhr, status, error) {
@@ -1028,6 +1035,25 @@ $(document).ready(function() {
       sv: svTime,
       ca: caTime
     };
+  }
+
+  // Obtener la fecha de inicio real de un partido como objeto Date
+  function getMatchStartDate(match) {
+    if (!match || !match.date || !match.time) return null;
+    
+    const timeMatch = match.time.trim().match(/^(\d{1,2}):(\d{2})\s+UTC([+-]\d+)$/);
+    if (!timeMatch) return null;
+    
+    const hh = timeMatch[1].padStart(2, '0');
+    const mm = timeMatch[2];
+    const offsetVal = parseInt(timeMatch[3], 10);
+    
+    const sign = offsetVal >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetVal);
+    const offsetStr = `${sign}${String(absOffset).padStart(2, '0')}:00`;
+    
+    const isoStr = `${match.date}T${hh}:${mm}:00${offsetStr}`;
+    return new Date(isoStr);
   }
 
   // ==========================================
@@ -1899,10 +1925,23 @@ $(document).ready(function() {
 
       let footerFeedbackHTML = '';
       let disabledAttr = '';
+      let isTimeLocked = false;
+
+      const matchDate = getMatchStartDate(match);
+      if (matchDate) {
+        const now = new Date();
+        const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (diffHours < 2) {
+          isTimeLocked = true;
+        }
+      }
+
       if (isFinished) {
         disabledAttr = 'disabled';
       } else if (!isAdminMode) {
-        if (hasPred && !pred.unlocked) {
+        if (isTimeLocked) {
+          disabledAttr = 'disabled';
+        } else if (hasPred && !pred.unlocked) {
           disabledAttr = 'disabled';
         }
       }
@@ -1954,7 +1993,14 @@ $(document).ready(function() {
 
       let lockBadgeHTML = '';
       if (!isFinished) {
-        if (hasPred) {
+        if (isTimeLocked && !isAdminMode) {
+          lockBadgeHTML = `
+            <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--danger);">
+              <i data-lucide="lock" style="width: 12px; height: 12px;"></i>
+              <span>Cerrado (Límite: 2h antes del inicio)</span>
+            </div>
+          `;
+        } else if (hasPred) {
           if (pred.unlocked) {
             if (isAdminMode) {
               lockBadgeHTML = `
@@ -1991,12 +2037,21 @@ $(document).ready(function() {
           }
         } else {
           // Sin predicción
-          lockBadgeHTML = `
-            <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
-              <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
-              <span>Pendiente de ingresar</span>
-            </div>
-          `;
+          if (isAdminMode) {
+            lockBadgeHTML = `
+              <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
+                <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
+                <span>Pendiente de ingresar (Modo Admin)</span>
+              </div>
+            `;
+          } else {
+            lockBadgeHTML = `
+              <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
+                <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
+                <span>Pendiente de ingresar</span>
+              </div>
+            `;
+          }
         }
       }
 
@@ -2096,6 +2151,21 @@ $(document).ready(function() {
       const pred = state.players[pIdx].predictions[matchId] || { goals1: "", goals2: "" };
       const hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
                        pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+
+      // Validar límite de tiempo (2 horas antes) si no es administrador
+      if (!isAdminMode) {
+        const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+        const matchDate = getMatchStartDate(match);
+        if (matchDate) {
+          const now = new Date();
+          const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+          if (diffHours < 2) {
+            showToast("Límite de tiempo superado. Los pronósticos se bloquean 2 horas antes del partido.", "error");
+            renderPredictionsGrid();
+            return;
+          }
+        }
+      }
 
       // Si no es admin y ya tenía una predicción completa y no está liberada, no permitir guardar
       if (!isAdminMode && hasPred && !pred.unlocked) {

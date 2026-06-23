@@ -18,6 +18,54 @@ function write_api_log($message) {
     @file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND);
 }
 
+function get_local_matches() {
+    $local_matches = [];
+    $matches_file = __DIR__ . '/matches.js';
+    if (file_exists($matches_file)) {
+        $js_content = file_get_contents($matches_file);
+        $start_pos = strpos($js_content, '[');
+        $end_pos = strrpos($js_content, ']') + 1;
+        if ($start_pos !== false && $end_pos !== false) {
+            $json_str = substr($js_content, $start_pos, $end_pos - $start_pos);
+            $local_matches = json_decode($json_str, true) ?: [];
+        }
+    }
+    return $local_matches;
+}
+
+function is_match_time_locked($mId) {
+    $local_matches = get_local_matches();
+    foreach ($local_matches as $match) {
+        if (intval($match['id']) === intval($mId)) {
+            $matchTimeStr = $match['time'];
+            $matchDateStr = $match['date'];
+            
+            if (preg_match('/^(\d{1,2}):(\d{2})\s+UTC([+-]\d+)$/', trim($matchTimeStr), $m)) {
+                $hh = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                $mm = $m[2];
+                $offset = intval($m[3]);
+                
+                $sign = $offset >= 0 ? '+' : '-';
+                $absOffset = abs($offset);
+                $offsetStr = $sign . str_pad($absOffset, 2, '0', STR_PAD_LEFT) . ':00';
+                
+                $isoStr = $matchDateStr . 'T' . $hh . ':' . $mm . ':00' . $offsetStr;
+                try {
+                    $matchDateTime = new DateTime($isoStr);
+                    $now = new DateTime('now', new DateTimeZone('UTC'));
+                    $diffSeconds = $matchDateTime->getTimestamp() - $now->getTimestamp();
+                    $diffHours = $diffSeconds / 3600.0;
+                    return ($diffHours < 2);
+                } catch (Exception $e) {
+                    return false;
+                }
+            }
+            break;
+        }
+    }
+    return false;
+}
+
 $config_file = __DIR__ . '/db_config.php';
 $db_host = 'localhost';
 $db_name = 'vsystemsv_ria';
@@ -631,6 +679,14 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pId = sprintf('%.0f', $data['player_id']);
         $mId = $data['match_id'];
         $ip_cliente = $_SERVER['REMOTE_ADDR'] ?? 'IP desconocida';
+        
+        $isAdmin = isset($data['is_admin']) && ($data['is_admin'] === true || $data['is_admin'] === 1 || $data['is_admin'] === 'true');
+        if (!$isAdmin && is_match_time_locked($mId)) {
+            write_api_log("BLOQUEADO (2h antes) - Intento de guardar/eliminar pronóstico - Jugador: $pId, Partido: $mId. IP: $ip_cliente");
+            echo json_encode(['status' => 'error', 'message' => 'Límite de tiempo superado. Los pronósticos se bloquean 2 horas antes del partido.']);
+            exit;
+        }
+
         if (isset($data['delete']) && $data['delete']) {
             $stmt = $pdo->prepare("DELETE FROM quiniela_predictions WHERE player_id = :pId AND match_id = :mId");
             $stmt->execute(['pId' => $pId, 'mId' => $mId]);
