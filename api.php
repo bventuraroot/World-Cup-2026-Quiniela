@@ -55,7 +55,7 @@ function is_match_time_locked($mId) {
                     $now = new DateTime('now', new DateTimeZone('UTC'));
                     $diffSeconds = $matchDateTime->getTimestamp() - $now->getTimestamp();
                     $diffHours = $diffSeconds / 3600.0;
-                    return ($diffHours < 2);
+                    return ($diffHours < 0.5);
                 } catch (Exception $e) {
                     return false;
                 }
@@ -682,8 +682,8 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $isAdmin = isset($data['is_admin']) && ($data['is_admin'] === true || $data['is_admin'] === 1 || $data['is_admin'] === 'true');
         if (!$isAdmin && is_match_time_locked($mId)) {
-            write_api_log("BLOQUEADO (2h antes) - Intento de guardar/eliminar pronóstico - Jugador: $pId, Partido: $mId. IP: $ip_cliente");
-            echo json_encode(['status' => 'error', 'message' => 'Límite de tiempo superado. Los pronósticos se bloquean 2 horas antes del partido.']);
+            write_api_log("BLOQUEADO (30m antes) - Intento de guardar/eliminar pronóstico - Jugador: $pId, Partido: $mId. IP: $ip_cliente");
+            echo json_encode(['status' => 'error', 'message' => 'Límite de tiempo superado. Los pronósticos se bloquean 30 minutos antes del partido.']);
             exit;
         }
 

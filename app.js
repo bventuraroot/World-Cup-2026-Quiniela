@@ -1931,7 +1931,7 @@ $(document).ready(function() {
       if (matchDate) {
         const now = new Date();
         const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-        if (diffHours < 2) {
+        if (diffHours < 0.5) {
           isTimeLocked = true;
         }
       }
@@ -1997,7 +1997,7 @@ $(document).ready(function() {
           lockBadgeHTML = `
             <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--danger);">
               <i data-lucide="lock" style="width: 12px; height: 12px;"></i>
-              <span>Cerrado (Límite: 2h antes del inicio)</span>
+              <span>Cerrado (Límite: 30 min antes del inicio)</span>
             </div>
           `;
         } else if (hasPred) {
@@ -2152,15 +2152,15 @@ $(document).ready(function() {
       const hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
                        pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
 
-      // Validar límite de tiempo (2 horas antes) si no es administrador
+      // Validar límite de tiempo (30 minutos antes) si no es administrador
       if (!isAdminMode) {
         const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
         const matchDate = getMatchStartDate(match);
         if (matchDate) {
           const now = new Date();
           const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-          if (diffHours < 2) {
-            showToast("Límite de tiempo superado. Los pronósticos se bloquean 2 horas antes del partido.", "error");
+          if (diffHours < 0.5) {
+            showToast("Límite de tiempo superado. Los pronósticos se bloquean 30 minutos antes del partido.", "error");
             renderPredictionsGrid();
             return;
           }
