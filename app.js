@@ -239,11 +239,7 @@ $(document).ready(function() {
       // Restaurar modo administrador desde sessionStorage (persiste mientras la pestaña esté abierta)
       isAdminMode = sessionStorage.getItem('quiniela_isAdmin') === 'true';
       
-      if (state.players.length > 0) {
-        activePlayerId = state.players[0].id;
-      } else {
-        activePlayerId = null;
-      }
+      activePlayerId = null;
       if (typeof callback === 'function') {
         callback();
       }
@@ -1751,19 +1747,33 @@ $(document).ready(function() {
 
     const leaderboard = getPlayersLeaderboard();
 
+    // Agregar primera opción: "Ingrese usuario"
+    const isNoActivePlayer = activePlayerId === null || !state.players.some(p => p.id == activePlayerId);
+    const firstOptionSelectedAttr = isNoActivePlayer ? 'selected' : '';
+    select.append(`<option value="" ${firstOptionSelectedAttr}>Ingrese usuario</option>`);
+
     state.players.forEach(player => {
       const leaderInfo = leaderboard.find(l => l.id === player.id) || { totalPoints: 0 };
-      const selectedAttr = player.id === activePlayerId ? 'selected' : '';
+      const selectedAttr = player.id == activePlayerId ? 'selected' : '';
       select.append(`<option value="${player.id}" ${selectedAttr}>${player.name} (${leaderInfo.totalPoints} pts)</option>`);
     });
 
     select.off('change').on('change', function() {
-      const id = parseInt($(this).val());
+      const val = $(this).val();
+      if (!val) {
+        activePlayerId = null;
+        $('#active-player-name-label').text('Ninguno');
+        renderPredictionsGrid();
+        return;
+      }
+      const id = val;
       activePlayerId = id;
       
       const activePlayer = state.players.find(p => p.id == activePlayerId);
       if (activePlayer) {
         $('#active-player-name-label').text(activePlayer.name);
+      } else {
+        $('#active-player-name-label').text('Ninguno');
       }
       
       renderPredictionsGrid();
@@ -1773,10 +1783,10 @@ $(document).ready(function() {
     if (activePlayer) {
       $('#active-player-name-label').text(activePlayer.name);
       select.val(activePlayer.id);
-    } else if (state.players.length > 0) {
-      activePlayerId = state.players[0].id;
-      $('#active-player-name-label').text(state.players[0].name);
-      select.val(state.players[0].id);
+    } else {
+      activePlayerId = null;
+      $('#active-player-name-label').text('Ninguno');
+      select.val('');
     }
   }
 
@@ -1787,7 +1797,13 @@ $(document).ready(function() {
     grid.empty();
 
     const activePlayer = state.players.find(p => p.id == activePlayerId);
-    if (!activePlayer) return;
+    if (!activePlayer) {
+      grid.append('<p style="padding: 3rem 2rem; color: var(--text-secondary); text-align: center; font-size: 1rem; width: 100%; grid-column: 1 / -1;"><i data-lucide="info" style="width: 24px; height: 24px; color: var(--text-muted); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>Por favor, seleccione un jugador en la lista lateral para ver y editar sus pronósticos.</p>');
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+      return;
+    }
 
     if (typeof WORLD_CUP_2026_MATCHES === 'undefined') {
       grid.append('<p style="padding: 2rem; color: var(--text-muted);">Error: partidos no definidos.</p>');
@@ -3221,11 +3237,7 @@ $(document).ready(function() {
     if (confirm(`¿Estás seguro de que deseas eliminar al jugador "${player.name}" y todos sus pronósticos? Esta acción no se puede deshacer.`)) {
       state.players = state.players.filter(p => p.id !== activePlayerId);
       
-      if (state.players.length > 0) {
-        activePlayerId = state.players[0].id;
-      } else {
-        activePlayerId = null;
-      }
+      activePlayerId = null;
 
       saveState({ type: 'delete-player', playerId: player.id });
 
@@ -3466,11 +3478,7 @@ $(document).ready(function() {
           syncOfficialMatches();
           saveState({ type: 'full-overwrite' });
 
-          if (state.players.length > 0) {
-            activePlayerId = state.players[0].id;
-          } else {
-            activePlayerId = null;
-          }
+          activePlayerId = null;
 
           renderDashboard();
           renderLeaderboard();
