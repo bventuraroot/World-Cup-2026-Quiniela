@@ -83,11 +83,11 @@ try {
     $stmtReal = $pdo->query("SELECT * FROM quiniela_real_results");
     foreach ($stmtReal->fetchAll() as $r) {
         $realResults->{$r['match_id']} = [
-            'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
-            'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
-            'penalties1' => $r['penalties1'] !== null ? intval($r['penalties1']) : null,
-            'penalties2' => $r['penalties2'] !== null ? intval($r['penalties2']) : null,
-            'penalty_winner' => $r['penalty_winner'] !== null ? intval($r['penalty_winner']) : null,
+            'goals1' => isset($r['goals1']) && $r['goals1'] !== null ? intval($r['goals1']) : null,
+            'goals2' => isset($r['goals2']) && $r['goals2'] !== null ? intval($r['goals2']) : null,
+            'penalties1' => isset($r['penalties1']) && $r['penalties1'] !== null ? intval($r['penalties1']) : null,
+            'penalties2' => isset($r['penalties2']) && $r['penalties2'] !== null ? intval($r['penalties2']) : null,
+            'penalty_winner' => isset($r['penalty_winner']) && $r['penalty_winner'] !== null ? intval($r['penalty_winner']) : null,
             'status' => $r['status'],
             'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
         ];
@@ -130,12 +130,12 @@ try {
             $preds[$pId] = [];
         }
         $preds[$pId][$mId] = [
-            'goals1' => $pr['goals1'],
-            'goals2' => $pr['goals2'],
-            'penalties1' => $pr['penalties1'] !== null ? intval($pr['penalties1']) : null,
-            'penalties2' => $pr['penalties2'] !== null ? intval($pr['penalties2']) : null,
-            'penalty_winner' => $pr['penalty_winner'] !== null ? intval($pr['penalty_winner']) : null,
-            'unlocked' => intval($pr['unlocked']) === 1
+            'goals1' => isset($pr['goals1']) ? $pr['goals1'] : null,
+            'goals2' => isset($pr['goals2']) ? $pr['goals2'] : null,
+            'penalties1' => isset($pr['penalties1']) && $pr['penalties1'] !== null ? intval($pr['penalties1']) : null,
+            'penalties2' => isset($pr['penalties2']) && $pr['penalties2'] !== null ? intval($pr['penalties2']) : null,
+            'penalty_winner' => isset($pr['penalty_winner']) && $pr['penalty_winner'] !== null ? intval($pr['penalty_winner']) : null,
+            'unlocked' => isset($pr['unlocked']) && intval($pr['unlocked']) === 1
         ];
     }
 
@@ -294,7 +294,7 @@ try {
             'bonusPoints' => $bonus,
             'points' => $totalPoints,        // Para compatibilidad
             'totalPoints' => $totalPoints,   // Para compatibilidad
-            'predictions' => isset($preds[$pId]) ? $preds[$pId] : new stdClass()
+            'predictions' => (isset($preds[$pId]) && !empty($preds[$pId])) ? $preds[$pId] : new stdClass()
         ];
     }
 

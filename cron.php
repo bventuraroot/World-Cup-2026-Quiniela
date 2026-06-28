@@ -149,11 +149,11 @@ try {
     $stmt = $pdo->query("SELECT match_id, goals1, goals2, penalties1, penalties2, penalty_winner, status, api_data FROM quiniela_real_results");
     while ($row = $stmt->fetch()) {
         $current_real_results[$row['match_id']] = [
-            'goals1' => $row['goals1'] !== null ? intval($row['goals1']) : null,
-            'goals2' => $row['goals2'] !== null ? intval($row['goals2']) : null,
-            'penalties1' => $row['penalties1'] !== null ? intval($row['penalties1']) : null,
-            'penalties2' => $row['penalties2'] !== null ? intval($row['penalties2']) : null,
-            'penalty_winner' => $row['penalty_winner'] !== null ? intval($row['penalty_winner']) : null,
+            'goals1' => isset($row['goals1']) && $row['goals1'] !== null ? intval($row['goals1']) : null,
+            'goals2' => isset($row['goals2']) && $row['goals2'] !== null ? intval($row['goals2']) : null,
+            'penalties1' => isset($row['penalties1']) && $row['penalties1'] !== null ? intval($row['penalties1']) : null,
+            'penalties2' => isset($row['penalties2']) && $row['penalties2'] !== null ? intval($row['penalties2']) : null,
+            'penalty_winner' => isset($row['penalty_winner']) && $row['penalty_winner'] !== null ? intval($row['penalty_winner']) : null,
             'status' => $row['status'],
             'api_data' => $row['api_data']
         ];

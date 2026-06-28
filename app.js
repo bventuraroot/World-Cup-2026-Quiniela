@@ -153,7 +153,7 @@ $(document).ready(function() {
             state = data;
             if (!state.players) state.players = [];
             state.players.forEach(p => {
-              if (!p.predictions) p.predictions = {};
+              if (!p.predictions || Array.isArray(p.predictions)) p.predictions = {};
             });
             if (!state.realResults) state.realResults = {};
             if (!state.matchTeams) state.matchTeams = {};
@@ -204,7 +204,7 @@ $(document).ready(function() {
           state = JSON.parse(saved);
           if (!state.players) state.players = [];
           state.players.forEach(p => {
-            if (!p.predictions) p.predictions = {};
+            if (!p.predictions || Array.isArray(p.predictions)) p.predictions = {};
           });
           if (!state.realResults) state.realResults = {};
           if (!state.matchTeams) state.matchTeams = {};
