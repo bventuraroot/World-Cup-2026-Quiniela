@@ -256,6 +256,7 @@ $(document).ready(function() {
         pointsWinner: 1,
         pointsClosest: 1,
         pointsChampion: 10,
+        pointsPenalties: 1,
         adminPin: '1234',
         theme: 'dark',
         championVotingClosed: false
@@ -328,6 +329,7 @@ $(document).ready(function() {
             match_id: matchId,
             goals1: pred.goals1,
             goals2: pred.goals2,
+            penalty_winner: pred.penalty_winner,
             unlocked: !!pred.unlocked,
             is_admin: isAdminMode
           };
@@ -368,6 +370,7 @@ $(document).ready(function() {
           match_id: matchId,
           goals1: res ? res.goals1 : null,
           goals2: res ? res.goals2 : null,
+          penalty_winner: res ? res.penalty_winner : null,
           status: res ? res.status : 'scheduled',
           api_data: res ? res.api_data : null
         };
@@ -449,11 +452,13 @@ $(document).ready(function() {
     const ptsWinner = parseInt(state.config.pointsWinner || 1);
     const ptsClosest = parseInt(state.config.pointsClosest || 1);
     const ptsChampion = parseInt(state.config.pointsChampion !== undefined ? state.config.pointsChampion : 10);
+    const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
 
     $('.rules-pts-exact').text(ptsExact);
     $('.rules-pts-winner').text(ptsWinner);
     $('.rules-pts-closest').text(ptsClosest);
     $('.rules-pts-champion').text(ptsChampion);
+    $('.rules-pts-penalties').text(ptsPenalties);
     $('.rules-pts-total-exact').text(ptsExact + ptsWinner);
   }
 
@@ -476,7 +481,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').show();
       
       // Habilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', false);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #pts-penalties, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', false);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', false);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', false);
       
@@ -498,7 +503,7 @@ $(document).ready(function() {
       $('#admin-pin-change-section').hide();
       
       // Deshabilitar campos
-      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', true);
+      $('#pts-exact, #pts-winner, #pts-closest, #pts-champion, #pts-penalties, #btn-save-pts-config, #btn-toggle-champion-voting, #btn-sync-pre-incident-points').prop('disabled', true);
       $('#admin-select-champion, #btn-save-champion').prop('disabled', true);
       $('#btn-reset-players, #btn-reset-all').prop('disabled', true);
       
@@ -785,7 +790,19 @@ $(document).ready(function() {
     if (p1 === r1 && p2 === r2) {
       const ptsExact = parseInt(state.config.pointsExact || 3);
       const ptsWinner = parseInt(state.config.pointsWinner || 1);
-      return { points: ptsExact + ptsWinner, type: 'exact' };
+      let pointsEarned = ptsExact + ptsWinner;
+      
+      const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+      const isKnockout = match && (!match.group || match.group === '');
+      if (isKnockout && r1 === r2) {
+        const realPWinner = real.penalty_winner !== undefined && real.penalty_winner !== null ? parseInt(real.penalty_winner) : null;
+        const predPWinner = pred.penalty_winner !== undefined && pred.penalty_winner !== null ? parseInt(pred.penalty_winner) : null;
+        if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
+          const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
+          pointsEarned += ptsPenalties;
+        }
+      }
+      return { points: pointsEarned, type: 'exact' };
     }
     
     let minDistance = Infinity;
@@ -821,6 +838,17 @@ $(document).ready(function() {
     if (minDistance !== Infinity && distance === minDistance) {
       pointsEarned += parseInt(state.config.pointsClosest || 1);
       type = type === 'winner' ? 'winner_closest' : 'closest';
+    }
+
+    const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+    const isKnockout = match && (!match.group || match.group === '');
+    if (isKnockout && r1 === r2 && p1 === p2) {
+      const realPWinner = real.penalty_winner !== undefined && real.penalty_winner !== null ? parseInt(real.penalty_winner) : null;
+      const predPWinner = pred.penalty_winner !== undefined && pred.penalty_winner !== null ? parseInt(pred.penalty_winner) : null;
+      if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
+        const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
+        pointsEarned += ptsPenalties;
+      }
     }
     
     return { points: pointsEarned, type };
@@ -1991,17 +2019,58 @@ $(document).ready(function() {
           feedbackText = 'No acertó (0 pts)';
         }
 
-        const shootoutText = (real.api_data && real.api_data.shootout) ? ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)` : '';
+        let shootoutText = '';
+        if (real.api_data && real.api_data.shootout) {
+          shootoutText = ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)`;
+        } else if (real.penalty_winner) {
+          const winnerTeam = real.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+          shootoutText = ` (Pen: Ganó ${winnerTeam})`;
+        }
+
+        let predShootoutText = '';
+        const isKnockout = !match.group || match.group === '';
+        if (isKnockout && pred && pred.goals1 !== null && pred.goals2 !== null && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+          if (pred.penalty_winner) {
+            const predWinnerTeam = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+            predShootoutText = ` (Pen: ${predWinnerTeam})`;
+          } else {
+            predShootoutText = ` (Pen: Sin elegir)`;
+          }
+        }
 
         footerFeedbackHTML = `
           <div style="display: flex; flex-direction: column; width: 100%; gap: 0.2rem; background: rgba(0,0,0,0.15); padding: 0.5rem; border-radius: var(--border-radius-sm); margin-top: 0.4rem;">
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
+              <span>Tu Pronóstico:</span>
+              <span style="font-weight: 700;">${pred ? pred.goals1 : ''} - ${pred ? pred.goals2 : ''}${predShootoutText}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
               <span>Resultado Real:</span>
               <span style="font-weight: 700;">${real.goals1} - ${real.goals2}${shootoutText}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; ${ptsClass}">
+            <div style="display: flex; justify-content: space-between; ${ptsClass} font-size: 0.82rem;">
               <span>Resultado Pronóstico:</span>
               <span>${feedbackText}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      let penaltySelectorHTML = '';
+      const isKnockout = !match.group || match.group === '';
+      if (isKnockout && !isFinished && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+        const btn1Active = pred.penalty_winner == 1 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        const btn2Active = pred.penalty_winner == 2 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        penaltySelectorHTML = `
+          <div class="penalty-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">Ganador Penales:</span>
+            <div style="display: flex; gap: 0.3rem;">
+              <button class="btn-penalty-select" data-match-id="${match.id}" data-winner="1" ${disabledAttr} style="padding: 0.2rem 0.6rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn1Active} font-weight: 700; cursor: pointer;">
+                ${resolvedTeam1}
+              </button>
+              <button class="btn-penalty-select" data-match-id="${match.id}" data-winner="2" ${disabledAttr} style="padding: 0.2rem 0.6rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn2Active} font-weight: 700; cursor: pointer;">
+                ${resolvedTeam2}
+              </button>
             </div>
           </div>
         `;
@@ -2128,6 +2197,7 @@ $(document).ready(function() {
               ${awayIncidencesHTML}
             </div>
 
+            ${penaltySelectorHTML}
             ${lockBadgeHTML}
             ${footerFeedbackHTML}
           </div>
@@ -2205,12 +2275,56 @@ $(document).ready(function() {
       state.players[pIdx].predictions[matchId].goals1 = val1;
       state.players[pIdx].predictions[matchId].goals2 = val2;
 
+      // Si no es un empate, remover el penalty_winner
+      if (val1 !== "" && val2 !== "" && parseInt(val1) !== parseInt(val2)) {
+        state.players[pIdx].predictions[matchId].penalty_winner = null;
+      }
+
       // Si el usuario guardó un marcador completo (ambos goles), bloquearlo quitando la bandera de desbloqueo
       const nowHasPred = val1 !== "" && val1 !== null && val1 !== undefined &&
                          val2 !== "" && val2 !== null && val2 !== undefined;
       if (nowHasPred && !isAdminMode) {
         state.players[pIdx].predictions[matchId].unlocked = false;
       }
+
+      saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
+      showSaveIndicator(true);
+      renderDashboard();
+      renderPredictionsGrid();
+    });
+
+    $('.btn-penalty-select').off('click').on('click', function(e) {
+      e.preventDefault();
+      const matchId = $(this).data('match-id');
+      const winner = $(this).data('winner');
+
+      const pIdx = state.players.findIndex(p => p.id == activePlayerId);
+      if (pIdx === -1) return;
+
+      const pred = state.players[pIdx].predictions[matchId];
+      if (!pred) return;
+
+      // Validar límite de tiempo (30 minutos antes) si no es administrador
+      if (!isAdminMode) {
+        const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+        const matchDate = getMatchStartDate(match);
+        if (matchDate) {
+          const now = new Date();
+          const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+          if (diffHours < 0.5) {
+            showToast("Límite de tiempo superado. Los pronósticos se bloquean 30 minutos antes del partido.", "error");
+            renderPredictionsGrid();
+            return;
+          }
+        }
+        if (pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && !pred.unlocked) {
+          showToast("Este pronóstico está bloqueado. Pide al administrador que lo libere.", "error");
+          renderPredictionsGrid();
+          return;
+        }
+      }
+
+      state.players[pIdx].predictions[matchId].penalty_winner = winner;
 
       saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
@@ -2297,6 +2411,26 @@ $(document).ready(function() {
 
       const times = getFormattedMatchTimes(match.time);
 
+      let adminPenaltySelectorHTML = '';
+      const isKnockout = !match.group || match.group === '';
+      if (isKnockout && real.goals1 !== null && real.goals1 !== "" && real.goals2 !== null && real.goals2 !== "" && parseInt(real.goals1) === parseInt(real.goals2)) {
+        const btn1Active = real.penalty_winner == 1 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        const btn2Active = real.penalty_winner == 2 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        adminPenaltySelectorHTML = `
+          <div class="admin-penalty-selector" style="margin-top: 0.5rem; padding: 0.4rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Ganador Penales:</span>
+            <div style="display: flex; gap: 0.2rem;">
+              <button class="btn-admin-penalty-select" data-match-id="${match.id}" data-winner="1" ${disabledAttr} style="padding: 0.15rem 0.4rem; font-size: 0.7rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn1Active} font-weight: 700; cursor: pointer;">
+                ${resolvedTeam1}
+              </button>
+              <button class="btn-admin-penalty-select" data-match-id="${match.id}" data-winner="2" ${disabledAttr} style="padding: 0.15rem 0.4rem; font-size: 0.7rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn2Active} font-weight: 700; cursor: pointer;">
+                ${resolvedTeam2}
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
       grid.append(`
         <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
           <div class="match-card-header">
@@ -2351,7 +2485,7 @@ $(document).ready(function() {
               </div>
             </div>
 
-            <!-- Match status selector -->
+             <!-- Match status selector -->
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem;">
               <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Estado:</span>
               <select class="select-custom admin-status-select" data-match-id="${match.id}" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; flex: 1;" ${disabledAttr}>
@@ -2360,6 +2494,7 @@ $(document).ready(function() {
                 <option value="finished" ${real.status === 'finished' ? 'selected' : ''}>Finalizado</option>
               </select>
             </div>
+            ${adminPenaltySelectorHTML}
           </div>
 
           <div class="match-card-footer">
@@ -2422,10 +2557,21 @@ $(document).ready(function() {
       const goals2 = card.find('.admin-goal-input[data-team="2"]').val();
       const status = card.find('.admin-status-select').val();
 
+      const goals1Val = goals1 === "" ? null : parseInt(goals1);
+      const goals2Val = goals2 === "" ? null : parseInt(goals2);
+
+      const existingReal = state.realResults[matchId] || { goals1: null, goals2: null, status: 'scheduled' };
+      let penalty_winner = existingReal.penalty_winner;
+      if (goals1Val !== null && goals2Val !== null && goals1Val !== goals2Val) {
+        penalty_winner = null;
+      }
+
       state.realResults[matchId] = {
-        goals1: goals1 === "" ? null : parseInt(goals1),
-        goals2: goals2 === "" ? null : parseInt(goals2),
-        status: status
+        goals1: goals1Val,
+        goals2: goals2Val,
+        penalty_winner: penalty_winner,
+        status: status,
+        api_data: existingReal.api_data
       };
 
       if (status === 'finished' && (goals1 === "" || goals2 === "")) {
@@ -2435,7 +2581,28 @@ $(document).ready(function() {
       saveState({ type: 'real-results', matchId: matchId });
       renderDashboard();
       renderLeaderboard();
+      renderAdminGrid(); // Rerender para refrescar botones
       showToast(`Partido ID ${matchId} actualizado.`);
+    });
+
+    $('.btn-admin-penalty-select').off('click').on('click', function(e) {
+      e.preventDefault();
+      if (!isAdminMode) return;
+
+      const matchId = $(this).data('match-id');
+      const winner = $(this).data('winner');
+
+      if (!state.realResults[matchId]) {
+        state.realResults[matchId] = { goals1: null, goals2: null, status: 'scheduled' };
+      }
+
+      state.realResults[matchId].penalty_winner = winner;
+
+      saveState({ type: 'real-results', matchId: matchId });
+      renderDashboard();
+      renderLeaderboard();
+      renderAdminGrid();
+      showToast(`Ganador de penales del partido ID ${matchId} actualizado.`);
     });
   }
 
@@ -3071,6 +3238,15 @@ $(document).ready(function() {
               };
             }
 
+            let penalty_winner = null;
+            if (shootout) {
+              if (shootout.home > shootout.away) {
+                penalty_winner = 1;
+              } else if (shootout.away > shootout.home) {
+                penalty_winner = 2;
+              }
+            }
+
             const api_data = {
               venue: espnVenue,
               broadcasts: espnBroadcasts,
@@ -3084,13 +3260,14 @@ $(document).ready(function() {
               shootout: shootout
             };
 
-            const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, status: 'scheduled' };
+            const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, penalty_winner: null, status: 'scheduled' };
 
-            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.status !== status || JSON.stringify(currentReal.api_data) !== JSON.stringify(api_data)) {
+            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.penalty_winner !== penalty_winner || currentReal.status !== status || JSON.stringify(currentReal.api_data) !== JSON.stringify(api_data)) {
               if (!state.realResults) state.realResults = {};
               state.realResults[localMatch.id] = {
                 goals1: finalGoals1,
                 goals2: finalGoals2,
+                penalty_winner: penalty_winner,
                 status: status,
                 api_data: api_data
               };
@@ -3101,6 +3278,7 @@ $(document).ready(function() {
                   match_id: localMatch.id,
                   goals1: finalGoals1,
                   goals2: finalGoals2,
+                  penalty_winner: penalty_winner,
                   status: status,
                   api_data: api_data
                 },
@@ -3296,8 +3474,9 @@ $(document).ready(function() {
     const ptsWinner = parseInt($('#pts-winner').val());
     const ptsClosest = parseInt($('#pts-closest').val());
     const ptsChampion = parseInt($('#pts-champion').val());
+    const ptsPenalties = parseInt($('#pts-penalties').val());
 
-    if (isNaN(ptsExact) || ptsExact < 0 || isNaN(ptsWinner) || ptsWinner < 0 || isNaN(ptsClosest) || ptsClosest < 0 || isNaN(ptsChampion) || ptsChampion < 0) {
+    if (isNaN(ptsExact) || ptsExact < 0 || isNaN(ptsWinner) || ptsWinner < 0 || isNaN(ptsClosest) || ptsClosest < 0 || isNaN(ptsChampion) || ptsChampion < 0 || isNaN(ptsPenalties) || ptsPenalties < 0) {
       showToast("Ingresa valores de puntaje válidos (mayores o iguales a 0).", "error");
       return;
     }
@@ -3306,6 +3485,7 @@ $(document).ready(function() {
     state.config.pointsWinner = ptsWinner;
     state.config.pointsClosest = ptsClosest;
     state.config.pointsChampion = ptsChampion;
+    state.config.pointsPenalties = ptsPenalties;
 
     saveState({ type: 'config' });
     updateRulesPoints();
@@ -3379,6 +3559,18 @@ $(document).ready(function() {
       const resolvedT1 = getTeamName(match.id, 1, match.team1);
       const resolvedT2 = getTeamName(match.id, 2, match.team2);
       const times = getFormattedMatchTimes(match.time);
+      const isKnockout = !match.group || match.group === '';
+      let score1 = real.goals1 !== null ? real.goals1 : "";
+      let score2 = real.goals2 !== null ? real.goals2 : "";
+      if (real.status === 'finished' && isKnockout && real.goals1 !== null && real.goals2 !== null && real.goals1 === real.goals2) {
+        if (real.api_data && real.api_data.shootout) {
+          score1 += ` (${real.api_data.shootout.home})`;
+          score2 += ` (${real.api_data.shootout.away})`;
+        } else if (real.penalty_winner) {
+          if (real.penalty_winner == 1) score1 += " (Ganó Pen.)";
+          else score2 += " (Ganó Pen.)";
+        }
+      }
       return {
         "ID Partido": match.id,
         "Fase/Jornada": match.round,
@@ -3388,8 +3580,8 @@ $(document).ready(function() {
         "Hora El Salvador": times.sv,
         "Hora California": times.ca,
         "Equipo 1": resolvedT1,
-        "Goles Equipo 1": real.goals1 !== null ? real.goals1 : "",
-        "Goles Equipo 2": real.goals2 !== null ? real.goals2 : "",
+        "Goles Equipo 1": score1,
+        "Goles Equipo 2": score2,
         "Equipo 2": resolvedT2,
         "Sede": match.ground,
         "Estado": real.status === 'finished' ? 'Finalizado' : (real.status === 'live' ? 'En Vivo' : 'Pendiente')
@@ -3406,6 +3598,15 @@ $(document).ready(function() {
       let realScore = "Pendiente";
       if (real.status === 'finished') {
         realScore = `${real.goals1} - ${real.goals2}`;
+        const isKnockout = !match.group || match.group === '';
+        if (isKnockout && real.goals1 === real.goals2) {
+          if (real.api_data && real.api_data.shootout) {
+            realScore += ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)`;
+          } else if (real.penalty_winner) {
+            const winnerTeam = real.penalty_winner == 1 ? resolvedT1 : resolvedT2;
+            realScore += ` (Pen: ${winnerTeam})`;
+          }
+        }
       }
 
       const rowObj = {
@@ -3420,7 +3621,15 @@ $(document).ready(function() {
       state.players.forEach(player => {
         const pred = player.predictions[match.id];
         if (pred && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "") {
-          rowObj[player.name] = `${pred.goals1} - ${pred.goals2}`;
+          let predScore = `${pred.goals1} - ${pred.goals2}`;
+          const isKnockout = !match.group || match.group === '';
+          if (isKnockout && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+            if (pred.penalty_winner) {
+              const winnerTeam = pred.penalty_winner == 1 ? resolvedT1 : resolvedT2;
+              predScore += ` (Pen: ${winnerTeam})`;
+            }
+          }
+          rowObj[player.name] = predScore;
         } else {
           rowObj[player.name] = "-";
         }
@@ -3493,6 +3702,7 @@ $(document).ready(function() {
           $('#pts-winner').val(state.config.pointsWinner || 1);
           $('#pts-closest').val(state.config.pointsClosest || 1);
           $('#pts-champion').val(state.config.pointsChampion || 10);
+          $('#pts-penalties').val(state.config.pointsPenalties || 1);
           updateRulesPoints();
           if (state.config.championVotingClosed === undefined) {
             state.config.championVotingClosed = false;
@@ -3569,6 +3779,7 @@ $(document).ready(function() {
       $('#pts-winner').val(state.config.pointsWinner);
       $('#pts-closest').val(state.config.pointsClosest);
       $('#pts-champion').val(state.config.pointsChampion);
+      $('#pts-penalties').val(state.config.pointsPenalties);
       updateRulesPoints();
       updateChampionVotingUI();
       
@@ -4817,6 +5028,7 @@ $(document).ready(function() {
     $('#pts-winner').val(state.config.pointsWinner);
     $('#pts-closest').val(state.config.pointsClosest || 1);
     $('#pts-champion').val(state.config.pointsChampion || 10);
+    $('#pts-penalties').val(state.config.pointsPenalties || 1);
     updateRulesPoints();
     updateChampionVotingUI();
 

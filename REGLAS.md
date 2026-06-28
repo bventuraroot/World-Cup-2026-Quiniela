@@ -43,6 +43,11 @@ La puntuación de cada jugador se calcula automáticamente para cada partido fin
 - Se otorga al finalizar el torneo a todo jugador que haya pronosticado correctamente al campeón oficial de la Copa del Mundo 2026.
 - Esta predicción es de carácter público y cada participante puede definir o cambiar su voto libremente desde la pestaña **Votar Campeón**.
 
+### E. Acierto de Ganador en Penales (+1 Punto)
+- Se otorga en partidos de fases eliminatorias si el partido real finaliza en empate (tras prórroga si aplica) y el pronóstico del jugador también fue un empate.
+- Si el jugador acierta el equipo que avanza/gana por tanda de penales, se le otorga este punto adicional.
+- *Ejemplo*: Predice **1 - 1** con clasificación de **España**. El resultado real del partido es **2 - 2** y clasifica **España** vía penales (recibe 1 pt por acierto de empate/ganador + 1 pt por acierto de ganador en penales = 2 pts en total).
+
 *Nota: Los puntos de las reglas son configurables en el panel de Ajustes si el grupo decide cambiarlos.*
 
 ---

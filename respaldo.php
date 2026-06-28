@@ -54,6 +54,7 @@ try {
         'pointsWinner' => 1,
         'pointsClosest' => 1,
         'pointsChampion' => 10,
+        'pointsPenalties' => 1,
         'adminPin' => '1234',
         'theme' => 'dark',
         'championVotingClosed' => false
@@ -67,7 +68,7 @@ try {
         if ($k === 'realChampion') {
             $realChampion = $v;
         } else {
-            if ($k === 'pointsExact' || $k === 'pointsWinner' || $k === 'pointsClosest' || $k === 'pointsChampion') {
+            if ($k === 'pointsExact' || $k === 'pointsWinner' || $k === 'pointsClosest' || $k === 'pointsChampion' || $k === 'pointsPenalties') {
                 $config[$k] = intval($v);
             } elseif ($k === 'championVotingClosed') {
                 $config[$k] = (intval($v) === 1);
@@ -84,6 +85,7 @@ try {
         $realResults->{$r['match_id']} = [
             'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
             'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
+            'penalty_winner' => $r['penalty_winner'] !== null ? intval($r['penalty_winner']) : null,
             'status' => $r['status'],
             'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
         ];
@@ -128,6 +130,7 @@ try {
         $preds[$pId][$mId] = [
             'goals1' => $pr['goals1'],
             'goals2' => $pr['goals2'],
+            'penalty_winner' => $pr['penalty_winner'] !== null ? intval($pr['penalty_winner']) : null,
             'unlocked' => intval($pr['unlocked']) === 1
         ];
     }
@@ -190,9 +193,27 @@ try {
                         if ($r1 !== null && $r2 !== null && $pred['goals1'] !== null && $pred['goals1'] !== '' && $pred['goals2'] !== null && $pred['goals2'] !== '') {
                             $p1 = intval($pred['goals1']);
                             $p2 = intval($pred['goals2']);
-                            
+                            $ptsPenaltiesCfg = isset($config['pointsPenalties']) ? intval($config['pointsPenalties']) : 1;
+
+                            $matchObj = null;
+                            foreach ($local_matches as $lm) {
+                                if ($lm['id'] == $mId) {
+                                    $matchObj = $lm;
+                                    break;
+                                }
+                            }
+                            $isKnockout = $matchObj && (!isset($matchObj['group']) || $matchObj['group'] === '');
+
                             if ($p1 === $r1 && $p2 === $r2) {
-                                $totalPoints += ($ptsExactCfg + $ptsWinnerCfg);
+                                $pointsEarned = $ptsExactCfg + $ptsWinnerCfg;
+                                if ($isKnockout && $r1 === $r2) {
+                                    $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
+                                    $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                    if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
+                                        $pointsEarned += $ptsPenaltiesCfg;
+                                    }
+                                }
+                                $totalPoints += $pointsEarned;
                             } else {
                                 $predDiff = $p1 - $p2;
                                 $realDiff = $r1 - $r2;
@@ -207,6 +228,14 @@ try {
                                 $dist = abs($p1 - $r1) + abs($p2 - $r2);
                                 if ($minDist !== 999999 && $dist === $minDist) {
                                     $pointsEarned += $ptsClosestCfg;
+                                }
+                                
+                                if ($isKnockout && $r1 === $r2 && $p1 === $p2) {
+                                    $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
+                                    $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                    if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
+                                        $pointsEarned += $ptsPenaltiesCfg;
+                                    }
                                 }
                                 
                                 $totalPoints += $pointsEarned;

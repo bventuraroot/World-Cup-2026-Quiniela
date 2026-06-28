@@ -146,11 +146,12 @@ if (!$local_matches) {
 // 2. Cargar marcadores actuales de la BD para comparar y no re-escribir innecesariamente
 $current_real_results = [];
 try {
-    $stmt = $pdo->query("SELECT match_id, goals1, goals2, status, api_data FROM quiniela_real_results");
+    $stmt = $pdo->query("SELECT match_id, goals1, goals2, penalty_winner, status, api_data FROM quiniela_real_results");
     while ($row = $stmt->fetch()) {
         $current_real_results[$row['match_id']] = [
             'goals1' => $row['goals1'] !== null ? intval($row['goals1']) : null,
             'goals2' => $row['goals2'] !== null ? intval($row['goals2']) : null,
+            'penalty_winner' => $row['penalty_winner'] !== null ? intval($row['penalty_winner']) : null,
             'status' => $row['status'],
             'api_data' => $row['api_data']
         ];
@@ -189,9 +190,9 @@ $updated_results = 0;
 $updated_teams = 0;
 
 // Preparar declaraciones SQL
-$stmt_save_result = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, status, api_data) 
-                                   VALUES (:mId, :g1, :g2, :status, :apiData) 
-                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, status = :status, api_data = :apiData");
+$stmt_save_result = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalty_winner, status, api_data) 
+                                   VALUES (:mId, :g1, :g2, :pw, :status, :apiData) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, penalty_winner = :pw, status = :status, api_data = :apiData");
 
 $stmt_save_team = $pdo->prepare("INSERT INTO quiniela_match_teams (match_id, team1, team2) 
                                  VALUES (:mId, :t1, :t2) 
@@ -410,6 +411,17 @@ foreach ($events as $event) {
             'shootout' => $shootout
         ];
         
+        $penalty_winner = null;
+        if ($shootout !== null) {
+            $homeShoot = isset($shootout['home']) ? intval($shootout['home']) : 0;
+            $awayShoot = isset($shootout['away']) ? intval($shootout['away']) : 0;
+            if ($homeShoot > $awayShoot) {
+                $penalty_winner = 1;
+            } elseif ($awayShoot > $homeShoot) {
+                $penalty_winner = 2;
+            }
+        }
+        
         $api_data_json = json_encode($api_data, JSON_UNESCAPED_UNICODE);
         $hasChanged = false;
         
@@ -417,7 +429,7 @@ foreach ($events as $event) {
             $hasChanged = true;
         } else {
             $curr = $current_real_results[$mId];
-            if ($curr['goals1'] !== $finalGoals1 || $curr['goals2'] !== $finalGoals2 || $curr['status'] !== $status || $curr['api_data'] !== $api_data_json) {
+            if ($curr['goals1'] !== $finalGoals1 || $curr['goals2'] !== $finalGoals2 || $curr['penalty_winner'] !== $penalty_winner || $curr['status'] !== $status || $curr['api_data'] !== $api_data_json) {
                 $hasChanged = true;
             }
         }
@@ -427,11 +439,12 @@ foreach ($events as $event) {
                 'mId' => $mId,
                 'g1' => $finalGoals1,
                 'g2' => $finalGoals2,
+                'pw' => $penalty_winner,
                 'status' => $status,
                 'apiData' => $api_data_json
             ]);
             $updated_results++;
-            write_cron_log("Marcador actualizado (Enriquecido): Partido ID $mId -> " . ($finalGoals1 ?? 'N/A') . " - " . ($finalGoals2 ?? 'N/A') . " (Estado: $status)");
+            write_cron_log("Marcador actualizado (Enriquecido): Partido ID $mId -> " . ($finalGoals1 ?? 'N/A') . " - " . ($finalGoals2 ?? 'N/A') . " (Pen: " . ($penalty_winner ?? 'N/A') . ") (Estado: $status)");
         }
     }
 }
