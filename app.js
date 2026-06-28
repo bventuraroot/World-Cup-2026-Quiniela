@@ -329,6 +329,8 @@ $(document).ready(function() {
             match_id: matchId,
             goals1: pred.goals1,
             goals2: pred.goals2,
+            penalties1: pred.penalties1 !== undefined ? pred.penalties1 : null,
+            penalties2: pred.penalties2 !== undefined ? pred.penalties2 : null,
             penalty_winner: pred.penalty_winner,
             unlocked: !!pred.unlocked,
             is_admin: isAdminMode
@@ -370,6 +372,8 @@ $(document).ready(function() {
           match_id: matchId,
           goals1: res ? res.goals1 : null,
           goals2: res ? res.goals2 : null,
+          penalties1: res && res.penalties1 !== undefined ? res.penalties1 : null,
+          penalties2: res && res.penalties2 !== undefined ? res.penalties2 : null,
           penalty_winner: res ? res.penalty_winner : null,
           status: res ? res.status : 'scheduled',
           api_data: res ? res.api_data : null
@@ -795,8 +799,26 @@ $(document).ready(function() {
       const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
       const isKnockout = match && (!match.group || match.group === '');
       if (isKnockout && r1 === r2) {
-        const realPWinner = real.penalty_winner !== undefined && real.penalty_winner !== null ? parseInt(real.penalty_winner) : null;
-        const predPWinner = pred.penalty_winner !== undefined && pred.penalty_winner !== null ? parseInt(pred.penalty_winner) : null;
+        let realPWinner = null;
+        if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+          const rp1 = parseInt(real.penalties1);
+          const rp2 = parseInt(real.penalties2);
+          if (rp1 > rp2) realPWinner = 1;
+          else if (rp2 > rp1) realPWinner = 2;
+        } else if (real.penalty_winner !== undefined && real.penalty_winner !== null) {
+          realPWinner = parseInt(real.penalty_winner);
+        }
+
+        let predPWinner = null;
+        if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
+          const pp1 = parseInt(pred.penalties1);
+          const pp2 = parseInt(pred.penalties2);
+          if (pp1 > pp2) predPWinner = 1;
+          else if (pp2 > pp1) predPWinner = 2;
+        } else if (pred.penalty_winner !== undefined && pred.penalty_winner !== null) {
+          predPWinner = parseInt(pred.penalty_winner);
+        }
+
         if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
           const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
           pointsEarned += ptsPenalties;
@@ -843,8 +865,26 @@ $(document).ready(function() {
     const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
     const isKnockout = match && (!match.group || match.group === '');
     if (isKnockout && r1 === r2 && p1 === p2) {
-      const realPWinner = real.penalty_winner !== undefined && real.penalty_winner !== null ? parseInt(real.penalty_winner) : null;
-      const predPWinner = pred.penalty_winner !== undefined && pred.penalty_winner !== null ? parseInt(pred.penalty_winner) : null;
+      let realPWinner = null;
+      if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+        const rp1 = parseInt(real.penalties1);
+        const rp2 = parseInt(real.penalties2);
+        if (rp1 > rp2) realPWinner = 1;
+        else if (rp2 > rp1) realPWinner = 2;
+      } else if (real.penalty_winner !== undefined && real.penalty_winner !== null) {
+        realPWinner = parseInt(real.penalty_winner);
+      }
+
+      let predPWinner = null;
+      if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
+        const pp1 = parseInt(pred.penalties1);
+        const pp2 = parseInt(pred.penalties2);
+        if (pp1 > pp2) predPWinner = 1;
+        else if (pp2 > pp1) predPWinner = 2;
+      } else if (pred.penalty_winner !== undefined && pred.penalty_winner !== null) {
+        predPWinner = parseInt(pred.penalty_winner);
+      }
+
       if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
         const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
         pointsEarned += ptsPenalties;
@@ -2020,7 +2060,9 @@ $(document).ready(function() {
         }
 
         let shootoutText = '';
-        if (real.api_data && real.api_data.shootout) {
+        if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+          shootoutText = ` (${real.penalties1} - ${real.penalties2} Pen.)`;
+        } else if (real.api_data && real.api_data.shootout) {
           shootoutText = ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)`;
         } else if (real.penalty_winner) {
           const winnerTeam = real.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
@@ -2030,7 +2072,9 @@ $(document).ready(function() {
         let predShootoutText = '';
         const isKnockout = !match.group || match.group === '';
         if (isKnockout && pred && pred.goals1 !== null && pred.goals2 !== null && parseInt(pred.goals1) === parseInt(pred.goals2)) {
-          if (pred.penalty_winner) {
+          if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
+            predShootoutText = ` (${pred.penalties1} - ${pred.penalties2} Pen.)`;
+          } else if (pred.penalty_winner) {
             const predWinnerTeam = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
             predShootoutText = ` (Pen: ${predWinnerTeam})`;
           } else {
@@ -2059,18 +2103,44 @@ $(document).ready(function() {
       let penaltySelectorHTML = '';
       const isKnockout = !match.group || match.group === '';
       if (isKnockout && !isFinished && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2)) {
-        const btn1Active = pred.penalty_winner == 1 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
-        const btn2Active = pred.penalty_winner == 2 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        const pVal1 = pred.penalties1 !== undefined && pred.penalties1 !== null ? pred.penalties1 : '';
+        const pVal2 = pred.penalties2 !== undefined && pred.penalties2 !== null ? pred.penalties2 : '';
+        
+        let winnerText = '';
+        if (pVal1 !== '' && pVal2 !== '') {
+          const n1 = parseInt(pVal1);
+          const n2 = parseInt(pVal2);
+          if (n1 > n2) {
+            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam1}</span>`;
+          } else if (n2 > n1) {
+            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam2}</span>`;
+          } else {
+            winnerText = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
+          }
+        } else {
+          winnerText = `<span style="color: var(--text-muted);">Define ganador</span>`;
+        }
+
         penaltySelectorHTML = `
-          <div class="penalty-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-            <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">Ganador Penales:</span>
-            <div style="display: flex; gap: 0.3rem;">
-              <button class="btn-penalty-select" data-match-id="${match.id}" data-winner="1" ${disabledAttr} style="padding: 0.2rem 0.6rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn1Active} font-weight: 700; cursor: pointer;">
-                ${resolvedTeam1}
-              </button>
-              <button class="btn-penalty-select" data-match-id="${match.id}" data-winner="2" ${disabledAttr} style="padding: 0.2rem 0.6rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn2Active} font-weight: 700; cursor: pointer;">
-                ${resolvedTeam2}
-              </button>
+          <div class="penalty-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
+              <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">Marcador de Penales:</span>
+              <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <input type="number" min="0" max="99" class="input-goal pred-penalty-input" 
+                  data-match-id="${match.id}" data-team="1" 
+                  value="${pVal1}" 
+                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
+                  ${disabledAttr}>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">-</span>
+                <input type="number" min="0" max="99" class="input-goal pred-penalty-input" 
+                  data-match-id="${match.id}" data-team="2" 
+                  value="${pVal2}" 
+                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
+                  ${disabledAttr}>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; font-size: 0.72rem;">
+              ${winnerText}
             </div>
           </div>
         `;
@@ -2275,8 +2345,10 @@ $(document).ready(function() {
       state.players[pIdx].predictions[matchId].goals1 = val1;
       state.players[pIdx].predictions[matchId].goals2 = val2;
 
-      // Si no es un empate, remover el penalty_winner
+      // Si no es un empate, remover penales
       if (val1 !== "" && val2 !== "" && parseInt(val1) !== parseInt(val2)) {
+        state.players[pIdx].predictions[matchId].penalties1 = null;
+        state.players[pIdx].predictions[matchId].penalties2 = null;
         state.players[pIdx].predictions[matchId].penalty_winner = null;
       }
 
@@ -2293,10 +2365,11 @@ $(document).ready(function() {
       renderPredictionsGrid();
     });
 
-    $('.btn-penalty-select').off('click').on('click', function(e) {
-      e.preventDefault();
+    $('.pred-penalty-input').off('change').on('change', function() {
       const matchId = $(this).data('match-id');
-      const winner = $(this).data('winner');
+      const card = $(this).closest('.match-card');
+      const pVal1 = card.find('.pred-penalty-input[data-team="1"]').val();
+      const pVal2 = card.find('.pred-penalty-input[data-team="2"]').val();
 
       const pIdx = state.players.findIndex(p => p.id == activePlayerId);
       if (pIdx === -1) return;
@@ -2324,7 +2397,23 @@ $(document).ready(function() {
         }
       }
 
-      state.players[pIdx].predictions[matchId].penalty_winner = winner;
+      const n1 = pVal1 === "" ? null : parseInt(pVal1);
+      const n2 = pVal2 === "" ? null : parseInt(pVal2);
+
+      let pw = null;
+      if (n1 !== null && n2 !== null) {
+        if (n1 > n2) {
+          pw = 1;
+        } else if (n2 > n1) {
+          pw = 2;
+        } else {
+          showToast("La tanda de penales debe tener un ganador (no puede quedar empate).", "warning");
+        }
+      }
+
+      state.players[pIdx].predictions[matchId].penalties1 = n1;
+      state.players[pIdx].predictions[matchId].penalties2 = n2;
+      state.players[pIdx].predictions[matchId].penalty_winner = pw;
 
       saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
@@ -2414,18 +2503,44 @@ $(document).ready(function() {
       let adminPenaltySelectorHTML = '';
       const isKnockout = !match.group || match.group === '';
       if (isKnockout && real.goals1 !== null && real.goals1 !== "" && real.goals2 !== null && real.goals2 !== "" && parseInt(real.goals1) === parseInt(real.goals2)) {
-        const btn1Active = real.penalty_winner == 1 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
-        const btn2Active = real.penalty_winner == 2 ? 'background: var(--primary); color: #000;' : 'background: none; color: var(--text-primary);';
+        const apVal1 = real.penalties1 !== undefined && real.penalties1 !== null ? real.penalties1 : '';
+        const apVal2 = real.penalties2 !== undefined && real.penalties2 !== null ? real.penalties2 : '';
+        
+        let winnerText = '';
+        if (apVal1 !== '' && apVal2 !== '') {
+          const n1 = parseInt(apVal1);
+          const n2 = parseInt(apVal2);
+          if (n1 > n2) {
+            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam1}</span>`;
+          } else if (n2 > n1) {
+            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam2}</span>`;
+          } else {
+            winnerText = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
+          }
+        } else {
+          winnerText = `<span style="color: var(--text-muted);">Define ganador</span>`;
+        }
+
         adminPenaltySelectorHTML = `
-          <div class="admin-penalty-selector" style="margin-top: 0.5rem; padding: 0.4rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Ganador Penales:</span>
-            <div style="display: flex; gap: 0.2rem;">
-              <button class="btn-admin-penalty-select" data-match-id="${match.id}" data-winner="1" ${disabledAttr} style="padding: 0.15rem 0.4rem; font-size: 0.7rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn1Active} font-weight: 700; cursor: pointer;">
-                ${resolvedTeam1}
-              </button>
-              <button class="btn-admin-penalty-select" data-match-id="${match.id}" data-winner="2" ${disabledAttr} style="padding: 0.15rem 0.4rem; font-size: 0.7rem; border-radius: 4px; border: 1px solid var(--border-color); ${btn2Active} font-weight: 700; cursor: pointer;">
-                ${resolvedTeam2}
-              </button>
+          <div class="admin-penalty-selector" style="margin-top: 0.5rem; padding: 0.4rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Penales Reales:</span>
+              <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <input type="number" min="0" max="99" class="input-goal admin-penalty-input" 
+                  data-match-id="${match.id}" data-team="1" 
+                  value="${apVal1}" 
+                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
+                  ${disabledAttr}>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">-</span>
+                <input type="number" min="0" max="99" class="input-goal admin-penalty-input" 
+                  data-match-id="${match.id}" data-team="2" 
+                  value="${apVal2}" 
+                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
+                  ${disabledAttr}>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; font-size: 0.72rem;">
+              ${winnerText}
             </div>
           </div>
         `;
@@ -2561,14 +2676,20 @@ $(document).ready(function() {
       const goals2Val = goals2 === "" ? null : parseInt(goals2);
 
       const existingReal = state.realResults[matchId] || { goals1: null, goals2: null, status: 'scheduled' };
+      let penalties1 = existingReal.penalties1;
+      let penalties2 = existingReal.penalties2;
       let penalty_winner = existingReal.penalty_winner;
       if (goals1Val !== null && goals2Val !== null && goals1Val !== goals2Val) {
+        penalties1 = null;
+        penalties2 = null;
         penalty_winner = null;
       }
 
       state.realResults[matchId] = {
         goals1: goals1Val,
         goals2: goals2Val,
+        penalties1: penalties1,
+        penalties2: penalties2,
         penalty_winner: penalty_winner,
         status: status,
         api_data: existingReal.api_data
@@ -2585,24 +2706,49 @@ $(document).ready(function() {
       showToast(`Partido ID ${matchId} actualizado.`);
     });
 
-    $('.btn-admin-penalty-select').off('click').on('click', function(e) {
-      e.preventDefault();
-      if (!isAdminMode) return;
-
-      const matchId = $(this).data('match-id');
-      const winner = $(this).data('winner');
-
-      if (!state.realResults[matchId]) {
-        state.realResults[matchId] = { goals1: null, goals2: null, status: 'scheduled' };
+    $('.admin-penalty-input').off('change').on('change', function() {
+      if (!isAdminMode) {
+        showToast("Error: Acceso Administrador requerido.", "error");
+        renderAdminGrid();
+        return;
       }
 
-      state.realResults[matchId].penalty_winner = winner;
+      const matchId = $(this).data('match-id');
+      const card = $(this).closest('.match-card');
+      const pVal1 = card.find('.admin-penalty-input[data-team="1"]').val();
+      const pVal2 = card.find('.admin-penalty-input[data-team="2"]').val();
+
+      const existingReal = state.realResults[matchId] || { goals1: null, goals2: null, status: 'scheduled' };
+      
+      const n1 = pVal1 === "" ? null : parseInt(pVal1);
+      const n2 = pVal2 === "" ? null : parseInt(pVal2);
+
+      let pw = null;
+      if (n1 !== null && n2 !== null) {
+        if (n1 > n2) {
+          pw = 1;
+        } else if (n2 > n1) {
+          pw = 2;
+        } else {
+          showToast("La tanda de penales debe tener un ganador (no puede quedar empate).", "warning");
+        }
+      }
+
+      state.realResults[matchId] = {
+        goals1: existingReal.goals1,
+        goals2: existingReal.goals2,
+        penalties1: n1,
+        penalties2: n2,
+        penalty_winner: pw,
+        status: existingReal.status,
+        api_data: existingReal.api_data
+      };
 
       saveState({ type: 'real-results', matchId: matchId });
       renderDashboard();
       renderLeaderboard();
       renderAdminGrid();
-      showToast(`Ganador de penales del partido ID ${matchId} actualizado.`);
+      showToast(`Marcador de penales del partido ID ${matchId} actualizado.`);
     });
   }
 
@@ -3229,20 +3375,24 @@ $(document).ready(function() {
             const espnWeather = event.weather ? event.weather.displayValue : (comps.weather ? comps.weather.displayValue : null);
 
             let shootout = null;
+            let p1 = null;
+            let p2 = null;
             const homeShootout = homeComp.shootoutScore !== undefined && homeComp.shootoutScore !== null ? parseInt(homeComp.shootoutScore) : null;
             const awayShootout = awayComp.shootoutScore !== undefined && awayComp.shootoutScore !== null ? parseInt(awayComp.shootoutScore) : null;
             if ((homeShootout !== null && !isNaN(homeShootout)) || (awayShootout !== null && !isNaN(awayShootout))) {
+              p1 = reversed ? awayShootout : homeShootout;
+              p2 = reversed ? homeShootout : awayShootout;
               shootout = {
-                home: reversed ? awayShootout : homeShootout,
-                away: reversed ? homeShootout : awayShootout
+                home: p1,
+                away: p2
               };
             }
 
             let penalty_winner = null;
-            if (shootout) {
-              if (shootout.home > shootout.away) {
+            if (p1 !== null && p2 !== null) {
+              if (p1 > p2) {
                 penalty_winner = 1;
-              } else if (shootout.away > shootout.home) {
+              } else if (p2 > p1) {
                 penalty_winner = 2;
               }
             }
@@ -3260,13 +3410,15 @@ $(document).ready(function() {
               shootout: shootout
             };
 
-            const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, penalty_winner: null, status: 'scheduled' };
+            const currentReal = state.realResults[localMatch.id] || { goals1: null, goals2: null, penalties1: null, penalties2: null, penalty_winner: null, status: 'scheduled' };
 
-            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.penalty_winner !== penalty_winner || currentReal.status !== status || JSON.stringify(currentReal.api_data) !== JSON.stringify(api_data)) {
+            if (currentReal.goals1 !== finalGoals1 || currentReal.goals2 !== finalGoals2 || currentReal.penalties1 !== p1 || currentReal.penalties2 !== p2 || currentReal.penalty_winner !== penalty_winner || currentReal.status !== status || JSON.stringify(currentReal.api_data) !== JSON.stringify(api_data)) {
               if (!state.realResults) state.realResults = {};
               state.realResults[localMatch.id] = {
                 goals1: finalGoals1,
                 goals2: finalGoals2,
+                penalties1: p1,
+                penalties2: p2,
                 penalty_winner: penalty_winner,
                 status: status,
                 api_data: api_data
@@ -3278,6 +3430,8 @@ $(document).ready(function() {
                   match_id: localMatch.id,
                   goals1: finalGoals1,
                   goals2: finalGoals2,
+                  penalties1: p1,
+                  penalties2: p2,
                   penalty_winner: penalty_winner,
                   status: status,
                   api_data: api_data
@@ -3563,7 +3717,10 @@ $(document).ready(function() {
       let score1 = real.goals1 !== null ? real.goals1 : "";
       let score2 = real.goals2 !== null ? real.goals2 : "";
       if (real.status === 'finished' && isKnockout && real.goals1 !== null && real.goals2 !== null && real.goals1 === real.goals2) {
-        if (real.api_data && real.api_data.shootout) {
+        if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+          score1 += ` (${real.penalties1})`;
+          score2 += ` (${real.penalties2})`;
+        } else if (real.api_data && real.api_data.shootout) {
           score1 += ` (${real.api_data.shootout.home})`;
           score2 += ` (${real.api_data.shootout.away})`;
         } else if (real.penalty_winner) {
@@ -3600,7 +3757,9 @@ $(document).ready(function() {
         realScore = `${real.goals1} - ${real.goals2}`;
         const isKnockout = !match.group || match.group === '';
         if (isKnockout && real.goals1 === real.goals2) {
-          if (real.api_data && real.api_data.shootout) {
+          if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+            realScore += ` (${real.penalties1} - ${real.penalties2} Pen.)`;
+          } else if (real.api_data && real.api_data.shootout) {
             realScore += ` (${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)`;
           } else if (real.penalty_winner) {
             const winnerTeam = real.penalty_winner == 1 ? resolvedT1 : resolvedT2;
@@ -3624,7 +3783,9 @@ $(document).ready(function() {
           let predScore = `${pred.goals1} - ${pred.goals2}`;
           const isKnockout = !match.group || match.group === '';
           if (isKnockout && parseInt(pred.goals1) === parseInt(pred.goals2)) {
-            if (pred.penalty_winner) {
+            if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
+              predScore += ` (${pred.penalties1} - ${pred.penalties2} Pen.)`;
+            } else if (pred.penalty_winner) {
               const winnerTeam = pred.penalty_winner == 1 ? resolvedT1 : resolvedT2;
               predScore += ` (Pen: ${winnerTeam})`;
             }

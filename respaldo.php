@@ -85,6 +85,8 @@ try {
         $realResults->{$r['match_id']} = [
             'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
             'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
+            'penalties1' => $r['penalties1'] !== null ? intval($r['penalties1']) : null,
+            'penalties2' => $r['penalties2'] !== null ? intval($r['penalties2']) : null,
             'penalty_winner' => $r['penalty_winner'] !== null ? intval($r['penalty_winner']) : null,
             'status' => $r['status'],
             'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
@@ -130,6 +132,8 @@ try {
         $preds[$pId][$mId] = [
             'goals1' => $pr['goals1'],
             'goals2' => $pr['goals2'],
+            'penalties1' => $pr['penalties1'] !== null ? intval($pr['penalties1']) : null,
+            'penalties2' => $pr['penalties2'] !== null ? intval($pr['penalties2']) : null,
             'penalty_winner' => $pr['penalty_winner'] !== null ? intval($pr['penalty_winner']) : null,
             'unlocked' => intval($pr['unlocked']) === 1
         ];
@@ -207,8 +211,22 @@ try {
                             if ($p1 === $r1 && $p2 === $r2) {
                                 $pointsEarned = $ptsExactCfg + $ptsWinnerCfg;
                                 if ($isKnockout && $r1 === $r2) {
-                                    $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
-                                    $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                    $realPWinner = null;
+                                    if (isset($real['penalties1']) && isset($real['penalties2']) && $real['penalties1'] !== null && $real['penalties2'] !== null) {
+                                        if (intval($real['penalties1']) > intval($real['penalties2'])) $realPWinner = 1;
+                                        elseif (intval($real['penalties2']) > intval($real['penalties1'])) $realPWinner = 2;
+                                    } elseif (isset($real['penalty_winner'])) {
+                                        $realPWinner = intval($real['penalty_winner']);
+                                    }
+
+                                    $predPWinner = null;
+                                    if (isset($pred['penalties1']) && isset($pred['penalties2']) && $pred['penalties1'] !== null && $pred['penalties2'] !== null) {
+                                        if (intval($pred['penalties1']) > intval($pred['penalties2'])) $predPWinner = 1;
+                                        elseif (intval($pred['penalties2']) > intval($pred['penalties1'])) $predPWinner = 2;
+                                    } elseif (isset($pred['penalty_winner'])) {
+                                        $predPWinner = intval($pred['penalty_winner']);
+                                    }
+
                                     if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                         $pointsEarned += $ptsPenaltiesCfg;
                                     }
@@ -231,8 +249,22 @@ try {
                                 }
                                 
                                 if ($isKnockout && $r1 === $r2 && $p1 === $p2) {
-                                    $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
-                                    $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                    $realPWinner = null;
+                                    if (isset($real['penalties1']) && isset($real['penalties2']) && $real['penalties1'] !== null && $real['penalties2'] !== null) {
+                                        if (intval($real['penalties1']) > intval($real['penalties2'])) $realPWinner = 1;
+                                        elseif (intval($real['penalties2']) > intval($real['penalties1'])) $realPWinner = 2;
+                                    } elseif (isset($real['penalty_winner'])) {
+                                        $realPWinner = intval($real['penalty_winner']);
+                                    }
+
+                                    $predPWinner = null;
+                                    if (isset($pred['penalties1']) && isset($pred['penalties2']) && $pred['penalties1'] !== null && $pred['penalties2'] !== null) {
+                                        if (intval($pred['penalties1']) > intval($pred['penalties2'])) $predPWinner = 1;
+                                        elseif (intval($pred['penalties2']) > intval($pred['penalties1'])) $predPWinner = 2;
+                                    } elseif (isset($pred['penalty_winner'])) {
+                                        $predPWinner = intval($pred['penalty_winner']);
+                                    }
+
                                     if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                         $pointsEarned += $ptsPenaltiesCfg;
                                     }

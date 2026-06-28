@@ -108,6 +108,8 @@ try {
         match_id VARCHAR(50),
         goals1 VARCHAR(5) NULL,
         goals2 VARCHAR(5) NULL,
+        penalties1 INT NULL,
+        penalties2 INT NULL,
         unlocked TINYINT DEFAULT 0,
         PRIMARY KEY (player_id, match_id)
     )");
@@ -116,6 +118,8 @@ try {
         match_id VARCHAR(50) PRIMARY KEY,
         goals1 INT NULL,
         goals2 INT NULL,
+        penalties1 INT NULL,
+        penalties2 INT NULL,
         status VARCHAR(20) NOT NULL,
         api_data LONGTEXT NULL
     )");
@@ -146,6 +150,30 @@ try {
 
     try {
         $pdo->exec("ALTER TABLE quiniela_real_results ADD COLUMN penalty_winner INT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_predictions ADD COLUMN penalties1 INT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_predictions ADD COLUMN penalties2 INT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_real_results ADD COLUMN penalties1 INT NULL");
+    } catch (PDOException $e) {
+        // Ignorar si la columna ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE quiniela_real_results ADD COLUMN penalties2 INT NULL");
     } catch (PDOException $e) {
         // Ignorar si la columna ya existe
     }
@@ -184,7 +212,7 @@ try {
                         // Migrar jugadores y sus predicciones
                         if (isset($state_json['players']) && is_array($state_json['players'])) {
                             $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id) VALUES (:id, :name, :champ, :champ_txt, :champ_id)");
-                            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalty_winner, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :pw, :unlocked)");
+                            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalties1, penalties2, penalty_winner, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :p1, :p2, :pw, :unlocked)");
                             
                             foreach ($state_json['players'] as $p) {
                                 if (isset($p['id']) && isset($p['name'])) {
@@ -199,12 +227,21 @@ try {
                                     if (isset($p['predictions']) && is_array($p['predictions'])) {
                                         foreach ($p['predictions'] as $mId => $pred) {
                                             $unlocked = isset($pred['unlocked']) && $pred['unlocked'] ? 1 : 0;
+                                            $p1 = (isset($pred['penalties1']) && $pred['penalties1'] !== "" && $pred['penalties1'] !== null) ? intval($pred['penalties1']) : null;
+                                            $p2 = (isset($pred['penalties2']) && $pred['penalties2'] !== "" && $pred['penalties2'] !== null) ? intval($pred['penalties2']) : null;
+                                            $pw = null;
+                                            if ($p1 !== null && $p2 !== null) {
+                                                if ($p1 > $p2) $pw = 1;
+                                                elseif ($p2 > $p1) $pw = 2;
+                                            }
                                             $stmtPred->execute([
                                                 'player_id' => $p['id'],
                                                 'match_id' => $mId,
                                                 'goals1' => (isset($pred['goals1']) && $pred['goals1'] !== "") ? $pred['goals1'] : null,
                                                 'goals2' => (isset($pred['goals2']) && $pred['goals2'] !== "") ? $pred['goals2'] : null,
-                                                'pw' => (isset($pred['penalty_winner']) && $pred['penalty_winner'] !== "") ? intval($pred['penalty_winner']) : null,
+                                                'p1' => $p1,
+                                                'p2' => $p2,
+                                                'pw' => $pw,
                                                 'unlocked' => $unlocked
                                             ]);
                                         }
@@ -215,13 +252,22 @@ try {
 
                         // Migrar resultados reales
                         if (isset($state_json['realResults']) && is_array($state_json['realResults'])) {
-                            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalty_winner, status) VALUES (:match_id, :goals1, :goals2, :pw, :status)");
+                            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalties1, penalties2, penalty_winner, status) VALUES (:match_id, :goals1, :goals2, :p1, :p2, :pw, :status)");
                             foreach ($state_json['realResults'] as $mId => $r) {
+                                $rp1 = (isset($r['penalties1']) && $r['penalties1'] !== "" && $r['penalties1'] !== null) ? intval($r['penalties1']) : null;
+                                $rp2 = (isset($r['penalties2']) && $r['penalties2'] !== "" && $r['penalties2'] !== null) ? intval($r['penalties2']) : null;
+                                $rpw = null;
+                                if ($rp1 !== null && $rp2 !== null) {
+                                    if ($rp1 > $rp2) $rpw = 1;
+                                    elseif ($rp2 > $rp1) $rpw = 2;
+                                }
                                 $stmtReal->execute([
                                     'match_id' => $mId,
                                     'goals1' => ($r['goals1'] !== null && $r['goals1'] !== "") ? intval($r['goals1']) : null,
                                     'goals2' => ($r['goals2'] !== null && $r['goals2'] !== "") ? intval($r['goals2']) : null,
-                                    'pw' => (isset($r['penalty_winner']) && $r['penalty_winner'] !== "") ? intval($r['penalty_winner']) : null,
+                                    'p1' => $rp1,
+                                    'p2' => $rp2,
+                                    'pw' => $rpw,
                                     'status' => isset($r['status']) ? $r['status'] : 'scheduled'
                                 ]);
                             }
@@ -405,6 +451,8 @@ if ($action === 'get' || $action === 'leaderboard') {
             $realResults->{$r['match_id']} = [
                 'goals1' => $r['goals1'] !== null ? intval($r['goals1']) : null,
                 'goals2' => $r['goals2'] !== null ? intval($r['goals2']) : null,
+                'penalties1' => $r['penalties1'] !== null ? intval($r['penalties1']) : null,
+                'penalties2' => $r['penalties2'] !== null ? intval($r['penalties2']) : null,
                 'penalty_winner' => $r['penalty_winner'] !== null ? intval($r['penalty_winner']) : null,
                 'status' => $r['status'],
                 'api_data' => isset($r['api_data']) && $r['api_data'] !== null ? json_decode($r['api_data'], true) : null
@@ -450,6 +498,8 @@ if ($action === 'get' || $action === 'leaderboard') {
             $preds[$pId][$mId] = [
                 'goals1' => $pr['goals1'],
                 'goals2' => $pr['goals2'],
+                'penalties1' => $pr['penalties1'] !== null ? intval($pr['penalties1']) : null,
+                'penalties2' => $pr['penalties2'] !== null ? intval($pr['penalties2']) : null,
                 'penalty_winner' => $pr['penalty_winner'] !== null ? intval($pr['penalty_winner']) : null,
                 'unlocked' => intval($pr['unlocked']) === 1
             ];
@@ -536,8 +586,22 @@ if ($action === 'get' || $action === 'leaderboard') {
                                 if ($p1 === $r1 && $p2 === $r2) {
                                     $pointsEarned = $ptsExactCfg + $ptsWinnerCfg;
                                     if ($isKnockout && $r1 === $r2) {
-                                        $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
-                                        $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                        $realPWinner = null;
+                                        if (isset($real['penalties1']) && isset($real['penalties2']) && $real['penalties1'] !== null && $real['penalties2'] !== null) {
+                                            if (intval($real['penalties1']) > intval($real['penalties2'])) $realPWinner = 1;
+                                            elseif (intval($real['penalties2']) > intval($real['penalties1'])) $realPWinner = 2;
+                                        } elseif (isset($real['penalty_winner'])) {
+                                            $realPWinner = intval($real['penalty_winner']);
+                                        }
+
+                                        $predPWinner = null;
+                                        if (isset($pred['penalties1']) && isset($pred['penalties2']) && $pred['penalties1'] !== null && $pred['penalties2'] !== null) {
+                                            if (intval($pred['penalties1']) > intval($pred['penalties2'])) $predPWinner = 1;
+                                            elseif (intval($pred['penalties2']) > intval($pred['penalties1'])) $predPWinner = 2;
+                                        } elseif (isset($pred['penalty_winner'])) {
+                                            $predPWinner = intval($pred['penalty_winner']);
+                                        }
+
                                         if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                             $pointsEarned += $ptsPenaltiesCfg;
                                         }
@@ -574,8 +638,22 @@ if ($action === 'get' || $action === 'leaderboard') {
                                     }
                                     
                                     if ($isKnockout && $r1 === $r2 && $p1 === $p2) {
-                                        $realPWinner = isset($real['penalty_winner']) ? intval($real['penalty_winner']) : null;
-                                        $predPWinner = isset($pred['penalty_winner']) ? intval($pred['penalty_winner']) : null;
+                                        $realPWinner = null;
+                                        if (isset($real['penalties1']) && isset($real['penalties2']) && $real['penalties1'] !== null && $real['penalties2'] !== null) {
+                                            if (intval($real['penalties1']) > intval($real['penalties2'])) $realPWinner = 1;
+                                            elseif (intval($real['penalties2']) > intval($real['penalties1'])) $realPWinner = 2;
+                                        } elseif (isset($real['penalty_winner'])) {
+                                            $realPWinner = intval($real['penalty_winner']);
+                                        }
+
+                                        $predPWinner = null;
+                                        if (isset($pred['penalties1']) && isset($pred['penalties2']) && $pred['penalties1'] !== null && $pred['penalties2'] !== null) {
+                                            if (intval($pred['penalties1']) > intval($pred['penalties2'])) $predPWinner = 1;
+                                            elseif (intval($pred['penalties2']) > intval($pred['penalties1'])) $predPWinner = 2;
+                                        } elseif (isset($pred['penalty_winner'])) {
+                                            $predPWinner = intval($pred['penalty_winner']);
+                                        }
+
                                         if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                             $pointsEarned += $ptsPenaltiesCfg;
                                         }
@@ -734,18 +812,28 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['pId' => $pId, 'mId' => $mId]);
             write_api_log("Pronóstico ELIMINADO - Jugador: $pId, Partido: $mId. IP: $ip_cliente");
         } else {
-            $stmt = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalty_winner, unlocked) 
-                                   VALUES (:pId, :mId, :g1, :g2, :pw, :unlocked) 
-                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, penalty_winner = :pw, unlocked = :unlocked");
+            $p1 = (isset($data['penalties1']) && $data['penalties1'] !== "" && $data['penalties1'] !== null) ? intval($data['penalties1']) : null;
+            $p2 = (isset($data['penalties2']) && $data['penalties2'] !== "" && $data['penalties2'] !== null) ? intval($data['penalties2']) : null;
+            $pw = null;
+            if ($p1 !== null && $p2 !== null) {
+                if ($p1 > $p2) $pw = 1;
+                elseif ($p2 > $p1) $pw = 2;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalties1, penalties2, penalty_winner, unlocked) 
+                                   VALUES (:pId, :mId, :g1, :g2, :p1, :p2, :pw, :unlocked) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, penalties1 = :p1, penalties2 = :p2, penalty_winner = :pw, unlocked = :unlocked");
             $stmt->execute([
                 'pId' => $pId,
                 'mId' => $mId,
                 'g1' => ($data['goals1'] !== null && $data['goals1'] !== "") ? $data['goals1'] : null,
                 'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? $data['goals2'] : null,
-                'pw' => (isset($data['penalty_winner']) && $data['penalty_winner'] !== "") ? intval($data['penalty_winner']) : null,
+                'p1' => $p1,
+                'p2' => $p2,
+                'pw' => $pw,
                 'unlocked' => isset($data['unlocked']) && $data['unlocked'] ? 1 : 0
             ]);
-            write_api_log("Pronóstico guardado - Jugador: $pId, Partido: $mId, Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (Pen: " . ($data['penalty_winner'] ?? 'N/A') . ") (unlocked: " . (isset($data['unlocked']) && $data['unlocked'] ? 'si' : 'no') . "). IP: $ip_cliente");
+            write_api_log("Pronóstico guardado - Jugador: $pId, Partido: $mId, Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (Pen: " . ($p1 ?? 'N/A') . "-" . ($p2 ?? 'N/A') . ") (unlocked: " . (isset($data['unlocked']) && $data['unlocked'] ? 'si' : 'no') . "). IP: $ip_cliente");
         }
         echo json_encode(['status' => 'success']);
     } else {
@@ -811,37 +899,38 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             write_api_log("ADMIN: Limpieza de TODOS los marcadores reales. IP: $ip_cliente");
             echo json_encode(['status' => 'success']);
         } elseif (isset($data['match_id'])) {
-            $pw = null;
-            if (isset($data['penalty_winner']) && $data['penalty_winner'] !== null && $data['penalty_winner'] !== "") {
-                $pw = intval($data['penalty_winner']);
-            } else {
-                $apiDataArr = null;
-                if (isset($data['api_data'])) {
-                    $apiDataArr = is_array($data['api_data']) ? $data['api_data'] : json_decode($data['api_data'], true);
-                }
-                if ($apiDataArr && isset($apiDataArr['shootout'])) {
-                    $homeS = isset($apiDataArr['shootout']['home']) ? intval($apiDataArr['shootout']['home']) : 0;
-                    $awayS = isset($apiDataArr['shootout']['away']) ? intval($apiDataArr['shootout']['away']) : 0;
-                    if ($homeS > $awayS) {
-                        $pw = 1;
-                    } elseif ($awayS > $homeS) {
-                        $pw = 2;
-                    }
-                }
+            $p1 = (isset($data['penalties1']) && $data['penalties1'] !== "" && $data['penalties1'] !== null) ? intval($data['penalties1']) : null;
+            $p2 = (isset($data['penalties2']) && $data['penalties2'] !== "" && $data['penalties2'] !== null) ? intval($data['penalties2']) : null;
+
+            $apiDataArr = null;
+            if (isset($data['api_data'])) {
+                $apiDataArr = is_array($data['api_data']) ? $data['api_data'] : json_decode($data['api_data'], true);
+            }
+            if ($p1 === null && $p2 === null && $apiDataArr && isset($apiDataArr['shootout'])) {
+                $p1 = isset($apiDataArr['shootout']['home']) ? intval($apiDataArr['shootout']['home']) : null;
+                $p2 = isset($apiDataArr['shootout']['away']) ? intval($apiDataArr['shootout']['away']) : null;
             }
 
-            $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalty_winner, status, api_data) 
-                                   VALUES (:mId, :g1, :g2, :pw, :status, :apiData) 
-                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, penalty_winner = :pw, status = :status, api_data = :apiData");
+            $pw = null;
+            if ($p1 !== null && $p2 !== null) {
+                if ($p1 > $p2) $pw = 1;
+                elseif ($p2 > $p1) $pw = 2;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalties1, penalties2, penalty_winner, status, api_data) 
+                                   VALUES (:mId, :g1, :g2, :p1, :p2, :pw, :status, :apiData) 
+                                   ON DUPLICATE KEY UPDATE goals1 = :g1, goals2 = :g2, penalties1 = :p1, penalties2 = :p2, penalty_winner = :pw, status = :status, api_data = :apiData");
             $stmt->execute([
                 'mId' => $data['match_id'],
                 'g1' => ($data['goals1'] !== null && $data['goals1'] !== "") ? intval($data['goals1']) : null,
                 'g2' => ($data['goals2'] !== null && $data['goals2'] !== "") ? intval($data['goals2']) : null,
+                'p1' => $p1,
+                'p2' => $p2,
                 'pw' => $pw,
                 'status' => isset($data['status']) ? $data['status'] : 'scheduled',
                 'apiData' => isset($data['api_data']) ? (is_array($data['api_data']) ? json_encode($data['api_data'], JSON_UNESCAPED_UNICODE) : $data['api_data']) : null
             ]);
-            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (Pen: " . ($pw ?? 'N/A') . "), Estado: " . ($data['status'] ?? 'N/A') . ", Has api_data: " . (isset($data['api_data']) ? 'yes' : 'no') . ". IP: $ip_cliente");
+            write_api_log("ADMIN: Resultado real guardado - Partido: " . $data['match_id'] . ", Marcador: " . ($data['goals1'] ?? 'N/A') . "-" . ($data['goals2'] ?? 'N/A') . " (Pen: " . ($p1 ?? 'N/A') . "-" . ($p2 ?? 'N/A') . "), Estado: " . ($data['status'] ?? 'N/A') . ", Has api_data: " . (isset($data['api_data']) ? 'yes' : 'no') . ". IP: $ip_cliente");
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Datos de partido no especificados.']);
@@ -1030,7 +1119,7 @@ function importFullStateJSON($pdo, $state_json) {
         if (isset($state_json['players']) && is_array($state_json['players'])) {
             $stmtPlayer = $pdo->prepare("INSERT INTO quiniela_players (id, name, champion_prediction, champion_prediction_text, champion_prediction_id, bonus_points) VALUES (:id, :name, :champ, :champ_txt, :champ_id, :bonus)
                                         ON DUPLICATE KEY UPDATE name = :name, champion_prediction = :champ, champion_prediction_text = :champ_txt, champion_prediction_id = :champ_id, bonus_points = :bonus");
-            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalty_winner, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :pw, :unlocked)");
+            $stmtPred = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalties1, penalties2, penalty_winner, unlocked) VALUES (:player_id, :match_id, :goals1, :goals2, :p1, :p2, :pw, :unlocked)");
             
             foreach ($state_json['players'] as $p) {
                 if (isset($p['id']) && isset($p['name'])) {
@@ -1047,12 +1136,21 @@ function importFullStateJSON($pdo, $state_json) {
                     if (isset($p['predictions']) && is_array($p['predictions'])) {
                         foreach ($p['predictions'] as $mId => $pred) {
                             $unlocked = isset($pred['unlocked']) && $pred['unlocked'] ? 1 : 0;
+                            $p1 = (isset($pred['penalties1']) && $pred['penalties1'] !== "" && $pred['penalties1'] !== null) ? intval($pred['penalties1']) : null;
+                            $p2 = (isset($pred['penalties2']) && $pred['penalties2'] !== "" && $pred['penalties2'] !== null) ? intval($pred['penalties2']) : null;
+                            $pw = null;
+                            if ($p1 !== null && $p2 !== null) {
+                                if ($p1 > $p2) $pw = 1;
+                                elseif ($p2 > $p1) $pw = 2;
+                            }
                             $stmtPred->execute([
                                 'player_id' => $pId,
                                 'match_id' => $mId,
                                 'goals1' => (isset($pred['goals1']) && $pred['goals1'] !== "") ? $pred['goals1'] : null,
                                 'goals2' => (isset($pred['goals2']) && $pred['goals2'] !== "") ? $pred['goals2'] : null,
-                                'pw' => (isset($pred['penalty_winner']) && $pred['penalty_winner'] !== "") ? intval($pred['penalty_winner']) : null,
+                                'p1' => $p1,
+                                'p2' => $p2,
+                                'pw' => $pw,
                                 'unlocked' => $unlocked
                             ]);
                         }
@@ -1063,17 +1161,26 @@ function importFullStateJSON($pdo, $state_json) {
 
         // Real results
         if (isset($state_json['realResults']) && is_array($state_json['realResults'])) {
-            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalty_winner, status, api_data) VALUES (:match_id, :goals1, :goals2, :pw, :status, :api_data)");
+            $stmtReal = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalties1, penalties2, penalty_winner, status, api_data) VALUES (:match_id, :goals1, :goals2, :p1, :p2, :pw, :status, :api_data)");
             foreach ($state_json['realResults'] as $mId => $r) {
                 $apiDataVal = null;
                 if (isset($r['api_data'])) {
                     $apiDataVal = is_array($r['api_data']) ? json_encode($r['api_data'], JSON_UNESCAPED_UNICODE) : $r['api_data'];
                 }
+                $rp1 = (isset($r['penalties1']) && $r['penalties1'] !== "" && $r['penalties1'] !== null) ? intval($r['penalties1']) : null;
+                $rp2 = (isset($r['penalties2']) && $r['penalties2'] !== "" && $r['penalties2'] !== null) ? intval($r['penalties2']) : null;
+                $rpw = null;
+                if ($rp1 !== null && $rp2 !== null) {
+                    if ($rp1 > $rp2) $rpw = 1;
+                    elseif ($rp2 > $rp1) $rpw = 2;
+                }
                 $stmtReal->execute([
                     'match_id' => $mId,
                     'goals1' => ($r['goals1'] !== null && $r['goals1'] !== "") ? intval($r['goals1']) : null,
                     'goals2' => ($r['goals2'] !== null && $r['goals2'] !== "") ? intval($r['goals2']) : null,
-                    'pw' => (isset($r['penalty_winner']) && $r['penalty_winner'] !== "") ? intval($r['penalty_winner']) : null,
+                    'p1' => $rp1,
+                    'p2' => $rp2,
+                    'pw' => $rpw,
                     'status' => isset($r['status']) ? $r['status'] : 'scheduled',
                     'api_data' => $apiDataVal
                 ]);

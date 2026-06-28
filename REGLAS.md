@@ -45,8 +45,10 @@ La puntuación de cada jugador se calcula automáticamente para cada partido fin
 
 ### E. Acierto de Ganador en Penales (+1 Punto)
 - Se otorga en partidos de fases eliminatorias si el partido real finaliza en empate (tras prórroga si aplica) y el pronóstico del jugador también fue un empate.
-- Si el jugador acierta el equipo que avanza/gana por tanda de penales, se le otorga este punto adicional.
-- *Ejemplo*: Predice **1 - 1** con clasificación de **España**. El resultado real del partido es **2 - 2** y clasifica **España** vía penales (recibe 1 pt por acierto de empate/ganador + 1 pt por acierto de ganador en penales = 2 pts en total).
+- Se habilitarán campos adicionales para ingresar el **marcador exacto de penales** de cada equipo (ej. `5 - 4`). El sistema determinará al ganador de la tanda según este marcador.
+- **Validación importante**: No se permite ingresar empates en la tanda de penales (ya que un equipo debe avanzar obligatoriamente).
+- Si el jugador acierta el ganador resultante de su marcador de penales comparado con el ganador de la tanda real, se le otorga este punto adicional.
+- *Ejemplo*: Predice **1 - 1** en el tiempo regular y **5 - 4** en penales a favor de España. El resultado real del partido es **2 - 2** y clasifica España vía penales (recibe 1 pt por acierto de empate/ganador + 1 pt por acierto de ganador en penales = 2 pts en total).
 
 *Nota: Los puntos de las reglas son configurables en el panel de Ajustes si el grupo decide cambiarlos.*
 
