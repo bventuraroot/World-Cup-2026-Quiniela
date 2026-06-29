@@ -1951,6 +1951,8 @@ $(document).ready(function() {
       const isFinished = real.status === 'finished';
 
       // --- EXTRAER DATOS ENRIQUECIDOS ---
+      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
       const resolvedVenue = (real.api_data && real.api_data.venue) ? real.api_data.venue : match.ground;
       
       let liveClockInfo = '';
@@ -2228,8 +2230,6 @@ $(document).ready(function() {
         }
       }
 
-      const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
-      const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
       const flag1HTML = getTeamFlagHTML(resolvedTeam1);
       const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
