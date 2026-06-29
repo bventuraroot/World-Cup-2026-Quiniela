@@ -1920,20 +1920,20 @@ $(document).ready(function() {
 
       // Filtro por período de fecha
       if (dateFilter !== 'ALL') {
-        const matchDate = match.date;
-        const real = state.realResults[match.id] || { status: 'scheduled' };
-        const isPlayed = real.status === 'finished';
+        const filterMatchDate = match.date;
+        const filterReal = state.realResults[match.id] || { status: 'scheduled' };
+        const filterIsPlayed = filterReal.status === 'finished';
         if (dateFilter === 'UPCOMING') {
           // Por jugar: fecha >= hoy y no finalizado
-          if (matchDate < todayStr || isPlayed) return;
+          if (filterMatchDate < todayStr || filterIsPlayed) return;
         } else if (dateFilter === 'TODAY') {
-          if (matchDate !== todayStr) return;
+          if (filterMatchDate !== todayStr) return;
         } else if (dateFilter === 'THIS_WEEK') {
-          const mDate = new Date(matchDate + 'T00:00:00');
+          const mDate = new Date(filterMatchDate + 'T00:00:00');
           if (mDate < todayDate || mDate > weekFromNow) return;
         } else if (dateFilter === 'PAST') {
           // Ya jugados: fecha < hoy O está finalizado
-          if (matchDate >= todayStr && !isPlayed) return;
+          if (filterMatchDate >= todayStr && !filterIsPlayed) return;
         }
       }
 
