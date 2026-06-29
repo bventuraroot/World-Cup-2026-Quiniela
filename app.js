@@ -4043,7 +4043,19 @@ $(document).ready(function() {
   // 7. FILTROS Y EVENTOS DE CAMBIO
   // ==========================================
 
+  // Resetear filtros de pronósticos a valores seguros al inicializar
+  $('#filter-date-pred').val('ALL');
+  $('#filter-status-pred').val('ALL');
+  $('#filter-group-pred').val('ALL');
+
   $('#filter-group-pred, #filter-status-pred, #filter-date-pred').on('change', function() {
+    renderPredictionsGrid();
+  });
+
+  $('#btn-clear-pred-filters').on('click', function() {
+    $('#filter-date-pred').val('ALL');
+    $('#filter-status-pred').val('ALL');
+    $('#filter-group-pred').val('ALL');
     renderPredictionsGrid();
   });
 

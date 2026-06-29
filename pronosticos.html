@@ -131,22 +131,22 @@
             </div>
 
             <!-- Filters -->
-            <div class="filter-bar">
-              <div class="filters-group">
+            <div class="filter-bar" style="flex-wrap: wrap; gap: 0.5rem;">
+              <div class="filters-group" style="flex-wrap: wrap; gap: 0.4rem;">
                 <select id="filter-date-pred" class="select-custom">
-                  <option value="ALL">📅 Todos los partidos</option>
-                  <option value="UPCOMING" selected>⏳ Por jugar (próximos)</option>
+                  <option value="ALL" selected>📅 Todos los partidos</option>
+                  <option value="UPCOMING">⏳ Por jugar (próximos)</option>
                   <option value="TODAY">🔴 Hoy</option>
                   <option value="THIS_WEEK">📆 Esta semana</option>
                   <option value="PAST">✅ Ya jugados</option>
                 </select>
                 <select id="filter-status-pred" class="select-custom">
-                  <option value="ALL">🗂️ Todos los pronósticos</option>
+                  <option value="ALL" selected>🗂️ Todos los pronósticos</option>
                   <option value="PENDING">❌ Sin pronosticar</option>
                   <option value="SAVED">✅ Ya ingresados</option>
                 </select>
                 <select id="filter-group-pred" class="select-custom">
-                  <option value="ALL">🏆 Todas las fases</option>
+                  <option value="ALL" selected>🏆 Todas las fases</option>
                   <option value="Group Stage">Fase de Grupos</option>
                   <option value="Group A">Grupo A</option>
                   <option value="Group B">Grupo B</option>
@@ -168,6 +168,19 @@
                   <option value="Match for third place">Tercer Lugar</option>
                   <option value="Final">Final</option>
                 </select>
+                <button id="btn-clear-pred-filters" style="
+                  background: transparent;
+                  border: 1px solid rgba(255,255,255,0.12);
+                  color: var(--text-muted);
+                  border-radius: var(--border-radius-sm);
+                  padding: 0.3rem 0.7rem;
+                  font-size: 0.78rem;
+                  cursor: pointer;
+                  transition: all 0.2s;
+                  white-space: nowrap;
+                " onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.color='var(--text-muted)'">
+                  ↺ Limpiar filtros
+                </button>
               </div>
               <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
                 Jugador Activo: <span id="active-player-name-label" style="color: var(--primary); font-weight: 700;">Ninguno</span>
@@ -262,7 +275,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 
 </html>
