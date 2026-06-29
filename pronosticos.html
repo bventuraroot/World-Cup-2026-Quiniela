@@ -133,8 +133,20 @@
             <!-- Filters -->
             <div class="filter-bar">
               <div class="filters-group">
+                <select id="filter-date-pred" class="select-custom">
+                  <option value="ALL">📅 Todos los partidos</option>
+                  <option value="UPCOMING" selected>⏳ Por jugar (próximos)</option>
+                  <option value="TODAY">🔴 Hoy</option>
+                  <option value="THIS_WEEK">📆 Esta semana</option>
+                  <option value="PAST">✅ Ya jugados</option>
+                </select>
+                <select id="filter-status-pred" class="select-custom">
+                  <option value="ALL">🗂️ Todos los pronósticos</option>
+                  <option value="PENDING">❌ Sin pronosticar</option>
+                  <option value="SAVED">✅ Ya ingresados</option>
+                </select>
                 <select id="filter-group-pred" class="select-custom">
-                  <option value="ALL">Fase del Torneo (Todos)</option>
+                  <option value="ALL">🏆 Todas las fases</option>
                   <option value="Group Stage">Fase de Grupos</option>
                   <option value="Group A">Grupo A</option>
                   <option value="Group B">Grupo B</option>
@@ -155,11 +167,6 @@
                   <option value="Semi-final">Semifinales</option>
                   <option value="Match for third place">Tercer Lugar</option>
                   <option value="Final">Final</option>
-                </select>
-                <select id="filter-status-pred" class="select-custom">
-                  <option value="ALL">Estatus de Pronóstico (Todos)</option>
-                  <option value="PENDING">Pendientes de Registrar</option>
-                  <option value="SAVED">Guardados</option>
                 </select>
               </div>
               <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
@@ -255,7 +262,7 @@
 
   <!-- Local Scripts -->
   <script src="matches.js"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=33"></script>
 </body>
 
 </html>

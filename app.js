@@ -1881,6 +1881,12 @@ $(document).ready(function() {
 
     const groupFilter = $('#filter-group-pred').val();
     const statusFilter = $('#filter-status-pred').val();
+    const dateFilter = $('#filter-date-pred').val() || 'ALL';
+
+    const todayStr = getElSalvadorDateString();
+    const todayDate = new Date(todayStr + 'T00:00:00');
+    const weekFromNow = new Date(todayDate);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
 
     let matchesCount = 0;
 
@@ -1906,10 +1912,28 @@ $(document).ready(function() {
 
       const isKnockout = !match.group || match.group === '';
       if (isKnockout && hasPred && parseInt(pred.goals1) === parseInt(pred.goals2)) {
-        const hasPens = pred.penalties1 !== null && pred.penalties1 !== undefined && pred.penalties1 !== "" &&
-                        pred.penalties2 !== null && pred.penalties2 !== undefined && pred.penalties2 !== "";
-        if (!hasPens) {
+        const hasPenaltyWinner = pred.penalty_winner !== null && pred.penalty_winner !== undefined && pred.penalty_winner !== "";
+        if (!hasPenaltyWinner) {
           hasPred = false;
+        }
+      }
+
+      // Filtro por período de fecha
+      if (dateFilter !== 'ALL') {
+        const matchDate = match.date;
+        const real = state.realResults[match.id] || { status: 'scheduled' };
+        const isPlayed = real.status === 'finished';
+        if (dateFilter === 'UPCOMING') {
+          // Por jugar: fecha >= hoy y no finalizado
+          if (matchDate < todayStr || isPlayed) return;
+        } else if (dateFilter === 'TODAY') {
+          if (matchDate !== todayStr) return;
+        } else if (dateFilter === 'THIS_WEEK') {
+          const mDate = new Date(matchDate + 'T00:00:00');
+          if (mDate < todayDate || mDate > weekFromNow) return;
+        } else if (dateFilter === 'PAST') {
+          // Ya jugados: fecha < hoy O está finalizado
+          if (matchDate >= todayStr && !isPlayed) return;
         }
       }
 
@@ -2112,50 +2136,26 @@ $(document).ready(function() {
 
       let penaltySelectorHTML = '';
       if (isKnockout && !isFinished) {
-        const pVal1 = pred.penalties1 !== undefined && pred.penalties1 !== null ? pred.penalties1 : '';
-        const pVal2 = pred.penalties2 !== undefined && pred.penalties2 !== null ? pred.penalties2 : '';
-        
-        let winnerText = '';
-        if (pVal1 !== '' && pVal2 !== '') {
-          const n1 = parseInt(pVal1);
-          const n2 = parseInt(pVal2);
-          if (n1 > n2) {
-            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam1}</span>`;
-          } else if (n2 > n1) {
-            winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedTeam2}</span>`;
-          } else {
-            winnerText = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
-          }
-        } else if (pred.penalty_winner) {
-          const winnerTeam = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
-          winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${winnerTeam}</span>`;
-        } else {
-          winnerText = `<span style="color: var(--text-muted);">Define ganador</span>`;
-        }
-
+        const pw = pred.penalty_winner !== null && pred.penalty_winner !== undefined ? parseInt(pred.penalty_winner) : null;
         const isDraw = pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2);
         const displayStyle = isDraw ? 'display: flex;' : 'display: none;';
 
+        const btn1Active = pw === 1 ? 'background: var(--primary); color: #000; border-color: var(--primary); font-weight: 700;' : 'background: transparent; color: var(--text-secondary); border-color: rgba(255,255,255,0.15);';
+        const btn2Active = pw === 2 ? 'background: var(--primary); color: #000; border-color: var(--primary); font-weight: 700;' : 'background: transparent; color: var(--text-secondary); border-color: rgba(255,255,255,0.15);';
+        const btnDisabled = disabledAttr ? 'pointer-events: none; opacity: 0.5;' : 'cursor: pointer;';
+
         penaltySelectorHTML = `
-          <div class="penalty-selector-container" data-match-id="${match.id}" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); ${displayStyle} flex-direction: column; gap: 0.4rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
-              <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">Marcador de Penales:</span>
-              <div style="display: flex; align-items: center; gap: 0.3rem;">
-                <input type="number" min="0" max="99" class="input-goal pred-penalty-input" 
-                  data-match-id="${match.id}" data-team="1" 
-                  value="${pVal1}" 
-                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
-                  ${disabledAttr}>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">-</span>
-                <input type="number" min="0" max="99" class="input-goal pred-penalty-input" 
-                  data-match-id="${match.id}" data-team="2" 
-                  value="${pVal2}" 
-                  style="width: 38px; height: 26px; font-size: 0.8rem; text-align: center; padding: 0.1rem;"
-                  ${disabledAttr}>
-              </div>
-            </div>
-            <div class="penalty-winner-feedback" style="display: flex; justify-content: flex-end; font-size: 0.72rem;">
-              ${winnerText}
+          <div class="penalty-selector-container" data-match-id="${match.id}" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.6rem 0.5rem; background: rgba(255,200,0,0.04); border-radius: var(--border-radius-sm); border: 1px dashed rgba(251,191,36,0.25); ${displayStyle} flex-direction: column; gap: 0.5rem;">
+            <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 600; text-align: center; letter-spacing: 0.03em;">⚽ Penales — ¿Quién avanza?</span>
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+              <button class="btn-penalty-winner" data-match-id="${match.id}" data-winner="1"
+                style="flex: 1; padding: 0.45rem 0.3rem; border-radius: var(--border-radius-sm); border: 1.5px solid; font-size: 0.8rem; transition: all 0.18s ease; ${btn1Active} ${btnDisabled}">
+                ${resolvedTeam1}
+              </button>
+              <button class="btn-penalty-winner" data-match-id="${match.id}" data-winner="2"
+                style="flex: 1; padding: 0.45rem 0.3rem; border-radius: var(--border-radius-sm); border: 1.5px solid; font-size: 0.8rem; transition: all 0.18s ease; ${btn2Active} ${btnDisabled}">
+                ${resolvedTeam2}
+              </button>
             </div>
           </div>
         `;
@@ -2328,9 +2328,8 @@ $(document).ready(function() {
 
       const isKnockout = !match.group || match.group === '';
       if (isKnockout && hasPred && parseInt(pred.goals1) === parseInt(pred.goals2)) {
-        const hasPens = pred.penalties1 !== null && pred.penalties1 !== undefined && pred.penalties1 !== "" &&
-                        pred.penalties2 !== null && pred.penalties2 !== undefined && pred.penalties2 !== "";
-        if (!hasPens) {
+        const hasPenaltyWinner = pred.penalty_winner !== null && pred.penalty_winner !== undefined && pred.penalty_winner !== "";
+        if (!hasPenaltyWinner) {
           hasPred = false;
         }
       }
@@ -2383,13 +2382,13 @@ $(document).ready(function() {
       const nowHasPred = val1 !== "" && val1 !== null && val1 !== undefined &&
                          val2 !== "" && val2 !== null && val2 !== undefined;
       
+      // Para eliminatorias con empate, no bloqueamos hasta que elijan el ganador de penales
       let shouldLock = nowHasPred;
       if (isKnockout && isDraw) {
-        const p1 = state.players[pIdx].predictions[matchId].penalties1;
-        const p2 = state.players[pIdx].predictions[matchId].penalties2;
-        const hasPens = p1 !== null && p1 !== undefined && p1 !== "" &&
-                        p2 !== null && p2 !== undefined && p2 !== "";
-        shouldLock = hasPens;
+        const hasPenaltyWinner = state.players[pIdx].predictions[matchId].penalty_winner !== null &&
+                                  state.players[pIdx].predictions[matchId].penalty_winner !== undefined &&
+                                  state.players[pIdx].predictions[matchId].penalty_winner !== '';
+        shouldLock = hasPenaltyWinner;
       }
 
       if (shouldLock && !isAdminMode) {
@@ -2400,27 +2399,32 @@ $(document).ready(function() {
       showSaveIndicator(true);
       renderDashboard();
 
-      // En lugar de re-renderizar toda la grilla (lo que destruiría el foco), mostramos/ocultamos penales y actualizamos visualmente
+      // Mostrar/ocultar contenedor de penales dinámicamente sin re-renderizar
       const penaltyContainer = card.find('.penalty-selector-container');
       if (penaltyContainer.length > 0) {
         if (isDraw) {
           penaltyContainer.css('display', 'flex');
+          // Limpiar selección de ganador si ya no es empate
         } else {
           penaltyContainer.css('display', 'none');
-          penaltyContainer.find('.pred-penalty-input').val('');
-          penaltyContainer.find('.penalty-winner-feedback').html('<span style="color: var(--text-muted);">Define ganador</span>');
+          // Limpiar penalty_winner del state cuando deja de ser empate
+          if (state.players[pIdx].predictions[matchId]) {
+            state.players[pIdx].predictions[matchId].penalty_winner = null;
+          }
+          penaltyContainer.find('.btn-penalty-winner').each(function() {
+            $(this).css({ background: 'transparent', color: 'var(--text-secondary)', 'border-color': 'rgba(255,255,255,0.15)', 'font-weight': 'normal' });
+          });
         }
       } else if (isKnockout && !isFinished) {
-        // Por si acaso no se renderizó antes, re-renderizamos para asegurar consistencia
         renderPredictionsGrid();
       }
     });
 
-    $('.pred-penalty-input').off('change').on('change', function() {
+    $('.btn-penalty-winner').off('click').on('click', function() {
+      if ($(this).css('pointer-events') === 'none') return;
       const matchId = $(this).data('match-id');
+      const winner = parseInt($(this).data('winner'));
       const card = $(this).closest('.match-card');
-      const pVal1 = card.find('.pred-penalty-input[data-team="1"]').val();
-      const pVal2 = card.find('.pred-penalty-input[data-team="2"]').val();
 
       const pIdx = state.players.findIndex(p => p.id == activePlayerId);
       if (pIdx === -1) return;
@@ -2428,7 +2432,7 @@ $(document).ready(function() {
       const pred = state.players[pIdx].predictions[matchId];
       if (!pred) return;
 
-      // Validar límite de tiempo (30 minutos antes) si no es administrador
+      // Validar límite de tiempo
       if (!isAdminMode) {
         const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
         const matchDate = getMatchStartDate(match);
@@ -2437,72 +2441,39 @@ $(document).ready(function() {
           const diffHours = (matchDate.getTime() - now.getTime()) / (1000 * 60 * 60);
           if (diffHours < 0.5) {
             showToast("Límite de tiempo superado. Los pronósticos se bloquean 30 minutos antes del partido.", "error");
-            renderPredictionsGrid();
             return;
           }
         }
-        if (pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && !pred.unlocked) {
+        // Si el pronóstico ya estaba bloqueado (no desbloqueado por admin) no permitir cambiar
+        if (pred.penalty_winner !== null && pred.penalty_winner !== undefined && pred.penalty_winner !== '' && !pred.unlocked) {
           showToast("Este pronóstico está bloqueado. Pide al administrador que lo libere.", "error");
-          renderPredictionsGrid();
           return;
         }
       }
 
-      const n1 = pVal1 === "" ? null : parseInt(pVal1);
-      const n2 = pVal2 === "" ? null : parseInt(pVal2);
+      // Guardar ganador de penales
+      state.players[pIdx].predictions[matchId].penalties1 = null;
+      state.players[pIdx].predictions[matchId].penalties2 = null;
+      state.players[pIdx].predictions[matchId].penalty_winner = winner;
 
-      let pw = null;
-      if (n1 !== null && n2 !== null) {
-        if (n1 > n2) {
-          pw = 1;
-        } else if (n2 > n1) {
-          pw = 2;
-        } else {
-          showToast("La tanda de penales debe tener un ganador (no puede quedar empate).", "warning");
-        }
-      }
-
-      state.players[pIdx].predictions[matchId].penalties1 = n1;
-      state.players[pIdx].predictions[matchId].penalties2 = n2;
-      state.players[pIdx].predictions[matchId].penalty_winner = pw;
-
-      // Si el usuario ingresó penales completos y válidos, bloquear el pronóstico
-      if (n1 !== null && n2 !== null && n1 !== n2 && !isAdminMode) {
+      // Bloquear pronóstico ahora que está completo
+      if (!isAdminMode) {
         state.players[pIdx].predictions[matchId].unlocked = false;
       }
+
+      // Actualizar visualmente los botones sin re-renderizar toda la grilla
+      card.find('.btn-penalty-winner').each(function() {
+        const btnWinner = parseInt($(this).data('winner'));
+        if (btnWinner === winner) {
+          $(this).css({ background: 'var(--primary)', color: '#000', 'border-color': 'var(--primary)', 'font-weight': '700' });
+        } else {
+          $(this).css({ background: 'transparent', color: 'var(--text-secondary)', 'border-color': 'rgba(255,255,255,0.15)', 'font-weight': 'normal' });
+        }
+      });
 
       saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
       renderDashboard();
-      renderPredictionsGrid();
-    });
-
-    $('.pred-penalty-input').on('input', function() {
-      const card = $(this).closest('.match-card');
-      const matchId = $(this).data('match-id');
-      const pVal1 = card.find('.pred-penalty-input[data-team="1"]').val();
-      const pVal2 = card.find('.pred-penalty-input[data-team="2"]').val();
-      
-      const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
-      if (!match) return;
-      const resolvedT1 = getTeamName(match.id, 1, match.team1);
-      const resolvedT2 = getTeamName(match.id, 2, match.team2);
-
-      let feedback = '';
-      if (pVal1 !== '' && pVal2 !== '') {
-        const n1 = parseInt(pVal1);
-        const n2 = parseInt(pVal2);
-        if (n1 > n2) {
-          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT1}</span>`;
-        } else if (n2 > n1) {
-          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT2}</span>`;
-        } else {
-          feedback = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
-        }
-      } else {
-        feedback = `<span style="color: var(--text-muted);">Define ganador</span>`;
-      }
-      card.find('.penalty-winner-feedback').html(feedback);
     });
 
     $('.btn-lock-toggle').off('click').on('click', function(e) {
@@ -4072,7 +4043,7 @@ $(document).ready(function() {
   // 7. FILTROS Y EVENTOS DE CAMBIO
   // ==========================================
 
-  $('#filter-group-pred, #filter-status-pred').on('change', function() {
+  $('#filter-group-pred, #filter-status-pred, #filter-date-pred').on('change', function() {
     renderPredictionsGrid();
   });
 
