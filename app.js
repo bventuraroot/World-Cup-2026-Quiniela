@@ -2111,7 +2111,6 @@ $(document).ready(function() {
       }
 
       let penaltySelectorHTML = '';
-      const isKnockout = !match.group || match.group === '';
       if (isKnockout && !isFinished) {
         const pVal1 = pred.penalties1 !== undefined && pred.penalties1 !== null ? pred.penalties1 : '';
         const pVal2 = pred.penalties2 !== undefined && pred.penalties2 !== null ? pred.penalties2 : '';
