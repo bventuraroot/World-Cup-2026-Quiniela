@@ -1888,6 +1888,8 @@ $(document).ready(function() {
     const weekFromNow = new Date(todayDate);
     weekFromNow.setDate(weekFromNow.getDate() + 7);
 
+    console.log('[PRED GRID] dateFilter=', dateFilter, 'statusFilter=', statusFilter, 'groupFilter=', groupFilter, 'todayStr=', todayStr, 'total matches=', WORLD_CUP_2026_MATCHES.length);
+
     let matchesCount = 0;
 
     // Ordenar partidos cronológicamente (por fecha, hora y ID como respaldo)
@@ -1898,6 +1900,7 @@ $(document).ready(function() {
     });
 
     sortedMatches.forEach(match => {
+      try {
       if (groupFilter !== 'ALL') {
         if (groupFilter === 'Group Stage' && match.group === '') return;
         if (groupFilter === 'Knockout Stage' && match.group !== '') return;
@@ -2297,6 +2300,7 @@ $(document).ready(function() {
           </div>
         </div>
       `);
+      } catch(e) { console.error('[PRED GRID ERROR] match', match.id, match.date, match.team1, 'vs', match.team2, e); }
     });
 
     if (matchesCount === 0) {
@@ -3111,18 +3115,6 @@ $(document).ready(function() {
         const times = getFormattedMatchTimes(match.time);
         const flag1HTML = getTeamFlagHTML(resolvedTeam1);
         const flag2HTML = getTeamFlagHTML(resolvedTeam2);
-
-        dayGrid.append(`
-          <div class="match-card" style="${real.status === 'live' ? 'border-color: var(--info);' : ''}">
-            <div class="match-card-header">
-              <div style="display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start;">
-                <span style="font-weight: 700; color: var(--text-primary);">${match.round}</span>
-                ${match.group ? `<span class="match-group" style="font-size: 0.72rem; margin-top: 0.15rem; padding: 0.05rem 0.35rem; margin-left: 0;">${match.group}</span>` : ''}
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-end; font-size: 0.72rem; color: var(--text-secondary); text-align: right;">
-                <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="calendar" style="width: 11px; height: 11px;"></i> ${match.date}</span>
-                <span style="display: flex; align-items: center; gap: 0.25rem;" title="Hora original de partido"><i data-lucide="clock" style="width: 11px; height: 11px;"></i> ${times.original}</span>
-                <span style="font-size: 0.68rem; color: var(--primary); font-weight: 600;">SV: ${times.sv}</span>
                 <span style="font-size: 0.68rem; color: var(--secondary); font-weight: 600;">CA: ${times.ca}</span>
               </div>
             </div>
