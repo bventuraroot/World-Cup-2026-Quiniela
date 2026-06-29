@@ -443,6 +443,7 @@ $(document).ready(function() {
         },
         error: function(xhr, status, error) {
           console.warn(`[Quiniela DB Error] Error de red en el endpoint dedicado "${url}" para tipo "${ctx.type || 'completo'}". Detalles:`, error);
+          showToast("Fallo al guardar en base de datos. Asegúrate de ejecutar la consulta SQL de penales.", "error");
         }
       });
     } catch (e) {
@@ -1900,8 +1901,17 @@ $(document).ready(function() {
       }
 
       const pred = activePlayer.predictions[match.id] || { goals1: "", goals2: "" };
-      const hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
-                       pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+      let hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+                    pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+
+      const isKnockout = !match.group || match.group === '';
+      if (isKnockout && hasPred && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+        const hasPens = pred.penalties1 !== null && pred.penalties1 !== undefined && pred.penalties1 !== "" &&
+                        pred.penalties2 !== null && pred.penalties2 !== undefined && pred.penalties2 !== "";
+        if (!hasPens) {
+          hasPred = false;
+        }
+      }
 
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'PENDING' && hasPred) return;
@@ -2102,7 +2112,7 @@ $(document).ready(function() {
 
       let penaltySelectorHTML = '';
       const isKnockout = !match.group || match.group === '';
-      if (isKnockout && !isFinished && pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+      if (isKnockout && !isFinished) {
         const pVal1 = pred.penalties1 !== undefined && pred.penalties1 !== null ? pred.penalties1 : '';
         const pVal2 = pred.penalties2 !== undefined && pred.penalties2 !== null ? pred.penalties2 : '';
         
@@ -2117,12 +2127,18 @@ $(document).ready(function() {
           } else {
             winnerText = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
           }
+        } else if (pred.penalty_winner) {
+          const winnerTeam = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+          winnerText = `<span style="color: var(--primary); font-weight: 700;">Gana: ${winnerTeam}</span>`;
         } else {
           winnerText = `<span style="color: var(--text-muted);">Define ganador</span>`;
         }
 
+        const isDraw = pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2);
+        const displayStyle = isDraw ? 'display: flex;' : 'display: none;';
+
         penaltySelectorHTML = `
-          <div class="penalty-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 0.4rem;">
+          <div class="penalty-selector-container" data-match-id="${match.id}" style="margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.02); border-radius: var(--border-radius-sm); border: 1px dashed rgba(255,255,255,0.1); ${displayStyle} flex-direction: column; gap: 0.4rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;">
               <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 500;">Marcador de Penales:</span>
               <div style="display: flex; align-items: center; gap: 0.3rem;">
@@ -2139,7 +2155,7 @@ $(document).ready(function() {
                   ${disabledAttr}>
               </div>
             </div>
-            <div style="display: flex; justify-content: flex-end; font-size: 0.72rem;">
+            <div class="penalty-winner-feedback" style="display: flex; justify-content: flex-end; font-size: 0.72rem;">
               ${winnerText}
             </div>
           </div>
@@ -2304,13 +2320,24 @@ $(document).ready(function() {
       const pIdx = state.players.findIndex(p => p.id == activePlayerId);
       if (pIdx === -1) return;
 
+      const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+      if (!match) return;
+
       const pred = state.players[pIdx].predictions[matchId] || { goals1: "", goals2: "" };
-      const hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
-                       pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+      let hasPred = pred.goals1 !== null && pred.goals1 !== undefined && pred.goals1 !== "" &&
+                    pred.goals2 !== null && pred.goals2 !== undefined && pred.goals2 !== "";
+
+      const isKnockout = !match.group || match.group === '';
+      if (isKnockout && hasPred && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+        const hasPens = pred.penalties1 !== null && pred.penalties1 !== undefined && pred.penalties1 !== "" &&
+                        pred.penalties2 !== null && pred.penalties2 !== undefined && pred.penalties2 !== "";
+        if (!hasPens) {
+          hasPred = false;
+        }
+      }
 
       // Validar límite de tiempo (30 minutos antes) si no es administrador
       if (!isAdminMode) {
-        const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
         const matchDate = getMatchStartDate(match);
         if (matchDate) {
           const now = new Date();
@@ -2346,7 +2373,8 @@ $(document).ready(function() {
       state.players[pIdx].predictions[matchId].goals2 = val2;
 
       // Si no es un empate, remover penales
-      if (val1 !== "" && val2 !== "" && parseInt(val1) !== parseInt(val2)) {
+      const isDraw = val1 !== "" && val2 !== "" && parseInt(val1) === parseInt(val2);
+      if (!isDraw) {
         state.players[pIdx].predictions[matchId].penalties1 = null;
         state.players[pIdx].predictions[matchId].penalties2 = null;
         state.players[pIdx].predictions[matchId].penalty_winner = null;
@@ -2355,14 +2383,38 @@ $(document).ready(function() {
       // Si el usuario guardó un marcador completo (ambos goles), bloquearlo quitando la bandera de desbloqueo
       const nowHasPred = val1 !== "" && val1 !== null && val1 !== undefined &&
                          val2 !== "" && val2 !== null && val2 !== undefined;
-      if (nowHasPred && !isAdminMode) {
+      
+      let shouldLock = nowHasPred;
+      if (isKnockout && isDraw) {
+        const p1 = state.players[pIdx].predictions[matchId].penalties1;
+        const p2 = state.players[pIdx].predictions[matchId].penalties2;
+        const hasPens = p1 !== null && p1 !== undefined && p1 !== "" &&
+                        p2 !== null && p2 !== undefined && p2 !== "";
+        shouldLock = hasPens;
+      }
+
+      if (shouldLock && !isAdminMode) {
         state.players[pIdx].predictions[matchId].unlocked = false;
       }
 
       saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
       renderDashboard();
-      renderPredictionsGrid();
+
+      // En lugar de re-renderizar toda la grilla (lo que destruiría el foco), mostramos/ocultamos penales y actualizamos visualmente
+      const penaltyContainer = card.find('.penalty-selector-container');
+      if (penaltyContainer.length > 0) {
+        if (isDraw) {
+          penaltyContainer.css('display', 'flex');
+        } else {
+          penaltyContainer.css('display', 'none');
+          penaltyContainer.find('.pred-penalty-input').val('');
+          penaltyContainer.find('.penalty-winner-feedback').html('<span style="color: var(--text-muted);">Define ganador</span>');
+        }
+      } else if (isKnockout && !isFinished) {
+        // Por si acaso no se renderizó antes, re-renderizamos para asegurar consistencia
+        renderPredictionsGrid();
+      }
     });
 
     $('.pred-penalty-input').off('change').on('change', function() {
@@ -2415,10 +2467,43 @@ $(document).ready(function() {
       state.players[pIdx].predictions[matchId].penalties2 = n2;
       state.players[pIdx].predictions[matchId].penalty_winner = pw;
 
+      // Si el usuario ingresó penales completos y válidos, bloquear el pronóstico
+      if (n1 !== null && n2 !== null && n1 !== n2 && !isAdminMode) {
+        state.players[pIdx].predictions[matchId].unlocked = false;
+      }
+
       saveState({ type: 'prediction', playerId: activePlayerId, matchId: matchId });
       showSaveIndicator(true);
       renderDashboard();
       renderPredictionsGrid();
+    });
+
+    $('.pred-penalty-input').on('input', function() {
+      const card = $(this).closest('.match-card');
+      const matchId = $(this).data('match-id');
+      const pVal1 = card.find('.pred-penalty-input[data-team="1"]').val();
+      const pVal2 = card.find('.pred-penalty-input[data-team="2"]').val();
+      
+      const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+      if (!match) return;
+      const resolvedT1 = getTeamName(match.id, 1, match.team1);
+      const resolvedT2 = getTeamName(match.id, 2, match.team2);
+
+      let feedback = '';
+      if (pVal1 !== '' && pVal2 !== '') {
+        const n1 = parseInt(pVal1);
+        const n2 = parseInt(pVal2);
+        if (n1 > n2) {
+          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT1}</span>`;
+        } else if (n2 > n1) {
+          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT2}</span>`;
+        } else {
+          feedback = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
+        }
+      } else {
+        feedback = `<span style="color: var(--text-muted);">Define ganador</span>`;
+      }
+      card.find('.penalty-winner-feedback').html(feedback);
     });
 
     $('.btn-lock-toggle').off('click').on('click', function(e) {
@@ -2749,6 +2834,34 @@ $(document).ready(function() {
       renderLeaderboard();
       renderAdminGrid();
       showToast(`Marcador de penales del partido ID ${matchId} actualizado.`);
+    });
+
+    $('.admin-penalty-input').on('input', function() {
+      const card = $(this).closest('.match-card');
+      const matchId = $(this).data('match-id');
+      const pVal1 = card.find('.admin-penalty-input[data-team="1"]').val();
+      const pVal2 = card.find('.admin-penalty-input[data-team="2"]').val();
+      
+      const match = WORLD_CUP_2026_MATCHES.find(m => m.id == matchId);
+      if (!match) return;
+      const resolvedT1 = getTeamName(match.id, 1, match.team1);
+      const resolvedT2 = getTeamName(match.id, 2, match.team2);
+
+      let feedback = '';
+      if (pVal1 !== '' && pVal2 !== '') {
+        const n1 = parseInt(pVal1);
+        const n2 = parseInt(pVal2);
+        if (n1 > n2) {
+          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT1}</span>`;
+        } else if (n2 > n1) {
+          feedback = `<span style="color: var(--primary); font-weight: 700;">Gana: ${resolvedT2}</span>`;
+        } else {
+          feedback = `<span style="color: var(--danger); font-weight: 600;">No puede ser empate</span>`;
+        }
+      } else {
+        feedback = `<span style="color: var(--text-muted);">Define ganador</span>`;
+      }
+      card.find('.penalty-winner-feedback').html(feedback);
     });
   }
 
