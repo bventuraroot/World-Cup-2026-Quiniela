@@ -2137,6 +2137,8 @@ $(document).ready(function() {
             </div>
           </div>
         `;
+      } else if (hasPred) {
+        cardBorderGlow = 'border-color: rgba(16, 185, 129, 0.35); box-shadow: 0 0 10px rgba(16, 185, 129, 0.05);';
       }
 
       let penaltySelectorHTML = '';
@@ -2179,16 +2181,16 @@ $(document).ready(function() {
           if (pred.unlocked) {
             if (isAdminMode) {
               lockBadgeHTML = `
-                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--primary);">
-                  <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="lock-open" style="width: 12px; height: 12px;"></i> Liberado por Admin</span>
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;">
+                  <span style="display: flex; align-items: center; gap: 0.25rem; color: var(--primary); font-weight: 600;"><i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--primary);"></i> Pronóstico Completo</span>
                   <button class="btn-lock-toggle" data-match-id="${match.id}" data-action="lock" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; text-decoration: underline; font-size: 0.72rem; padding: 0;">Volver a Bloquear</button>
                 </div>
               `;
             } else {
               lockBadgeHTML = `
-                <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--primary);">
-                  <i data-lucide="lock-open" style="width: 12px; height: 12px;"></i>
-                  <span>Editable (Liberado por Admin)</span>
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;">
+                  <span style="display: flex; align-items: center; gap: 0.25rem; color: var(--primary); font-weight: 600;"><i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--primary);"></i> Pronóstico Completo</span>
+                  <span style="color: var(--info); display: flex; align-items: center; gap: 0.15rem;"><i data-lucide="lock-open" style="width: 10px; height: 10px;"></i> Editable (Liberado)</span>
                 </div>
               `;
             }
@@ -2196,34 +2198,42 @@ $(document).ready(function() {
             // Bloqueado
             if (isAdminMode) {
               lockBadgeHTML = `
-                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--danger);">
-                  <span style="display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Bloqueado para usuario</span>
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;">
+                  <span style="display: flex; align-items: center; gap: 0.25rem; color: var(--primary); font-weight: 600;"><i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--primary);"></i> Pronóstico Completo</span>
                   <button class="btn-lock-toggle" data-match-id="${match.id}" data-action="unlock" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 0.72rem; padding: 0;">Liberar/Desbloquear</button>
                 </div>
               `;
             } else {
               lockBadgeHTML = `
-                <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--text-muted);">
-                  <i data-lucide="lock" style="width: 12px; height: 12px;"></i>
-                  <span>Bloqueado (No editable)</span>
+                <div class="lock-status-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem;">
+                  <span style="display: flex; align-items: center; gap: 0.25rem; color: var(--primary); font-weight: 600;"><i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--primary);"></i> Pronóstico Completo</span>
+                  <span style="color: var(--text-muted); display: flex; align-items: center; gap: 0.15rem;"><i data-lucide="lock" style="width: 10px; height: 10px;"></i> Guardado y Bloqueado</span>
                 </div>
               `;
             }
           }
         } else {
-          // Sin predicción
+          // Sin predicción (o incompleto)
+          const isDraw = pred.goals1 !== null && pred.goals1 !== "" && pred.goals2 !== null && pred.goals2 !== "" && parseInt(pred.goals1) === parseInt(pred.goals2);
+          const needsPenaltyWinner = isKnockout && isDraw && (pred.penalty_winner === null || pred.penalty_winner === undefined || pred.penalty_winner === "");
+          
+          let pendingText = "Pendiente de ingresar";
+          if (needsPenaltyWinner) {
+            pendingText = "Falta elegir ganador en penales ⚽";
+          }
+
           if (isAdminMode) {
             lockBadgeHTML = `
               <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
                 <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
-                <span>Pendiente de ingresar (Modo Admin)</span>
+                <span>${pendingText} (Modo Admin)</span>
               </div>
             `;
           } else {
             lockBadgeHTML = `
               <div class="lock-status-row" style="display: flex; align-items: center; gap: 0.25rem; margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03); font-size: 0.72rem; color: var(--secondary);">
                 <i data-lucide="pen-tool" style="width: 12px; height: 12px;"></i>
-                <span>Pendiente de ingresar</span>
+                <span>${pendingText}</span>
               </div>
             `;
           }

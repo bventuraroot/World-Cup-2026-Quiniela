@@ -241,6 +241,8 @@ try {
                                             if ($p1 !== null && $p2 !== null) {
                                                 if ($p1 > $p2) $pw = 1;
                                                 elseif ($p2 > $p1) $pw = 2;
+                                            } elseif (isset($pred['penalty_winner']) && $pred['penalty_winner'] !== "" && $pred['penalty_winner'] !== null) {
+                                                $pw = intval($pred['penalty_winner']);
                                             }
                                             $stmtPred->execute([
                                                 'player_id' => $p['id'],
@@ -826,6 +828,8 @@ if ($action === 'save_prediction' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($p1 !== null && $p2 !== null) {
                 if ($p1 > $p2) $pw = 1;
                 elseif ($p2 > $p1) $pw = 2;
+            } elseif (isset($data['penalty_winner']) && $data['penalty_winner'] !== "" && $data['penalty_winner'] !== null) {
+                $pw = intval($data['penalty_winner']);
             }
 
             $stmt = $pdo->prepare("INSERT INTO quiniela_predictions (player_id, match_id, goals1, goals2, penalties1, penalties2, penalty_winner, unlocked) 
@@ -923,6 +927,8 @@ if ($action === 'save_real_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($p1 !== null && $p2 !== null) {
                 if ($p1 > $p2) $pw = 1;
                 elseif ($p2 > $p1) $pw = 2;
+            } elseif (isset($data['penalty_winner']) && $data['penalty_winner'] !== "" && $data['penalty_winner'] !== null) {
+                $pw = intval($data['penalty_winner']);
             }
 
             $stmt = $pdo->prepare("INSERT INTO quiniela_real_results (match_id, goals1, goals2, penalties1, penalties2, penalty_winner, status, api_data) 
@@ -1150,6 +1156,8 @@ function importFullStateJSON($pdo, $state_json) {
                             if ($p1 !== null && $p2 !== null) {
                                 if ($p1 > $p2) $pw = 1;
                                 elseif ($p2 > $p1) $pw = 2;
+                            } elseif (isset($pred['penalty_winner']) && $pred['penalty_winner'] !== "" && $pred['penalty_winner'] !== null) {
+                                $pw = intval($pred['penalty_winner']);
                             }
                             $stmtPred->execute([
                                 'player_id' => $pId,
@@ -1181,6 +1189,8 @@ function importFullStateJSON($pdo, $state_json) {
                 if ($rp1 !== null && $rp2 !== null) {
                     if ($rp1 > $rp2) $rpw = 1;
                     elseif ($rp2 > $rp1) $rpw = 2;
+                } elseif (isset($r['penalty_winner']) && $r['penalty_winner'] !== "" && $r['penalty_winner'] !== null) {
+                    $rpw = intval($r['penalty_winner']);
                 }
                 $stmtReal->execute([
                     'match_id' => $mId,
