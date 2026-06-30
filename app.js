@@ -3877,7 +3877,7 @@ $(document).ready(function() {
       "Partidos Pronosticados": p.predictedCount,
       "Aciertos Exactos": p.exactHits,
       "Aciertos Cercanos (Consuelo)": p.closestHits,
-      "Aciertos Ganador": p.winnerHits,
+      "Aciertos Ganador": p.winnerHits - p.exactHits,
       "Aciertos Penales": p.penaltyHits,
       "Incorrectos": p.incorrects,
       "Campeón Pronosticado": p.championPredictionText,
