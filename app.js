@@ -771,16 +771,16 @@ $(document).ready(function() {
   // Calcular puntos de un jugador para un partido específico
   function getPlayerPointsForMatch(playerId, matchId) {
     const player = state.players.find(p => p.id == playerId);
-    if (!player) return { points: 0, type: 'none' };
+    if (!player) return { points: 0, type: 'none', penaltiesHit: false };
     
     const pred = player.predictions[matchId];
     if (!pred || pred.goals1 === null || pred.goals1 === "" || pred.goals2 === null || pred.goals2 === "") {
-      return { points: 0, type: 'none' };
+      return { points: 0, type: 'none', penaltiesHit: false };
     }
     
     const real = state.realResults[matchId];
     if (!real || real.status !== 'finished') {
-      return { points: 0, type: 'none' };
+      return { points: 0, type: 'none', penaltiesHit: false };
     }
     
     const p1 = parseInt(pred.goals1);
@@ -789,8 +789,10 @@ $(document).ready(function() {
     const r2 = parseInt(real.goals2);
     
     if (isNaN(p1) || isNaN(p2) || isNaN(r1) || isNaN(r2)) {
-      return { points: 0, type: 'none' };
+      return { points: 0, type: 'none', penaltiesHit: false };
     }
+
+    let penaltiesHit = false;
 
     if (p1 === r1 && p2 === r2) {
       const ptsExact = parseInt(state.config.pointsExact || 3);
@@ -823,9 +825,10 @@ $(document).ready(function() {
         if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
           const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
           pointsEarned += ptsPenalties;
+          penaltiesHit = true;
         }
       }
-      return { points: pointsEarned, type: 'exact' };
+      return { points: pointsEarned, type: 'exact', penaltiesHit };
     }
     
     let minDistance = Infinity;
@@ -889,10 +892,11 @@ $(document).ready(function() {
       if (realPWinner !== null && predPWinner !== null && realPWinner === predPWinner) {
         const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
         pointsEarned += ptsPenalties;
+        penaltiesHit = true;
       }
     }
     
-    return { points: pointsEarned, type };
+    return { points: pointsEarned, type, penaltiesHit };
   }
 
   function getPlayersLeaderboard() {
@@ -901,6 +905,7 @@ $(document).ready(function() {
       let exactHits = 0;
       let closestHits = 0;
       let winnerHits = 0;
+      let penaltyHits = 0;
       let incorrects = 0;
       let predictedCount = 0;
 
@@ -919,6 +924,10 @@ $(document).ready(function() {
             const result = getPlayerPointsForMatch(player.id, match.id);
             totalPoints += result.points;
             
+            if (result.penaltiesHit) {
+              penaltyHits++;
+            }
+
             if (result.type === 'exact') {
               exactHits++;
               winnerHits++;
@@ -962,6 +971,7 @@ $(document).ready(function() {
         exactHits,
         closestHits,
         winnerHits,
+        penaltyHits,
         incorrects,
         predictedCount,
         championPredictionText,
@@ -1419,7 +1429,7 @@ $(document).ready(function() {
     if (leaderboard.length === 0) {
       tbody.append(`
         <tr>
-          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+          <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem;">
             No hay jugadores agregados. Ve a la pestaña "Pronósticos" para agregar tu primer jugador.
           </td>
         </tr>
@@ -1447,6 +1457,7 @@ $(document).ready(function() {
           <td style="text-align: center; color: var(--primary); font-weight: 600;">${player.exactHits}</td>
           <td style="text-align: center; color: var(--info); font-weight: 600;">${player.closestHits}</td>
           <td style="text-align: center; color: var(--secondary); font-weight: 600;">${player.winnerHits}</td>
+          <td style="text-align: center; color: var(--warning); font-weight: 600;">${player.penaltyHits}</td>
           <td style="text-align: center; color: var(--text-muted); font-weight: 600;">${player.incorrects}</td>
           <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
             <div style="display: inline-flex; align-items: center; gap: 0.4rem; justify-content: center;">
@@ -1457,7 +1468,7 @@ $(document).ready(function() {
           <td style="text-align: right; font-weight: 700; font-size: 1.1rem; color: var(--primary);">${player.totalPoints}</td>
         </tr>
         <tr class="player-details-row" id="${detailId}" style="display: none;">
-          <td colspan="9" style="padding: 0;">
+          <td colspan="10" style="padding: 0;">
             <div class="details-wrapper" id="details-wrapper-${player.id}" style="display: none; overflow: hidden;">
               <div class="details-container" id="details-container-${player.id}">
                 <!-- Llenado al abrir para optimizar performance -->
@@ -1549,14 +1560,39 @@ $(document).ready(function() {
 
       // Render matches in this day's grid
       matchesByDate[date].forEach(({ match, pred, real, hasPred, isFinished }) => {
+        const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
+        const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
+        const flag1HTML = getTeamFlagHTML(resolvedTeam1);
+        const flag2HTML = getTeamFlagHTML(resolvedTeam2);
+
         let predText = "Sin Pronóstico";
         if (hasPred) {
           predText = `${pred.goals1} - ${pred.goals2}`;
+          const isKnockout = !match.group || match.group === '';
+          if (isKnockout && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+            if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
+              predText += ` (${pred.penalties1}-${pred.penalties2} Pen)`;
+            } else if (pred.penalty_winner) {
+              const pWinnerTeamName = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+              predText += ` (Pen: ${pWinnerTeamName})`;
+            }
+          }
         }
 
         let realText = "Pendiente";
         if (isFinished) {
           realText = `${real.goals1} - ${real.goals2}`;
+          const isKnockout = !match.group || match.group === '';
+          if (isKnockout && parseInt(real.goals1) === parseInt(real.goals2)) {
+            if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+              realText += ` (${real.penalties1}-${real.penalties2} Pen)`;
+            } else if (real.api_data && real.api_data.shootout) {
+              realText += ` (${real.api_data.shootout.home}-${real.api_data.shootout.away} Pen)`;
+            } else if (real.penalty_winner) {
+              const rWinnerTeamName = real.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+              realText += ` (Pen: ${rWinnerTeamName})`;
+            }
+          }
         }
 
         let ptsTagHTML = '';
@@ -1565,32 +1601,33 @@ $(document).ready(function() {
         if (isFinished) {
           if (hasPred) {
             const result = getPlayerPointsForMatch(player.id, match.id);
+            let penaltyLabel = '';
+            if (result.penaltiesHit) {
+              const ptsPen = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
+              penaltyLabel = ` (+${ptsPen} Penales ⚽)`;
+            }
+
             if (result.type === 'exact') {
               scoreClass = 'points-exact';
-              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto)</span>`;
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--primary-glow); color: var(--primary);">+${result.points} pts (Exacto${penaltyLabel})</span>`;
             } else if (result.type === 'winner_closest') {
               scoreClass = 'points-winner';
-              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary); border: 1.2px solid var(--info);">+${result.points} pts (Ganador + Cercano)</span>`;
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary); border: 1.2px solid var(--info);">+${result.points} pts (Ganador + Cercano${penaltyLabel})</span>`;
             } else if (result.type === 'winner') {
               scoreClass = 'points-winner';
-              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary);">+${result.points} pts (Ganador)</span>`;
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--secondary-glow); color: var(--secondary);">+${result.points} pts (Ganador${penaltyLabel})</span>`;
             } else if (result.type === 'closest') {
               scoreClass = 'points-winner';
-              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--accent-glow); color: var(--info);">+${result.points} pts (Cercano)</span>`;
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--accent-glow); color: var(--info);">+${result.points} pts (Cercano${penaltyLabel})</span>`;
             } else {
               scoreClass = 'points-none';
-              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">0 pts</span>`;
+              ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">${result.points} pts${penaltyLabel}</span>`;
             }
           } else {
             scoreClass = 'points-none';
             ptsTagHTML = `<span class="mini-pred-pts-tag" style="background-color: var(--danger-glow); color: var(--danger);">0 pts (Sin Pronóstico)</span>`;
           }
         }
-
-        const resolvedTeam1 = getTeamName(match.id, 1, match.team1);
-        const resolvedTeam2 = getTeamName(match.id, 2, match.team2);
-        const flag1HTML = getTeamFlagHTML(resolvedTeam1);
-        const flag2HTML = getTeamFlagHTML(resolvedTeam2);
 
         dayGrid.append(`
           <div class="mini-prediction-card">
@@ -3018,7 +3055,15 @@ $(document).ready(function() {
         let scoreHTML = '';
         let statusBadgeHTML = '';
 
-        const shootoutText = (real.api_data && real.api_data.shootout) ? `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.api_data.shootout.home}-${real.api_data.shootout.away} Pen)</div>` : '';
+        let shootoutText = '';
+        if (real.penalties1 !== undefined && real.penalties1 !== null && real.penalties2 !== undefined && real.penalties2 !== null) {
+          shootoutText = `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.penalties1} - ${real.penalties2} Pen.)</div>`;
+        } else if (real.api_data && real.api_data.shootout) {
+          shootoutText = `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(${real.api_data.shootout.home} - ${real.api_data.shootout.away} Pen.)</div>`;
+        } else if (real.penalty_winner) {
+          const winnerTeam = real.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
+          shootoutText = `<div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.2rem;">(Pen: Ganó ${winnerTeam})</div>`;
+        }
 
         if (real.status === 'finished') {
           scoreHTML = `
@@ -3797,6 +3842,7 @@ $(document).ready(function() {
       "Aciertos Exactos": p.exactHits,
       "Aciertos Cercanos (Consuelo)": p.closestHits,
       "Aciertos Ganador": p.winnerHits,
+      "Aciertos Penales": p.penaltyHits,
       "Incorrectos": p.incorrects,
       "Campeón Pronosticado": p.championPredictionText,
       "Puntos Totales": p.totalPoints

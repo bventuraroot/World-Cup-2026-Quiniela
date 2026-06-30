@@ -566,6 +566,7 @@ if ($action === 'get' || $action === 'leaderboard') {
             $exactHits = 0;
             $closestHits = 0;
             $winnerHits = 0;
+            $penaltyHits = 0;
             $incorrects = 0;
             $predictedCount = 0;
 
@@ -614,6 +615,7 @@ if ($action === 'get' || $action === 'leaderboard') {
 
                                         if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                             $pointsEarned += $ptsPenaltiesCfg;
+                                            $penaltyHits++;
                                         }
                                     }
                                     $totalPoints += $pointsEarned;
@@ -666,6 +668,7 @@ if ($action === 'get' || $action === 'leaderboard') {
 
                                         if ($realPWinner !== null && $predPWinner !== null && $realPWinner === $predPWinner) {
                                             $pointsEarned += $ptsPenaltiesCfg;
+                                            $penaltyHits++;
                                         }
                                     }
                                     
@@ -712,6 +715,7 @@ if ($action === 'get' || $action === 'leaderboard') {
                 'exactHits' => $exactHits,
                 'closestHits' => $closestHits,
                 'winnerHits' => $winnerHits,
+                'penaltyHits' => $penaltyHits,
                 'incorrects' => $incorrects,
                 'predictedCount' => $predictedCount,
                 'predictions' => (isset($preds[$pId]) && !empty($preds[$pId])) ? $preds[$pId] : new stdClass()
@@ -778,6 +782,7 @@ if ($action === 'get' || $action === 'leaderboard') {
                     'exactHits' => $p['exactHits'],
                     'closestHits' => $p['closestHits'],
                     'winnerHits' => $p['winnerHits'],
+                    'penaltyHits' => $p['penaltyHits'],
                     'incorrects' => $p['incorrects'],
                     'predictedCount' => $p['predictedCount'],
                     'championPrediction' => $p['championPrediction'],
