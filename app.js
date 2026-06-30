@@ -1426,6 +1426,17 @@ $(document).ready(function() {
     const tbody = $('#leaderboard-body');
     tbody.empty();
 
+    const ptsExact = parseInt(state.config.pointsExact || 3);
+    const ptsWinner = parseInt(state.config.pointsWinner || 1);
+    const ptsClosest = parseInt(state.config.pointsClosest || 1);
+    const ptsPenalties = parseInt(state.config.pointsPenalties !== undefined ? state.config.pointsPenalties : 1);
+
+    // Actualizar encabezados con detalles de puntos
+    $('#th-exact').html(`Exacto <span style="font-size:0.72rem; opacity:0.85; display:block; font-weight:normal; margin-top:0.15rem;">(+${ptsExact + ptsWinner} pts)</span>`);
+    $('#th-closest').html(`Cercano <span style="font-size:0.72rem; opacity:0.85; display:block; font-weight:normal; margin-top:0.15rem;">(+${ptsClosest} pts)</span>`);
+    $('#th-winner').html(`Ganador <span style="font-size:0.72rem; opacity:0.85; display:block; font-weight:normal; margin-top:0.15rem;">(+${ptsWinner} pts)</span>`);
+    $('#th-penalties').html(`Penales <span style="font-size:0.72rem; opacity:0.85; display:block; font-weight:normal; margin-top:0.15rem;">(+${ptsPenalties} pts)</span>`);
+
     if (leaderboard.length === 0) {
       tbody.append(`
         <tr>
@@ -1449,23 +1460,37 @@ $(document).ready(function() {
 
       const flagHTML = player.championPrediction ? getTeamFlagHTML(player.championPrediction) : '';
 
+      const pureWinnerHits = player.winnerHits - player.exactHits;
+
       tbody.append(`
         <tr class="player-row" id="${rowId}" data-player-id="${player.id}">
           <td><span class="position-badge ${posClass}">${pos}</span></td>
           <td style="font-weight: 600; font-family: 'Outfit';">${player.name}</td>
-          <td style="text-align: center;">${player.predictedCount} / 104</td>
-          <td style="text-align: center; color: var(--primary); font-weight: 600;">${player.exactHits}</td>
-          <td style="text-align: center; color: var(--info); font-weight: 600;">${player.closestHits}</td>
-          <td style="text-align: center; color: var(--secondary); font-weight: 600;">${player.winnerHits}</td>
-          <td style="text-align: center; color: var(--warning); font-weight: 600;">${player.penaltyHits}</td>
-          <td style="text-align: center; color: var(--text-muted); font-weight: 600;">${player.incorrects}</td>
+          <td style="text-align: center; vertical-align: middle;">${player.predictedCount} / 104</td>
+          <td style="text-align: center; color: var(--primary); font-weight: 600; vertical-align: middle;">
+            ${player.exactHits}
+            <span style="font-size:0.75rem; font-weight:normal; opacity:0.7; display:block; margin-top:0.1rem;">(${player.exactHits * (ptsExact + ptsWinner)} pts)</span>
+          </td>
+          <td style="text-align: center; color: var(--info); font-weight: 600; vertical-align: middle;">
+            ${player.closestHits}
+            <span style="font-size:0.75rem; font-weight:normal; opacity:0.7; display:block; margin-top:0.1rem;">(${player.closestHits * ptsClosest} pts)</span>
+          </td>
+          <td style="text-align: center; color: var(--secondary); font-weight: 600; vertical-align: middle;">
+            ${pureWinnerHits}
+            <span style="font-size:0.75rem; font-weight:normal; opacity:0.7; display:block; margin-top:0.1rem;">(${pureWinnerHits * ptsWinner} pts)</span>
+          </td>
+          <td style="text-align: center; color: var(--warning); font-weight: 600; vertical-align: middle;">
+            ${player.penaltyHits}
+            <span style="font-size:0.75rem; font-weight:normal; opacity:0.7; display:block; margin-top:0.1rem;">(${player.penaltyHits * ptsPenalties} pts)</span>
+          </td>
+          <td style="text-align: center; color: var(--text-muted); font-weight: 600; vertical-align: middle;">${player.incorrects}</td>
           <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
             <div style="display: inline-flex; align-items: center; gap: 0.4rem; justify-content: center;">
               ${flagHTML}
               <span style="font-weight: 500;">${player.championPredictionText || 'Sin predicción'}</span>
             </div>
           </td>
-          <td style="text-align: right; font-weight: 700; font-size: 1.1rem; color: var(--primary);">${player.totalPoints}</td>
+          <td style="text-align: right; font-weight: 700; font-size: 1.1rem; color: var(--primary); vertical-align: middle;">${player.totalPoints}</td>
         </tr>
         <tr class="player-details-row" id="${detailId}" style="display: none;">
           <td colspan="10" style="padding: 0;">
@@ -1570,11 +1595,18 @@ $(document).ready(function() {
           predText = `${pred.goals1} - ${pred.goals2}`;
           const isKnockout = !match.group || match.group === '';
           if (isKnockout && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+            let penaltyIndicator = '';
+            if (isFinished) {
+              const pointsResult = getPlayerPointsForMatch(player.id, match.id);
+              penaltyIndicator = pointsResult.penaltiesHit ? ' 🟢' : ' ❌';
+            }
             if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
-              predText += ` (${pred.penalties1}-${pred.penalties2} Pen)`;
+              predText += ` (${pred.penalties1}-${pred.penalties2} Pen)${penaltyIndicator}`;
             } else if (pred.penalty_winner) {
               const pWinnerTeamName = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
-              predText += ` (Pen: ${pWinnerTeamName})`;
+              predText += ` (Pen: ${pWinnerTeamName})${penaltyIndicator}`;
+            } else {
+              predText += ` (Pen: Sin elegir)${penaltyIndicator}`;
             }
           }
         }
@@ -2148,13 +2180,17 @@ $(document).ready(function() {
         let predShootoutText = '';
         const isKnockout = !match.group || match.group === '';
         if (isKnockout && pred && pred.goals1 !== null && pred.goals2 !== null && parseInt(pred.goals1) === parseInt(pred.goals2)) {
+          let penaltyIndicator = '';
+          if (isFinished) {
+            penaltyIndicator = pointsData.penaltiesHit ? ' 🟢' : ' ❌';
+          }
           if (pred.penalties1 !== undefined && pred.penalties1 !== null && pred.penalties2 !== undefined && pred.penalties2 !== null) {
-            predShootoutText = ` (${pred.penalties1} - ${pred.penalties2} Pen.)`;
+            predShootoutText = ` (${pred.penalties1} - ${pred.penalties2} Pen.)${penaltyIndicator}`;
           } else if (pred.penalty_winner) {
             const predWinnerTeam = pred.penalty_winner == 1 ? resolvedTeam1 : resolvedTeam2;
-            predShootoutText = ` (Pen: ${predWinnerTeam})`;
+            predShootoutText = ` (Pen: ${predWinnerTeam})${penaltyIndicator}`;
           } else {
-            predShootoutText = ` (Pen: Sin elegir)`;
+            predShootoutText = ` (Pen: Sin elegir)${penaltyIndicator}`;
           }
         }
 
